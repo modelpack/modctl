@@ -1,0 +1,28 @@
+name: Check Size
+
+on:
+  push:
+    branches: [main, release-*]
+  pull_request:
+    branches: [main, release-*]
+
+permissions:  
+  contents: read
+
+jobs:
+  check_size:
+    name: Check Size
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938
+        with:
+          fetch-depth: 1
+
+      - name: Check large files
+        uses: actionsdesk/lfs-warning@e5f9a4c21f4bee104db7c0f23954dde59e5df909
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          filesizelimit: "1048576"
