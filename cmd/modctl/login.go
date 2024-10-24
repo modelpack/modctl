@@ -17,31 +17,44 @@
 package modctl
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/CloudNativeAI/modctl/pkg/oci"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
+var loginOpts = loginOptions{}
+
+type loginOptions struct {
+	username      string
+	password      string
+	passwordStdin bool
+}
+
 // loginCmd represents the modctl command for login.
 var loginCmd = &cobra.Command{
-	Use:                "login [flags]",
+	Use:                "login [flags] <registry>",
 	Short:              "A command line tool for modctl login",
-	Args:               cobra.NoArgs,
+	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logrus.Infof("running login")
-		return runLogin(context.Background())
+		return runLogin(context.Background(), args[0])
 	},
 }
 
 // init initializes login command.
 func init() {
 	flags := loginCmd.Flags()
+	flags.StringVarP(&loginOpts.username, "username", "u", "", "Username for login")
+	flags.StringVarP(&loginOpts.password, "password", "p", "", "Password for login")
+	flags.BoolVar(&loginOpts.passwordStdin, "password-stdin", false, "Take the password from stdin")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache login flags to viper: %w", err))
@@ -49,7 +62,30 @@ func init() {
 }
 
 // runLogin runs the login modctl.
-func runLogin(ctx context.Context) error {
-	// TODO: Add login modctl logic here.
+func runLogin(ctx context.Context, registry string) error {
+	if len(loginOpts.username) == 0 {
+		return fmt.Errorf("missing username")
+	}
+	// read password from stdin if password-stdin is set
+	if loginOpts.passwordStdin {
+		fmt.Print("Enter password: ")
+		reader := bufio.NewReader(os.Stdin)
+		password, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+
+		loginOpts.password = strings.TrimSpace(password)
+	}
+
+	if len(loginOpts.password) == 0 {
+		return fmt.Errorf("missing password")
+	}
+
+	if err := oci.Login(ctx, registry, loginOpts.username, loginOpts.password); err != nil {
+		return err
+	}
+
+	fmt.Println("Login Succeeded.")
 	return nil
 }

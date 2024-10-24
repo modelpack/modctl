@@ -20,22 +20,21 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
+	"github.com/CloudNativeAI/modctl/pkg/oci"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 // rmCmd represents the modctl command for rm.
 var rmCmd = &cobra.Command{
-	Use:                "rm [flags]",
+	Use:                "rm [flags] <target>",
 	Short:              "A command line tool for modctl rm",
-	Args:               cobra.NoArgs,
+	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logrus.Infof("running rm")
-		return runRm(context.Background())
+		return runRm(context.Background(), args[0])
 	},
 }
 
@@ -49,7 +48,16 @@ func init() {
 }
 
 // runRm runs the rm modctl.
-func runRm(ctx context.Context) error {
-	// TODO: Add rm modctl logic here.
+func runRm(ctx context.Context, target string) error {
+	if target == "" {
+		return fmt.Errorf("target is required")
+	}
+
+	digest, err := oci.Remove(ctx, target)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Deleted: %s\n", digest)
 	return nil
 }
