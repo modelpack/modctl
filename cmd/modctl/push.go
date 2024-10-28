@@ -20,16 +20,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/oci"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var pushOpts = &pushOptions{}
-
-type pushOptions struct {
-	plainHTTP bool
-}
+var pushConfig = config.NewPull()
 
 // pushCmd represents the modctl command for push.
 var pushCmd = &cobra.Command{
@@ -47,7 +44,7 @@ var pushCmd = &cobra.Command{
 // init initializes push command.
 func init() {
 	flags := pushCmd.Flags()
-	flags.BoolVarP(&pushOpts.plainHTTP, "plain-http", "p", false, "use plain HTTP instead of HTTPS")
+	flags.BoolVarP(&pushConfig.PlainHTTP, "plain-http", "p", false, "use plain HTTP instead of HTTPS")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache push flags to viper: %w", err))
@@ -57,7 +54,7 @@ func init() {
 // runPush runs the push modctl.
 func runPush(ctx context.Context, target string) error {
 	opts := []oci.Option{}
-	if pushOpts.plainHTTP {
+	if pushConfig.PlainHTTP {
 		opts = append(opts, oci.WithPlainHTTP())
 	}
 

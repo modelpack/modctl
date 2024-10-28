@@ -20,18 +20,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/oci"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var buildOpts = buildOptions{}
-
-type buildOptions struct {
-	target    string
-	modelfile string
-}
+var buildConfig = config.NewBuild()
 
 // buildCmd represents the modctl command for build.
 var buildCmd = &cobra.Command{
@@ -42,6 +38,10 @@ var buildCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := buildConfig.Validate(); err != nil {
+			return err
+		}
+
 		return runBuild(context.Background(), args[0])
 	},
 }
@@ -49,8 +49,8 @@ var buildCmd = &cobra.Command{
 // init initializes build command.
 func init() {
 	flags := buildCmd.Flags()
-	flags.StringVarP(&buildOpts.target, "target", "t", "", "target model artifact name")
-	flags.StringVarP(&buildOpts.modelfile, "modelfile", "f", "", "model file path")
+	flags.StringVarP(&buildConfig.Target, "target", "t", "", "target model artifact name")
+	flags.StringVarP(&buildConfig.Modelfile, "modelfile", "f", "", "model file path")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
@@ -59,18 +59,10 @@ func init() {
 
 // runBuild runs the build modctl.
 func runBuild(ctx context.Context, workDir string) error {
-	if len(buildOpts.target) == 0 {
-		return fmt.Errorf("target model artifact name is required")
-	}
-
-	if len(buildOpts.modelfile) == 0 {
-		buildOpts.modelfile = "Modelfile"
-	}
-
-	if err := oci.Build(ctx, buildOpts.modelfile, workDir, buildOpts.target); err != nil {
+	if err := oci.Build(ctx, buildConfig.Modelfile, workDir, buildConfig.Target); err != nil {
 		return err
 	}
 
-	fmt.Printf("Successfully built model artifact: %s\n", buildOpts.target)
+	fmt.Printf("Successfully built model artifact: %s\n", buildConfig.Target)
 	return nil
 }

@@ -23,12 +23,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/oci"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var loginOpts = loginOptions{}
+var loginConfig = config.NewLogin()
 
 type loginOptions struct {
 	username      string
@@ -45,6 +46,10 @@ var loginCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := loginConfig.Validate(); err != nil {
+			return err
+		}
+
 		return runLogin(context.Background(), args[0])
 	},
 }
@@ -52,9 +57,9 @@ var loginCmd = &cobra.Command{
 // init initializes login command.
 func init() {
 	flags := loginCmd.Flags()
-	flags.StringVarP(&loginOpts.username, "username", "u", "", "Username for login")
-	flags.StringVarP(&loginOpts.password, "password", "p", "", "Password for login")
-	flags.BoolVar(&loginOpts.passwordStdin, "password-stdin", false, "Take the password from stdin")
+	flags.StringVarP(&loginConfig.Username, "username", "u", "", "Username for login")
+	flags.StringVarP(&loginConfig.Password, "password", "p", "", "Password for login")
+	flags.BoolVar(&loginConfig.PasswordStdin, "password-stdin", false, "Take the password from stdin")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache login flags to viper: %w", err))
@@ -63,11 +68,8 @@ func init() {
 
 // runLogin runs the login modctl.
 func runLogin(ctx context.Context, registry string) error {
-	if len(loginOpts.username) == 0 {
-		return fmt.Errorf("missing username")
-	}
 	// read password from stdin if password-stdin is set
-	if loginOpts.passwordStdin {
+	if loginConfig.PasswordStdin {
 		fmt.Print("Enter password: ")
 		reader := bufio.NewReader(os.Stdin)
 		password, err := reader.ReadString('\n')
@@ -75,14 +77,10 @@ func runLogin(ctx context.Context, registry string) error {
 			return err
 		}
 
-		loginOpts.password = strings.TrimSpace(password)
+		loginConfig.Password = strings.TrimSpace(password)
 	}
 
-	if len(loginOpts.password) == 0 {
-		return fmt.Errorf("missing password")
-	}
-
-	if err := oci.Login(ctx, registry, loginOpts.username, loginOpts.password); err != nil {
+	if err := oci.Login(ctx, registry, loginConfig.Username, loginConfig.Password); err != nil {
 		return err
 	}
 
