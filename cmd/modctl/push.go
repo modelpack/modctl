@@ -20,28 +20,34 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
+	"github.com/CloudNativeAI/modctl/pkg/oci"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
+var pushOpts = &pushOptions{}
+
+type pushOptions struct {
+	plainHTTP bool
+}
+
 // pushCmd represents the modctl command for push.
 var pushCmd = &cobra.Command{
-	Use:                "push [flags]",
+	Use:                "push [flags] <target>",
 	Short:              "A command line tool for modctl push",
-	Args:               cobra.NoArgs,
+	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logrus.Infof("running push")
-		return runPush(context.Background())
+		return runPush(context.Background(), args[0])
 	},
 }
 
 // init initializes push command.
 func init() {
 	flags := pushCmd.Flags()
+	flags.BoolVarP(&pushOpts.plainHTTP, "plain-http", "p", false, "use plain HTTP instead of HTTPS")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache push flags to viper: %w", err))
@@ -49,7 +55,16 @@ func init() {
 }
 
 // runPush runs the push modctl.
-func runPush(ctx context.Context) error {
-	// TODO: Add push modctl logic here.
+func runPush(ctx context.Context, target string) error {
+	opts := []oci.Option{}
+	if pushOpts.plainHTTP {
+		opts = append(opts, oci.WithPlainHTTP())
+	}
+
+	if err := oci.Push(ctx, target, opts...); err != nil {
+		return err
+	}
+
+	fmt.Printf("Successfully pushed model artifact: %s\n", target)
 	return nil
 }

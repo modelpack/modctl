@@ -19,22 +19,24 @@ package modctl
 import (
 	"context"
 	"fmt"
+	"os"
+	"text/tabwriter"
 
-	"github.com/sirupsen/logrus"
+	"github.com/CloudNativeAI/modctl/pkg/oci"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 // listCmd represents the modctl command for list.
 var listCmd = &cobra.Command{
-	Use:                "list [flags]",
+	Use:                "ls",
 	Short:              "A command line tool for modctl list",
 	Args:               cobra.NoArgs,
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logrus.Infof("running list")
 		return runList(context.Background())
 	},
 }
@@ -50,6 +52,18 @@ func init() {
 
 // runList runs the list modctl.
 func runList(ctx context.Context) error {
-	// TODO: Add list modctl logic here.
+	artifacts, err := oci.List(ctx)
+	if err != nil {
+		return err
+	}
+
+	tw := tabwriter.NewWriter(os.Stderr, 0, 0, 4, ' ', 0)
+	defer tw.Flush()
+	fmt.Fprintln(tw, "REPOSITORY\tTAG\tDIGEST\tCREATED\tSIZE")
+
+	for _, artifact := range artifacts {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", artifact.Repository, artifact.Tag, artifact.Digest, humanize.Time(artifact.CreatedAt), humanize.IBytes(uint64(artifact.Size)))
+	}
+
 	return nil
 }
