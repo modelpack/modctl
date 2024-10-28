@@ -20,16 +20,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/oci"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var pullOpts = &pullOptions{}
-
-type pullOptions struct {
-	plainHTTP bool
-}
+var pullConfig = config.NewPull()
 
 // pullCmd represents the modctl command for pull.
 var pullCmd = &cobra.Command{
@@ -47,7 +44,7 @@ var pullCmd = &cobra.Command{
 // init initializes pull command.
 func init() {
 	flags := pullCmd.Flags()
-	flags.BoolVarP(&pullOpts.plainHTTP, "plain-http", "p", false, "use plain HTTP instead of HTTPS")
+	flags.BoolVarP(&pullConfig.PlainHTTP, "plain-http", "p", false, "use plain HTTP instead of HTTPS")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache pull flags to viper: %w", err))
@@ -61,7 +58,7 @@ func runPull(ctx context.Context, target string) error {
 	}
 
 	opts := []oci.Option{}
-	if pullOpts.plainHTTP {
+	if pullConfig.PlainHTTP {
 		opts = append(opts, oci.WithPlainHTTP())
 	}
 
