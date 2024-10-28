@@ -23,10 +23,9 @@ import (
 	"text/tabwriter"
 
 	"github.com/CloudNativeAI/modctl/pkg/oci"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/dustin/go-humanize"
 )
 
 // listCmd represents the modctl command for list.

@@ -24,7 +24,6 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/modelfile/parser"
 
 	"github.com/emirpasic/gods/sets/hashset"
-	log "github.com/sirupsen/logrus"
 )
 
 // Modelfile is the interface for the modelfile. It is used to parse

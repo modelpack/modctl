@@ -29,7 +29,7 @@ import (
 	modelspec "github.com/CloudNativeAI/modctl/pkg/oci/spec"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
-	"github.com/dustin/go-humanize"
+	humanize "github.com/dustin/go-humanize"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 

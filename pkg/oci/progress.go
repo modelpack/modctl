@@ -22,7 +22,7 @@ import (
 	"sync"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/vbauerster/mpb/v8"
+	mpbv8 "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
@@ -35,15 +35,15 @@ const (
 // ProgressBar is a progress bar.
 type ProgressBar struct {
 	mu   sync.Mutex
-	mpb  *mpb.Progress
-	bars map[string]*mpb.Bar
+	mpb  *mpbv8.Progress
+	bars map[string]*mpbv8.Bar
 }
 
 // NewProgressBar creates a new progress bar.
 func NewProgressBar() *ProgressBar {
 	return &ProgressBar{
-		mpb:  mpb.New(mpb.WithWidth(60)),
-		bars: make(map[string]*mpb.Bar),
+		mpb:  mpbv8.New(mpbv8.WithWidth(60)),
+		bars: make(map[string]*mpbv8.Bar),
 	}
 }
 
@@ -58,11 +58,11 @@ func (p *ProgressBar) Add(prompt string, desc ocispec.Descriptor, reader io.Read
 
 	// create a new bar if it does not exist.
 	bar := p.mpb.New(desc.Size,
-		mpb.BarStyle().Rbound("|"),
-		mpb.PrependDecorators(
+		mpbv8.BarStyle().Rbound("|"),
+		mpbv8.PrependDecorators(
 			decor.Name(fmt.Sprintf("%s%s", prompt, desc.Digest.String())),
 		),
-		mpb.AppendDecorators(
+		mpbv8.AppendDecorators(
 			decor.Counters(decor.SizeB1024(0), "% .2f / % .2f"),
 			decor.Name(" ] "),
 			decor.OnComplete(
@@ -89,9 +89,9 @@ func (p *ProgressBar) PrintMessage(prompt string, desc ocispec.Descriptor, messa
 
 	// create a new bar if it does not exist.
 	bar := p.mpb.New(0,
-		mpb.BarStyle(),
-		mpb.BarFillerClearOnComplete(),
-		mpb.PrependDecorators(
+		mpbv8.BarStyle(),
+		mpbv8.BarFillerClearOnComplete(),
+		mpbv8.PrependDecorators(
 			decor.Name(fmt.Sprintf("%s%s ", prompt, desc.Digest.String())),
 			decor.OnComplete(
 				decor.Name(""), message,
