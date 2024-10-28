@@ -36,7 +36,7 @@ func NewReadmeProcessor() Processor {
 type readmeProcessor struct{}
 
 func (p *readmeProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
-	return info.Name() == "README.md"
+	return info.Name() == "README.md" || info.Name() == "README"
 }
 
 func (p *readmeProcessor) Process(ctx context.Context, store storage.Storage, repo, path string, info os.FileInfo) (ocispec.Descriptor, error) {
