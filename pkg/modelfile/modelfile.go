@@ -22,8 +22,8 @@ import (
 
 	modefilecommand "github.com/CloudNativeAI/modctl/pkg/modelfile/command"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile/parser"
+
 	"github.com/emirpasic/gods/sets/hashset"
-	log "github.com/sirupsen/logrus"
 )
 
 // Modelfile is the interface for the modelfile. It is used to parse
@@ -158,7 +158,6 @@ func (mf *modelfile) GetConfigs() []string {
 	for _, rawConfig := range mf.config.Values() {
 		config, ok := rawConfig.(string)
 		if !ok {
-			log.Warnf("failed to convert config to string: %v", rawConfig)
 			continue
 		}
 
@@ -176,7 +175,6 @@ func (mf *modelfile) GetModels() []string {
 	for _, rawModel := range mf.model.Values() {
 		model, ok := rawModel.(string)
 		if !ok {
-			log.Warnf("failed to convert model to string: %v", rawModel)
 			continue
 		}
 

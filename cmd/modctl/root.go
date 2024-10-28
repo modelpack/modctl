@@ -57,10 +57,12 @@ func init() {
 	}
 
 	// Add sub command.
+	rootCmd.AddCommand(buildCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(logoutCmd)
 	rootCmd.AddCommand(pullCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(rmCmd)
+	rootCmd.AddCommand(pruneCmd)
 }

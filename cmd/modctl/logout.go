@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
+	"github.com/CloudNativeAI/modctl/pkg/oci"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -29,13 +29,12 @@ import (
 var logoutCmd = &cobra.Command{
 	Use:                "logout [flags]",
 	Short:              "A command line tool for modctl logout",
-	Args:               cobra.NoArgs,
+	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logrus.Infof("running logout")
-		return runLogout(context.Background())
+		return runLogout(context.Background(), args[0])
 	},
 }
 
@@ -49,7 +48,11 @@ func init() {
 }
 
 // runLogout runs the logout modctl.
-func runLogout(ctx context.Context) error {
-	// TODO: Add logout modctl logic here.
+func runLogout(ctx context.Context, registry string) error {
+	if err := oci.Logout(ctx, registry); err != nil {
+		return err
+	}
+
+	fmt.Println("Logout Succeeded.")
 	return nil
 }

@@ -20,28 +20,34 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
+	"github.com/CloudNativeAI/modctl/pkg/oci"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
+var pullOpts = &pullOptions{}
+
+type pullOptions struct {
+	plainHTTP bool
+}
+
 // pullCmd represents the modctl command for pull.
 var pullCmd = &cobra.Command{
-	Use:                "pull [flags]",
+	Use:                "pull [flags] <target>",
 	Short:              "A command line tool for modctl pull",
-	Args:               cobra.NoArgs,
+	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logrus.Infof("running pull")
-		return runPull(context.Background())
+		return runPull(context.Background(), args[0])
 	},
 }
 
 // init initializes pull command.
 func init() {
 	flags := pullCmd.Flags()
+	flags.BoolVarP(&pullOpts.plainHTTP, "plain-http", "p", false, "use plain HTTP instead of HTTPS")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache pull flags to viper: %w", err))
@@ -49,7 +55,20 @@ func init() {
 }
 
 // runPull runs the pull modctl.
-func runPull(ctx context.Context) error {
-	// TODO: Add pull modctl logic here.
+func runPull(ctx context.Context, target string) error {
+	if target == "" {
+		return fmt.Errorf("target is required")
+	}
+
+	opts := []oci.Option{}
+	if pullOpts.plainHTTP {
+		opts = append(opts, oci.WithPlainHTTP())
+	}
+
+	if err := oci.Pull(ctx, target, opts...); err != nil {
+		return err
+	}
+
+	fmt.Printf("Successfully pulled model artifact: %s\n", target)
 	return nil
 }
