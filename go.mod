@@ -1,8 +1,6 @@
 module github.com/CloudNativeAI/modctl
 
-go 1.22.7
-
-toolchain go1.23.0
+go 1.23.0
 
 require (
 	github.com/distribution/reference v0.6.0
