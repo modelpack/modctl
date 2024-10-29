@@ -20,8 +20,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend"
 	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/pkg/oci"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -53,16 +54,21 @@ func init() {
 
 // runPull runs the pull modctl.
 func runPull(ctx context.Context, target string) error {
+	b, err := backend.New()
+	if err != nil {
+		return err
+	}
+
 	if target == "" {
 		return fmt.Errorf("target is required")
 	}
 
-	opts := []oci.Option{}
+	opts := []backend.Option{}
 	if pullConfig.PlainHTTP {
-		opts = append(opts, oci.WithPlainHTTP())
+		opts = append(opts, backend.WithPlainHTTP())
 	}
 
-	if err := oci.Pull(ctx, target, opts...); err != nil {
+	if err := b.Pull(ctx, target, opts...); err != nil {
 		return err
 	}
 

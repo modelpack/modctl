@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package oci
+package backend
 
 import (
 	"context"
@@ -32,7 +32,7 @@ import (
 )
 
 // Push pushes the image to the registry.
-func Push(ctx context.Context, target string, opts ...Option) error {
+func (b *backend) Push(ctx context.Context, target string, opts ...Option) error {
 	// apply options.
 	options := &Options{}
 	for _, opt := range opts {
@@ -43,11 +43,6 @@ func Push(ctx context.Context, target string, opts ...Option) error {
 	ref, err := ParseReference(target)
 	if err != nil {
 		return fmt.Errorf("failed to parse the target: %w", err)
-	}
-
-	_, err = storage.New("")
-	if err != nil {
-		return fmt.Errorf("failed to create storage: %w", err)
 	}
 
 	repo, tag := ref.Repository(), ref.Tag()

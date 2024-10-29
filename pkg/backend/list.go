@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package oci
+package backend
 
 import (
 	"context"
@@ -23,8 +23,7 @@ import (
 	"sort"
 	"time"
 
-	modelspec "github.com/CloudNativeAI/modctl/pkg/oci/spec"
-	"github.com/CloudNativeAI/modctl/pkg/storage"
+	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -44,30 +43,25 @@ type ModelArtifact struct {
 }
 
 // List lists all the model artifacts.
-func List(ctx context.Context) ([]*ModelArtifact, error) {
-	store, err := storage.New("")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create storage: %w", err)
-	}
-
+func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
 	modelArtifacts := []*ModelArtifact{}
 
 	// list all the repositories.
-	repos, err := store.ListRepositories(ctx)
+	repos, err := b.store.ListRepositories(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list repositories: %w", err)
 	}
 
 	// list all the tags in the repository.
 	for _, repo := range repos {
-		tags, err := store.ListTags(ctx, repo)
+		tags, err := b.store.ListTags(ctx, repo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list tags in repository %s: %w", repo, err)
 		}
 
 		// assemble the model artifact.
 		for _, tag := range tags {
-			modelArtifact, err := assembleModelArtifact(ctx, store, repo, tag)
+			modelArtifact, err := b.assembleModelArtifact(ctx, repo, tag)
 			if err != nil {
 				return nil, fmt.Errorf("failed to assemble model artifact: %w", err)
 			}
@@ -84,8 +78,8 @@ func List(ctx context.Context) ([]*ModelArtifact, error) {
 }
 
 // assembleModelArtifact assembles the model artifact from the original storage.
-func assembleModelArtifact(ctx context.Context, store storage.Storage, repo, tag string) (*ModelArtifact, error) {
-	manifestRaw, digest, err := store.PullManifest(ctx, repo, tag)
+func (b *backend) assembleModelArtifact(ctx context.Context, repo, tag string) (*ModelArtifact, error) {
+	manifestRaw, digest, err := b.store.PullManifest(ctx, repo, tag)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pull manifest: %w", err)
 	}

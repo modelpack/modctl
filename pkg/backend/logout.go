@@ -14,17 +14,26 @@
  * limitations under the License.
  */
 
-package oci
+package backend
 
-type Option func(*Options)
+import (
+	"context"
 
-type Options struct {
-	plainHTTP bool
-}
+	"oras.land/oras-go/v2/registry/remote/credentials"
+)
 
-// WithPlainHTTP sets the plain HTTP option.
-func WithPlainHTTP() Option {
-	return func(opts *Options) {
-		opts.plainHTTP = true
+// Logout logs out of a registry.
+func (b *backend) Logout(ctx context.Context, registry string) error {
+	// read credentials from docker store.
+	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
+	if err != nil {
+		return err
 	}
+
+	// remove credentials from store.
+	if err := credentials.Logout(ctx, store, registry); err != nil {
+		return err
+	}
+
+	return nil
 }

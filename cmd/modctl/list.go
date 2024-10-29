@@ -22,7 +22,8 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/CloudNativeAI/modctl/pkg/oci"
+	"github.com/CloudNativeAI/modctl/pkg/backend"
+
 	humanize "github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -52,7 +53,12 @@ func init() {
 
 // runList runs the list modctl.
 func runList(ctx context.Context) error {
-	artifacts, err := oci.List(ctx)
+	b, err := backend.New()
+	if err != nil {
+		return err
+	}
+
+	artifacts, err := b.List(ctx)
 	if err != nil {
 		return err
 	}

@@ -14,26 +14,33 @@
  * limitations under the License.
  */
 
-package oci
+package backend
 
 import (
 	"context"
 
+	"oras.land/oras-go/v2/registry/remote"
+	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
-// Logout logs out of a registry.
-func Logout(ctx context.Context, registry string) error {
+// Login logs into a registry.
+func (b *backend) Login(ctx context.Context, registry, username, password string) error {
 	// read credentials from docker store.
 	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
 	if err != nil {
 		return err
 	}
 
-	// remove credentials from store.
-	if err := credentials.Logout(ctx, store, registry); err != nil {
+	reg, err := remote.NewRegistry(registry)
+	if err != nil {
 		return err
 	}
 
-	return nil
+	cred := auth.Credential{
+		Username: username,
+		Password: password,
+	}
+
+	return credentials.Login(ctx, store, reg, cred)
 }

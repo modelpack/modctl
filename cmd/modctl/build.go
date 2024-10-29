@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend"
 	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/pkg/oci"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -59,7 +59,12 @@ func init() {
 
 // runBuild runs the build modctl.
 func runBuild(ctx context.Context, workDir string) error {
-	if err := oci.Build(ctx, buildConfig.Modelfile, workDir, buildConfig.Target); err != nil {
+	b, err := backend.New()
+	if err != nil {
+		return err
+	}
+
+	if err := b.Build(ctx, buildConfig.Modelfile, workDir, buildConfig.Target); err != nil {
 		return err
 	}
 

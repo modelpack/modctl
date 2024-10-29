@@ -1,6 +1,6 @@
 # modctl
 
-Modctl is a user-friendly CLI tool for managing OCI model artifacts, which are bundled based on Model Spec V1(https://github.com/CloudNativeAI/model-spec).
+Modctl is a user-friendly CLI tool for managing OCI model artifacts, which are bundled based on [Model Spec V1](https://github.com/CloudNativeAI/model-spec).
 It offers commands such as `build`, `pull`, `push`, and more, making it easy for users to convert their AI models into OCI artifacts.
 
 ## Usage

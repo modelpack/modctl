@@ -20,7 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CloudNativeAI/modctl/pkg/oci"
+	"github.com/CloudNativeAI/modctl/pkg/backend"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -49,7 +50,12 @@ func init() {
 
 // runPrune runs the prune modctl.
 func runPrune(ctx context.Context) error {
-	prunedBlobs, err := oci.Prune(ctx)
+	b, err := backend.New()
+	if err != nil {
+		return err
+	}
+
+	prunedBlobs, err := b.Prune(ctx)
 	if err != nil {
 		return err
 	}

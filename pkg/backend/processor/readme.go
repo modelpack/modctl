@@ -19,47 +19,35 @@ package processor
 import (
 	"context"
 	"os"
-	"regexp"
 
-	"github.com/CloudNativeAI/modctl/pkg/oci/build"
-	modelspec "github.com/CloudNativeAI/modctl/pkg/oci/spec"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build"
+	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// NewModelProcessor creates a new model processor.
-func NewModelProcessor(models []string) Processor {
-	return &modelProcessor{
-		models: models,
-	}
+// NewReadmeProcessor creates a new README processor.
+func NewReadmeProcessor() Processor {
+	return &readmeProcessor{}
 }
 
-// modelProcessor is the processor to process the model file.
-type modelProcessor struct {
-	// models is the list of regular expressions to match the model file.
-	models []string
+// readmeProcessor is the processor to process the README file.
+type readmeProcessor struct{}
+
+func (p *readmeProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
+	return info.Name() == "README.md" || info.Name() == "README"
 }
 
-func (p *modelProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
-	for _, model := range p.models {
-		if matched, _ := regexp.MatchString(model, info.Name()); matched {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (p *modelProcessor) Process(ctx context.Context, store storage.Storage, repo, path string, info os.FileInfo) (ocispec.Descriptor, error) {
+func (p *readmeProcessor) Process(ctx context.Context, store storage.Storage, repo, path string, info os.FileInfo) (ocispec.Descriptor, error) {
 	desc, err := build.BuildLayer(ctx, store, repo, path)
 	if err != nil {
 		return ocispec.Descriptor{}, nil
 	}
 
-	// add model annotations.
+	// add readme annotations.
 	desc.Annotations = map[string]string{
-		modelspec.AnnotationModel: "true",
+		modelspec.AnnotationReadme: "true",
 	}
 
 	return desc, nil
