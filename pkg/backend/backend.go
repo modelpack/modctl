@@ -1,0 +1,67 @@
+/*
+ *     Copyright 2024 The CNAI Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package backend
+
+import (
+	"context"
+
+	"github.com/CloudNativeAI/modctl/pkg/storage"
+)
+
+// Backend is the interface to represent the backend.
+type Backend interface {
+	// Login logs into a registry.
+	Login(ctx context.Context, registry, username, password string) error
+
+	// Logout logs out from a registry.
+	Logout(ctx context.Context, registry string) error
+
+	// Build builds the user materials into the OCI image which follows the Model Spec.
+	Build(ctx context.Context, modelfilePath, workDir, target string) error
+
+	// Pull pulls an artifact from a registry.
+	Pull(ctx context.Context, target string, opts ...Option) error
+
+	// Push pushes the image to the registry.
+	Push(ctx context.Context, target string, opts ...Option) error
+
+	// List lists all the model artifacts.
+	List(ctx context.Context) ([]*ModelArtifact, error)
+
+	// Remove deletes the model artifact.
+	Remove(ctx context.Context, target string) (string, error)
+
+	// Prune prunes the unused blobs and clean up the storage.
+	Prune(ctx context.Context) ([]string, error)
+}
+
+// backend is the implementation of Backend.
+type backend struct {
+	store storage.Storage
+}
+
+// New creates a new backend.
+func New() (Backend, error) {
+	store, err := storage.New("")
+	if err != nil {
+		return nil, err
+	}
+
+	return &backend{
+		store: store,
+	}, nil
+}

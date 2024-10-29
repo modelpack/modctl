@@ -14,37 +14,30 @@
  * limitations under the License.
  */
 
-package oci
+package backend
 
 import (
 	"context"
 	"fmt"
-
-	"github.com/CloudNativeAI/modctl/pkg/storage"
 )
 
 // Remove removes the target from the storage, notice that remove only removes the manifest,
 // the blobs may still be used by other manifests, so should use prune to remove the unused blobs.
-func Remove(ctx context.Context, target string) (string, error) {
+func (b *backend) Remove(ctx context.Context, target string) (string, error) {
 	ref, err := ParseReference(target)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse target: %w", err)
 	}
 
-	store, err := storage.New("")
-	if err != nil {
-		return "", fmt.Errorf("failed to create storage: %w", err)
-	}
-
 	repo, tag := ref.Repository(), ref.Tag()
-	_, digest, err := store.PullManifest(ctx, repo, tag)
+	_, digest, err := b.store.PullManifest(ctx, repo, tag)
 	if err != nil {
 		return "", fmt.Errorf("failed to get manifest: %w", err)
 	}
 
 	// remove the manifest by digest.
 	if tag != "" {
-		if err := store.DeleteManifest(ctx, repo, digest); err != nil {
+		if err := b.store.DeleteManifest(ctx, repo, digest); err != nil {
 			return "", fmt.Errorf("failed to delete manifest %s: %w", digest, err)
 		}
 	}

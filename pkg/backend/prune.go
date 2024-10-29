@@ -14,34 +14,27 @@
  * limitations under the License.
  */
 
-package oci
+package backend
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 
-	"github.com/CloudNativeAI/modctl/pkg/storage"
-
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Prune prunes the unused blobs and clean up the storage.
-func Prune(ctx context.Context) ([]string, error) {
-	store, err := storage.New("")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create storage: %w", err)
-	}
-
+func (b *backend) Prune(ctx context.Context) ([]string, error) {
 	// list all repositories.
-	repos, err := store.ListRepositories(ctx)
+	repos, err := b.store.ListRepositories(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list repositories: %w", err)
 	}
 
 	prunedBlobs := make([]string, 0)
 	for _, repo := range repos {
-		pruned, err := pruneRepo(ctx, store, repo)
+		pruned, err := b.pruneRepo(ctx, repo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to prune repo %s: %w", repo, err)
 		}
@@ -56,9 +49,9 @@ func Prune(ctx context.Context) ([]string, error) {
 
 // pruneRepo prunes the unused blobs in the repository, and clean up the repository
 // if no blobs left.
-func pruneRepo(ctx context.Context, store storage.Storage, repo string) ([]string, error) {
+func (b *backend) pruneRepo(ctx context.Context, repo string) ([]string, error) {
 	// get index.json from the repository.
-	indexContent, err := store.GetIndex(ctx, repo)
+	indexContent, err := b.store.GetIndex(ctx, repo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get index.json in repo %s: %w", repo, err)
 	}
@@ -68,12 +61,12 @@ func pruneRepo(ctx context.Context, store storage.Storage, repo string) ([]strin
 		return nil, fmt.Errorf("failed to unmarshal index.json in repo %s: %w", repo, err)
 	}
 
-	refedBlobs, err := refedBlobs(ctx, store, repo, index)
+	refedBlobs, err := b.refedBlobs(ctx, repo, index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get refed blobs in repo %s: %w", repo, err)
 	}
 
-	allBlobs, err := store.ListBlobs(ctx, repo)
+	allBlobs, err := b.store.ListBlobs(ctx, repo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list blobs in repo %s: %w", repo, err)
 	}
@@ -87,7 +80,7 @@ func pruneRepo(ctx context.Context, store storage.Storage, repo string) ([]strin
 
 	// cleanup the repo.
 	removeRepo := false // len(pruneBlobs) > 0 && len(pruneBlobs) == len(allBlobs)
-	_, err = store.CleanupRepo(ctx, repo, pruneBlobs, removeRepo)
+	_, err = b.store.CleanupRepo(ctx, repo, pruneBlobs, removeRepo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to cleanup repo %s: %w", repo, err)
 	}
@@ -96,10 +89,10 @@ func pruneRepo(ctx context.Context, store storage.Storage, repo string) ([]strin
 }
 
 // refedBlobs returns the blobs that are referenced by the index.
-func refedBlobs(ctx context.Context, store storage.Storage, repo string, index ocispec.Index) (map[string]bool, error) {
+func (b *backend) refedBlobs(ctx context.Context, repo string, index ocispec.Index) (map[string]bool, error) {
 	refed := make(map[string]bool)
 	for _, desc := range index.Manifests {
-		manifestContent, _, err := store.PullManifest(ctx, repo, desc.Digest.String())
+		manifestContent, _, err := b.store.PullManifest(ctx, repo, desc.Digest.String())
 		if err != nil {
 			return nil, fmt.Errorf("failed to get manifest %s in repo %s: %w", desc.Digest, repo, err)
 		}
