@@ -19,35 +19,47 @@ package processor
 import (
 	"context"
 	"os"
+	"regexp"
 
-	"github.com/CloudNativeAI/modctl/pkg/oci/build"
-	modelspec "github.com/CloudNativeAI/modctl/pkg/oci/spec"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build"
+	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// NewLicenseProcessor creates a new LICENSE processor.
-func NewLicenseProcessor() Processor {
-	return &licenseProcessor{}
+// NewModelProcessor creates a new model processor.
+func NewModelProcessor(models []string) Processor {
+	return &modelProcessor{
+		models: models,
+	}
 }
 
-// licenseProcessor is the processor to process the LICENSE file.
-type licenseProcessor struct{}
-
-func (p *licenseProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
-	return info.Name() == "LICENSE" || info.Name() == "LICENSE.txt"
+// modelProcessor is the processor to process the model file.
+type modelProcessor struct {
+	// models is the list of regular expressions to match the model file.
+	models []string
 }
 
-func (p *licenseProcessor) Process(ctx context.Context, store storage.Storage, repo, path string, info os.FileInfo) (ocispec.Descriptor, error) {
+func (p *modelProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
+	for _, model := range p.models {
+		if matched, _ := regexp.MatchString(model, info.Name()); matched {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (p *modelProcessor) Process(ctx context.Context, store storage.Storage, repo, path string, info os.FileInfo) (ocispec.Descriptor, error) {
 	desc, err := build.BuildLayer(ctx, store, repo, path)
 	if err != nil {
 		return ocispec.Descriptor{}, nil
 	}
 
-	// add license annotations.
+	// add model annotations.
 	desc.Annotations = map[string]string{
-		modelspec.AnnotationLicense: "true",
+		modelspec.AnnotationModel: "true",
 	}
 
 	return desc, nil

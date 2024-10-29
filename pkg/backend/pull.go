@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package oci
+package backend
 
 import (
 	"context"
@@ -31,7 +31,7 @@ import (
 )
 
 // Pull pulls an artifact from a registry.
-func Pull(ctx context.Context, target string, opts ...Option) error {
+func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error {
 	// apply options.
 	options := &Options{}
 	for _, opt := range opts {
@@ -42,11 +42,6 @@ func Pull(ctx context.Context, target string, opts ...Option) error {
 	ref, err := ParseReference(target)
 	if err != nil {
 		return fmt.Errorf("failed to parse the target: %w", err)
-	}
-
-	store, err := storage.New("")
-	if err != nil {
-		return fmt.Errorf("failed to create storage: %w", err)
 	}
 
 	repo, tag := ref.Repository(), ref.Tag()
@@ -84,8 +79,6 @@ func Pull(ctx context.Context, target string, opts ...Option) error {
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
 
-	dst := store
-
 	// create the progress bar to track the progress of push.
 	pb := NewProgressBar()
 	defer pb.Wait()
@@ -98,6 +91,7 @@ func Pull(ctx context.Context, target string, opts ...Option) error {
 
 	// copy the layers.
 	// TODO: parallelize the layer copy.
+	dst := b.store
 	for _, layer := range manifest.Layers {
 		if err := pullIfNotExist(ctx, pb, promptCopyingBlob, src, dst, layer, repo, tag); err != nil {
 			return fmt.Errorf("failed to pull blob to local: %w", err)

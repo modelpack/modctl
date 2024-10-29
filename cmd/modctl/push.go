@@ -20,8 +20,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend"
 	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/pkg/oci"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -53,12 +54,17 @@ func init() {
 
 // runPush runs the push modctl.
 func runPush(ctx context.Context, target string) error {
-	opts := []oci.Option{}
-	if pushConfig.PlainHTTP {
-		opts = append(opts, oci.WithPlainHTTP())
+	b, err := backend.New()
+	if err != nil {
+		return err
 	}
 
-	if err := oci.Push(ctx, target, opts...); err != nil {
+	opts := []backend.Option{}
+	if pushConfig.PlainHTTP {
+		opts = append(opts, backend.WithPlainHTTP())
+	}
+
+	if err := b.Push(ctx, target, opts...); err != nil {
 		return err
 	}
 

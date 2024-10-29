@@ -20,7 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CloudNativeAI/modctl/pkg/oci"
+	"github.com/CloudNativeAI/modctl/pkg/backend"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -49,7 +50,12 @@ func init() {
 
 // runLogout runs the logout modctl.
 func runLogout(ctx context.Context, registry string) error {
-	if err := oci.Logout(ctx, registry); err != nil {
+	b, err := backend.New()
+	if err != nil {
+		return err
+	}
+
+	if err := b.Logout(ctx, registry); err != nil {
 		return err
 	}
 

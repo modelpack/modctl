@@ -23,8 +23,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend"
 	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/pkg/oci"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -68,6 +69,11 @@ func init() {
 
 // runLogin runs the login modctl.
 func runLogin(ctx context.Context, registry string) error {
+	b, err := backend.New()
+	if err != nil {
+		return err
+	}
+
 	// read password from stdin if password-stdin is set
 	if loginConfig.PasswordStdin {
 		fmt.Print("Enter password: ")
@@ -80,7 +86,7 @@ func runLogin(ctx context.Context, registry string) error {
 		loginConfig.Password = strings.TrimSpace(password)
 	}
 
-	if err := oci.Login(ctx, registry, loginConfig.Username, loginConfig.Password); err != nil {
+	if err := b.Login(ctx, registry, loginConfig.Username, loginConfig.Password); err != nil {
 		return err
 	}
 

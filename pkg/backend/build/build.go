@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	modelspec "github.com/CloudNativeAI/modctl/pkg/oci/spec"
+	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	godigest "github.com/opencontainers/go-digest"

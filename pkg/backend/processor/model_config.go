@@ -21,8 +21,8 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/CloudNativeAI/modctl/pkg/oci/build"
-	modelspec "github.com/CloudNativeAI/modctl/pkg/oci/spec"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build"
+	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

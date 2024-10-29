@@ -20,7 +20,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CloudNativeAI/modctl/pkg/oci"
+	"github.com/CloudNativeAI/modctl/pkg/backend"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -49,11 +50,16 @@ func init() {
 
 // runRm runs the rm modctl.
 func runRm(ctx context.Context, target string) error {
+	b, err := backend.New()
+	if err != nil {
+		return err
+	}
+
 	if target == "" {
 		return fmt.Errorf("target is required")
 	}
 
-	digest, err := oci.Remove(ctx, target)
+	digest, err := b.Remove(ctx, target)
 	if err != nil {
 		return err
 	}

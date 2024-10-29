@@ -20,34 +20,34 @@ import (
 	"context"
 	"os"
 
-	"github.com/CloudNativeAI/modctl/pkg/oci/build"
-	modelspec "github.com/CloudNativeAI/modctl/pkg/oci/spec"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build"
+	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// NewReadmeProcessor creates a new README processor.
-func NewReadmeProcessor() Processor {
-	return &readmeProcessor{}
+// NewLicenseProcessor creates a new LICENSE processor.
+func NewLicenseProcessor() Processor {
+	return &licenseProcessor{}
 }
 
-// readmeProcessor is the processor to process the README file.
-type readmeProcessor struct{}
+// licenseProcessor is the processor to process the LICENSE file.
+type licenseProcessor struct{}
 
-func (p *readmeProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
-	return info.Name() == "README.md" || info.Name() == "README"
+func (p *licenseProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
+	return info.Name() == "LICENSE" || info.Name() == "LICENSE.txt"
 }
 
-func (p *readmeProcessor) Process(ctx context.Context, store storage.Storage, repo, path string, info os.FileInfo) (ocispec.Descriptor, error) {
+func (p *licenseProcessor) Process(ctx context.Context, store storage.Storage, repo, path string, info os.FileInfo) (ocispec.Descriptor, error) {
 	desc, err := build.BuildLayer(ctx, store, repo, path)
 	if err != nil {
 		return ocispec.Descriptor{}, nil
 	}
 
-	// add readme annotations.
+	// add license annotations.
 	desc.Annotations = map[string]string{
-		modelspec.AnnotationReadme: "true",
+		modelspec.AnnotationLicense: "true",
 	}
 
 	return desc, nil

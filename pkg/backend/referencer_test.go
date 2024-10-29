@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package oci
+package backend
 
 import (
 	"testing"
