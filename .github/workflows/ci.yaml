@@ -10,7 +10,7 @@ on:
   schedule:
     - cron: '0 4 * * *'
 
-permissions:  
+permissions:
   contents: read
 
 jobs:
@@ -31,4 +31,5 @@ jobs:
 
       - name: Run Unit tests
         run: |-
-          echo running unit tests
+          go version
+          go test -v ./...

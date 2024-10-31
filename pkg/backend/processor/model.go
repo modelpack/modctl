@@ -41,6 +41,10 @@ type modelProcessor struct {
 	models []string
 }
 
+func (p *modelProcessor) Name() string {
+	return "model"
+}
+
 func (p *modelProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
 	for _, model := range p.models {
 		if matched, _ := regexp.MatchString(model, info.Name()); matched {

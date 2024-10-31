@@ -27,6 +27,8 @@ import (
 
 // Processor is the interface to recognize and process the identified file.
 type Processor interface {
+	// Name returns the name of the processor.
+	Name() string
 	// Identify identifies the file, returns true if the file is identified,
 	// then the Process will be called to process the file, otherwise it will be skipped.
 	Identify(ctx context.Context, path string, info os.FileInfo) bool

@@ -1,0 +1,21 @@
+with-expecter: true
+boilerplate-file: copyright.txt
+outpkg: "{{.PackageName}}"
+mockname: "{{.InterfaceName}}"
+filename: "{{.InterfaceName | snakecase}}.go"
+packages:
+  github.com/CloudNativeAI/modctl/pkg/backend:
+    interfaces:
+      Backend:
+        config:
+          dir: test/mocks/backend
+  github.com/CloudNativeAI/modctl/pkg/storage:
+    interfaces:
+      Storage:
+        config:
+          dir: test/mocks/storage
+  github.com/CloudNativeAI/modctl/pkg/modelfile:
+    interfaces:
+      Modelfile:
+        config:
+          dir: test/mocks/modelfile
