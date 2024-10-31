@@ -35,6 +35,10 @@ func NewLicenseProcessor() Processor {
 // licenseProcessor is the processor to process the LICENSE file.
 type licenseProcessor struct{}
 
+func (p *licenseProcessor) Name() string {
+	return "license"
+}
+
 func (p *licenseProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
 	return info.Name() == "LICENSE" || info.Name() == "LICENSE.txt"
 }

@@ -41,6 +41,10 @@ type modelConfigProcessor struct {
 	configs []string
 }
 
+func (p *modelConfigProcessor) Name() string {
+	return "model_config"
+}
+
 func (p *modelConfigProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
 	for _, config := range p.configs {
 		if matched, _ := regexp.MatchString(config, info.Name()); matched {

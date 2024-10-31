@@ -35,6 +35,10 @@ func NewReadmeProcessor() Processor {
 // readmeProcessor is the processor to process the README file.
 type readmeProcessor struct{}
 
+func (p *readmeProcessor) Name() string {
+	return "readme"
+}
+
 func (p *readmeProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
 	return info.Name() == "README.md" || info.Name() == "README"
 }

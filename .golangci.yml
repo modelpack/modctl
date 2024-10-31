@@ -1,6 +1,9 @@
 run:
   deadline: 3m
   modules-download-mode: readonly
+  skip-dirs:
+    - test/mocks
+
 
 linters-settings:
   gocyclo:
