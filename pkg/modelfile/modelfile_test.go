@@ -19,6 +19,7 @@ package modelfile
 import (
 	"errors"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -199,8 +200,12 @@ name bar
 
 		assert.NoError(err)
 		assert.NotNil(mf)
-		assert.Equal(tc.configs, mf.GetConfigs())
-		assert.Equal(tc.models, mf.GetModels())
+		configs := mf.GetConfigs()
+		models := mf.GetModels()
+		sort.Strings(configs)
+		sort.Strings(models)
+		assert.Equal(tc.configs, configs)
+		assert.Equal(tc.models, models)
 		assert.Equal(tc.name, mf.GetName())
 		assert.Equal(tc.arch, mf.GetArch())
 		assert.Equal(tc.family, mf.GetFamily())
