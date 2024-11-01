@@ -17,31 +17,32 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"strings"
+	"syscall"
+
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend"
 	"github.com/CloudNativeAI/modctl/pkg/config"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var loginConfig = config.NewLogin()
 
-type loginOptions struct {
-	username      string
-	password      string
-	passwordStdin bool
-}
-
 // loginCmd represents the modctl command for login.
 var loginCmd = &cobra.Command{
-	Use:                "login [flags] <registry>",
-	Short:              "A command line tool for modctl login",
+	Use:   "login [flags] <registry>",
+	Short: "A command line tool for modctl login",
+	Example: `
+# login to docker hub:
+modctl login -u foo registry-1.docker.io
+
+# login to insecure register:
+modctl login -u foo --insecure registry-insecure.io 
+`,
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
@@ -51,7 +52,7 @@ var loginCmd = &cobra.Command{
 			return err
 		}
 
-		return runLogin(context.Background(), args[0])
+		return runLogin(cmd.Context(), args[0])
 	},
 }
 
@@ -60,7 +61,8 @@ func init() {
 	flags := loginCmd.Flags()
 	flags.StringVarP(&loginConfig.Username, "username", "u", "", "Username for login")
 	flags.StringVarP(&loginConfig.Password, "password", "p", "", "Password for login")
-	flags.BoolVar(&loginConfig.PasswordStdin, "password-stdin", false, "Take the password from stdin")
+	flags.BoolVar(&loginConfig.PasswordStdin, "password-stdin", true, "Take the password from stdin by default")
+	flags.BoolVar(&loginConfig.Insecure, "insecure", false, "Allow insecure connections to registry")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache login flags to viper: %w", err))
@@ -75,18 +77,18 @@ func runLogin(ctx context.Context, registry string) error {
 	}
 
 	// read password from stdin if password-stdin is set
-	if loginConfig.PasswordStdin {
+	if loginConfig.PasswordStdin && loginConfig.Password == "" {
 		fmt.Print("Enter password: ")
-		reader := bufio.NewReader(os.Stdin)
-		password, err := reader.ReadString('\n')
+		password, err := terminal.ReadPassword(syscall.Stdin)
 		if err != nil {
 			return err
 		}
 
-		loginConfig.Password = strings.TrimSpace(password)
+		loginConfig.Password = strings.TrimSpace(string(password))
 	}
 
-	if err := b.Login(ctx, registry, loginConfig.Username, loginConfig.Password); err != nil {
+	fmt.Println("\nLogging In...")
+	if err := b.Login(ctx, registry, loginConfig.Username, loginConfig.Password, loginConfig.Insecure); err != nil {
 		return err
 	}
 

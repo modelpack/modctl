@@ -146,17 +146,17 @@ func (_c *Backend_List_Call) RunAndReturn(run func(context.Context) ([]*backend.
 	return _c
 }
 
-// Login provides a mock function with given fields: ctx, registry, username, password
-func (_m *Backend) Login(ctx context.Context, registry string, username string, password string) error {
-	ret := _m.Called(ctx, registry, username, password)
+// Login provides a mock function with given fields: ctx, registry, username, password, insecure
+func (_m *Backend) Login(ctx context.Context, registry string, username string, password string, insecure bool) error {
+	ret := _m.Called(ctx, registry, username, password, insecure)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Login")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
-		r0 = rf(ctx, registry, username, password)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, bool) error); ok {
+		r0 = rf(ctx, registry, username, password, insecure)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -174,13 +174,14 @@ type Backend_Login_Call struct {
 //   - registry string
 //   - username string
 //   - password string
-func (_e *Backend_Expecter) Login(ctx interface{}, registry interface{}, username interface{}, password interface{}) *Backend_Login_Call {
-	return &Backend_Login_Call{Call: _e.mock.On("Login", ctx, registry, username, password)}
+//   - insecure bool
+func (_e *Backend_Expecter) Login(ctx interface{}, registry interface{}, username interface{}, password interface{}, insecure interface{}) *Backend_Login_Call {
+	return &Backend_Login_Call{Call: _e.mock.On("Login", ctx, registry, username, password, insecure)}
 }
 
-func (_c *Backend_Login_Call) Run(run func(ctx context.Context, registry string, username string, password string)) *Backend_Login_Call {
+func (_c *Backend_Login_Call) Run(run func(ctx context.Context, registry string, username string, password string, insecure bool)) *Backend_Login_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(bool))
 	})
 	return _c
 }
@@ -190,7 +191,7 @@ func (_c *Backend_Login_Call) Return(_a0 error) *Backend_Login_Call {
 	return _c
 }
 
-func (_c *Backend_Login_Call) RunAndReturn(run func(context.Context, string, string, string) error) *Backend_Login_Call {
+func (_c *Backend_Login_Call) RunAndReturn(run func(context.Context, string, string, string, bool) error) *Backend_Login_Call {
 	_c.Call.Return(run)
 	return _c
 }
