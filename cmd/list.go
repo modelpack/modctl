@@ -14,56 +14,62 @@
  * limitations under the License.
  */
 
-package modctl
+package cmd
 
 import (
 	"context"
 	"fmt"
+	"os"
+	"text/tabwriter"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend"
 
+	humanize "github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-// rmCmd represents the modctl command for rm.
-var rmCmd = &cobra.Command{
-	Use:                "rm [flags] <target>",
-	Short:              "A command line tool for modctl rm",
-	Args:               cobra.ExactArgs(1),
+// listCmd represents the modctl command for list.
+var listCmd = &cobra.Command{
+	Use:                "ls",
+	Short:              "A command line tool for modctl list",
+	Args:               cobra.NoArgs,
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runRm(context.Background(), args[0])
+		return runList(context.Background())
 	},
 }
 
-// init initializes rm command.
+// init initializes list command.
 func init() {
-	flags := rmCmd.Flags()
+	flags := listCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache rm flags to viper: %w", err))
+		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
 	}
 }
 
-// runRm runs the rm modctl.
-func runRm(ctx context.Context, target string) error {
+// runList runs the list modctl.
+func runList(ctx context.Context) error {
 	b, err := backend.New()
 	if err != nil {
 		return err
 	}
 
-	if target == "" {
-		return fmt.Errorf("target is required")
-	}
-
-	digest, err := b.Remove(ctx, target)
+	artifacts, err := b.List(ctx)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Deleted: %s\n", digest)
+	tw := tabwriter.NewWriter(os.Stderr, 0, 0, 4, ' ', 0)
+	defer tw.Flush()
+	fmt.Fprintln(tw, "REPOSITORY\tTAG\tDIGEST\tCREATED\tSIZE")
+
+	for _, artifact := range artifacts {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", artifact.Repository, artifact.Tag, artifact.Digest, humanize.Time(artifact.CreatedAt), humanize.IBytes(uint64(artifact.Size)))
+	}
+
 	return nil
 }

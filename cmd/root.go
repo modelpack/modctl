@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package modctl
+package cmd
 
 import (
 	"os"

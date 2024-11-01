@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package modctl
+package cmd
 
 import (
 	"context"
@@ -26,39 +26,44 @@ import (
 	"github.com/spf13/viper"
 )
 
-// logoutCmd represents the modctl command for logout.
-var logoutCmd = &cobra.Command{
-	Use:                "logout [flags]",
-	Short:              "A command line tool for modctl logout",
+// rmCmd represents the modctl command for rm.
+var rmCmd = &cobra.Command{
+	Use:                "rm [flags] <target>",
+	Short:              "A command line tool for modctl rm",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runLogout(context.Background(), args[0])
+		return runRm(context.Background(), args[0])
 	},
 }
 
-// init initializes logout command.
+// init initializes rm command.
 func init() {
-	flags := logoutCmd.Flags()
+	flags := rmCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache logout flags to viper: %w", err))
+		panic(fmt.Errorf("bind cache rm flags to viper: %w", err))
 	}
 }
 
-// runLogout runs the logout modctl.
-func runLogout(ctx context.Context, registry string) error {
+// runRm runs the rm modctl.
+func runRm(ctx context.Context, target string) error {
 	b, err := backend.New()
 	if err != nil {
 		return err
 	}
 
-	if err := b.Logout(ctx, registry); err != nil {
+	if target == "" {
+		return fmt.Errorf("target is required")
+	}
+
+	digest, err := b.Remove(ctx, target)
+	if err != nil {
 		return err
 	}
 
-	fmt.Println("Logout Succeeded.")
+	fmt.Printf("Deleted: %s\n", digest)
 	return nil
 }

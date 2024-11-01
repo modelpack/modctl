@@ -14,62 +14,51 @@
  * limitations under the License.
  */
 
-package modctl
+package cmd
 
 import (
 	"context"
 	"fmt"
-	"os"
-	"text/tabwriter"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend"
 
-	humanize "github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-// listCmd represents the modctl command for list.
-var listCmd = &cobra.Command{
-	Use:                "ls",
-	Short:              "A command line tool for modctl list",
-	Args:               cobra.NoArgs,
+// logoutCmd represents the modctl command for logout.
+var logoutCmd = &cobra.Command{
+	Use:                "logout [flags]",
+	Short:              "A command line tool for modctl logout",
+	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runList(context.Background())
+		return runLogout(context.Background(), args[0])
 	},
 }
 
-// init initializes list command.
+// init initializes logout command.
 func init() {
-	flags := listCmd.Flags()
+	flags := logoutCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind cache logout flags to viper: %w", err))
 	}
 }
 
-// runList runs the list modctl.
-func runList(ctx context.Context) error {
+// runLogout runs the logout modctl.
+func runLogout(ctx context.Context, registry string) error {
 	b, err := backend.New()
 	if err != nil {
 		return err
 	}
 
-	artifacts, err := b.List(ctx)
-	if err != nil {
+	if err := b.Logout(ctx, registry); err != nil {
 		return err
 	}
 
-	tw := tabwriter.NewWriter(os.Stderr, 0, 0, 4, ' ', 0)
-	defer tw.Flush()
-	fmt.Fprintln(tw, "REPOSITORY\tTAG\tDIGEST\tCREATED\tSIZE")
-
-	for _, artifact := range artifacts {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", artifact.Repository, artifact.Tag, artifact.Digest, humanize.Time(artifact.CreatedAt), humanize.IBytes(uint64(artifact.Size)))
-	}
-
+	fmt.Println("Logout Succeeded.")
 	return nil
 }
