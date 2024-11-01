@@ -11,7 +11,8 @@ It offers commands such as `build`, `pull`, `push`, and more, making it easy for
 
 ```shell
 $ git clone https://github.com/CloudNativeAI/modctl.git
-$ go build -o modctl cmd/main.go
+$ make
+$ ./output/modctl -h
 ```
 
 ### Build

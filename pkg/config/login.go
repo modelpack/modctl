@@ -22,13 +22,15 @@ type Login struct {
 	Username      string
 	Password      string
 	PasswordStdin bool
+	Insecure      bool
 }
 
 func NewLogin() *Login {
 	return &Login{
 		Username:      "",
 		Password:      "",
-		PasswordStdin: false,
+		PasswordStdin: true,
+		Insecure:      false,
 	}
 }
 
@@ -37,7 +39,7 @@ func (l *Login) Validate() error {
 		return fmt.Errorf("missing username")
 	}
 
-	if len(l.Password) == 0 {
+	if len(l.Password) == 0 && !l.PasswordStdin {
 		return fmt.Errorf("missing password")
 	}
 

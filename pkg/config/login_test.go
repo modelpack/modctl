@@ -28,8 +28,8 @@ func TestNewLogin(t *testing.T) {
 	if login.Password != "" {
 		t.Errorf("expected empty password, got %s", login.Password)
 	}
-	if login.PasswordStdin != false {
-		t.Errorf("expected PasswordStdin to be false, got %v", login.PasswordStdin)
+	if login.PasswordStdin != true {
+		t.Errorf("expected PasswordStdin to be true, got %v", login.PasswordStdin)
 	}
 }
 
