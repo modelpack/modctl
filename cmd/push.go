@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package modctl
+package cmd
 
 import (
 	"context"
@@ -27,47 +27,47 @@ import (
 	"github.com/spf13/viper"
 )
 
-var buildConfig = config.NewBuild()
+var pushConfig = config.NewPull()
 
-// buildCmd represents the modctl command for build.
-var buildCmd = &cobra.Command{
-	Use:                "build [flags] <path>",
-	Short:              "A command line tool for modctl build",
+// pushCmd represents the modctl command for push.
+var pushCmd = &cobra.Command{
+	Use:                "push [flags] <target>",
+	Short:              "A command line tool for modctl push",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := buildConfig.Validate(); err != nil {
-			return err
-		}
-
-		return runBuild(context.Background(), args[0])
+		return runPush(context.Background(), args[0])
 	},
 }
 
-// init initializes build command.
+// init initializes push command.
 func init() {
-	flags := buildCmd.Flags()
-	flags.StringVarP(&buildConfig.Target, "target", "t", "", "target model artifact name")
-	flags.StringVarP(&buildConfig.Modelfile, "modelfile", "f", "", "model file path")
+	flags := pushCmd.Flags()
+	flags.BoolVarP(&pushConfig.PlainHTTP, "plain-http", "p", false, "use plain HTTP instead of HTTPS")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind cache push flags to viper: %w", err))
 	}
 }
 
-// runBuild runs the build modctl.
-func runBuild(ctx context.Context, workDir string) error {
+// runPush runs the push modctl.
+func runPush(ctx context.Context, target string) error {
 	b, err := backend.New()
 	if err != nil {
 		return err
 	}
 
-	if err := b.Build(ctx, buildConfig.Modelfile, workDir, buildConfig.Target); err != nil {
+	opts := []backend.Option{}
+	if pushConfig.PlainHTTP {
+		opts = append(opts, backend.WithPlainHTTP())
+	}
+
+	if err := b.Push(ctx, target, opts...); err != nil {
 		return err
 	}
 
-	fmt.Printf("Successfully built model artifact: %s\n", buildConfig.Target)
+	fmt.Printf("Successfully pushed model artifact: %s\n", target)
 	return nil
 }
