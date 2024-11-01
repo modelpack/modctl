@@ -16,8 +16,8 @@
 
 package main
 
-import "github.com/CloudNativeAI/modctl/cmd/modctl"
+import "github.com/CloudNativeAI/modctl/cmd"
 
 func main() {
-	modctl.Execute()
+	cmd.Execute()
 }

@@ -14,56 +14,64 @@
  * limitations under the License.
  */
 
-package modctl
+package cmd
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend"
+	"github.com/CloudNativeAI/modctl/pkg/config"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-// pruneCmd represents the modctl command for prune.
-var pruneCmd = &cobra.Command{
-	Use:                "prune [flags]",
-	Short:              "A command line tool for modctl prune",
-	Args:               cobra.NoArgs,
+var pullConfig = config.NewPull()
+
+// pullCmd represents the modctl command for pull.
+var pullCmd = &cobra.Command{
+	Use:                "pull [flags] <target>",
+	Short:              "A command line tool for modctl pull",
+	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runPrune(context.Background())
+		return runPull(context.Background(), args[0])
 	},
 }
 
-// init initializes prune command.
+// init initializes pull command.
 func init() {
-	flags := rmCmd.Flags()
+	flags := pullCmd.Flags()
+	flags.BoolVarP(&pullConfig.PlainHTTP, "plain-http", "p", false, "use plain HTTP instead of HTTPS")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache rm flags to viper: %w", err))
+		panic(fmt.Errorf("bind cache pull flags to viper: %w", err))
 	}
 }
 
-// runPrune runs the prune modctl.
-func runPrune(ctx context.Context) error {
+// runPull runs the pull modctl.
+func runPull(ctx context.Context, target string) error {
 	b, err := backend.New()
 	if err != nil {
 		return err
 	}
 
-	prunedBlobs, err := b.Prune(ctx)
-	if err != nil {
+	if target == "" {
+		return fmt.Errorf("target is required")
+	}
+
+	opts := []backend.Option{}
+	if pullConfig.PlainHTTP {
+		opts = append(opts, backend.WithPlainHTTP())
+	}
+
+	if err := b.Pull(ctx, target, opts...); err != nil {
 		return err
 	}
 
-	fmt.Println("Deleted Blobs:")
-	for _, blob := range prunedBlobs {
-		fmt.Printf("deleted: %s\n", blob)
-	}
-
+	fmt.Printf("Successfully pulled model artifact: %s\n", target)
 	return nil
 }
