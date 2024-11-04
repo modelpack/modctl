@@ -26,7 +26,7 @@ Example of Modelfile:
 NAME gemma-2b
 
 # Model architecture (string), such as transformer, cnn, rnn, etc.
-ARCHITECTURE transformer
+ARCH transformer
 
 # Model family (string), such as llama3, gpt2, qwen2, etc.
 FAMILY gemma
