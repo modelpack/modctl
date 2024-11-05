@@ -95,8 +95,8 @@ Delete the model artifact in the local storage:
 $ modctl rm 127.0.0.1/library/test-models:v1
 ```
 
-Finally, you can use `purge` command to to remove all unnecessary blobs to free up the storage space:
+Finally, you can use `prune` command to to remove all unnecessary blobs to free up the storage space:
 
 ```shell
-$ modctl purge
+$ modctl prune
 ```
