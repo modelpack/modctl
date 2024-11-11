@@ -114,7 +114,7 @@ func (b *backend) process(ctx context.Context, workDir string, repo string, proc
 		for _, p := range processors {
 			// process the file if it can be recognized.
 			if p.Identify(ctx, path, info) {
-				desc, err := p.Process(ctx, b.store, repo, path, info)
+				desc, err := p.Process(ctx, b.store, repo, path, workDir)
 				if err != nil {
 					return fmt.Errorf("failed to process file: %w", err)
 				}

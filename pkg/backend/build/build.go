@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
@@ -38,7 +39,7 @@ type ModelConfig struct {
 }
 
 // BuildLayer converts the file to the image blob and push it to the storage.
-func BuildLayer(ctx context.Context, store storage.Storage, repo, path string) (ocispec.Descriptor, error) {
+func BuildLayer(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error) {
 	reader, err := TarFileToStream(path)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to tar file: %w", err)
@@ -49,11 +50,24 @@ func BuildLayer(ctx context.Context, store storage.Storage, repo, path string) (
 		return ocispec.Descriptor{}, fmt.Errorf("failed to push blob to storage: %w", err)
 	}
 
+	absPath, err := filepath.Abs(workDir)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to get absolute path of workDir: %w", err)
+	}
+
+	filePath, err := filepath.Rel(absPath, path)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to get relative path: %w", err)
+	}
+
 	return ocispec.Descriptor{
 		ArtifactType: modelspec.ArtifactTypeModelLayer,
 		MediaType:    ocispec.MediaTypeImageLayer,
 		Digest:       godigest.Digest(digest),
 		Size:         size,
+		Annotations: map[string]string{
+			modelspec.AnnotationFilepath: filePath,
+		},
 	}, nil
 }
 
