@@ -33,5 +33,5 @@ type Processor interface {
 	// then the Process will be called to process the file, otherwise it will be skipped.
 	Identify(ctx context.Context, path string, info os.FileInfo) bool
 	// Process processes the file.
-	Process(ctx context.Context, store storage.Storage, repo, path string, info os.FileInfo) (ocispec.Descriptor, error)
+	Process(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error)
 }

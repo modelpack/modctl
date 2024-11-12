@@ -58,19 +58,15 @@ func TestModelProcessor_Process(t *testing.T) {
 	ctx := context.Background()
 	mockStore := &storage.Storage{}
 	repo := "test-repo"
-	path := "model"
-	mockFS := fstest.MapFS{
-		"model": &fstest.MapFile{},
-	}
-	info, err := mockFS.Stat("model")
-	assert.NoError(t, err)
+	path := "/tmp/model"
 
 	mockStore.On("PushBlob", ctx, repo, mock.Anything).Return("sha256:1234567890abcdef", int64(1024), nil)
 
-	desc, err := p.Process(ctx, mockStore, repo, path, info)
+	desc, err := p.Process(ctx, mockStore, repo, path, "/tmp")
 	assert.NoError(t, err)
 	assert.NotNil(t, desc)
 	assert.Equal(t, "sha256:1234567890abcdef", desc.Digest.String())
 	assert.Equal(t, int64(1024), desc.Size)
 	assert.Equal(t, "true", desc.Annotations[modelspec.AnnotationModel])
+	assert.Equal(t, "model", desc.Annotations[modelspec.AnnotationFilepath])
 }

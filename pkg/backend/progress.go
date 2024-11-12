@@ -59,6 +59,7 @@ func (p *ProgressBar) Add(prompt string, desc ocispec.Descriptor, reader io.Read
 	// create a new bar if it does not exist.
 	bar := p.mpb.New(desc.Size,
 		mpbv8.BarStyle().Rbound("|"),
+		mpbv8.BarFillerClearOnComplete(),
 		mpbv8.PrependDecorators(
 			decor.Name(fmt.Sprintf("%s%s", prompt, desc.Digest.String())),
 		),

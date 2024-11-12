@@ -50,7 +50,7 @@ var buildCmd = &cobra.Command{
 func init() {
 	flags := buildCmd.Flags()
 	flags.StringVarP(&buildConfig.Target, "target", "t", "", "target model artifact name")
-	flags.StringVarP(&buildConfig.Modelfile, "modelfile", "f", "", "model file path")
+	flags.StringVarP(&buildConfig.Modelfile, "modelfile", "f", "Modelfile", "model file path")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
