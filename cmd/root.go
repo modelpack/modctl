@@ -65,4 +65,5 @@ func init() {
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(pruneCmd)
+	rootCmd.AddCommand(inspectCmd)
 }

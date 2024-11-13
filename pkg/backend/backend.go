@@ -47,6 +47,9 @@ type Backend interface {
 
 	// Prune prunes the unused blobs and clean up the storage.
 	Prune(ctx context.Context) ([]string, error)
+
+	// Inspect inspects the model artifact.
+	Inspect(ctx context.Context, target string) (*InspectedModelArtifact, error)
 }
 
 // backend is the implementation of Backend.
