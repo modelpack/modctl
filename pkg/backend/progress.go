@@ -21,6 +21,7 @@ import (
 	"io"
 	"sync"
 
+	humanize "github.com/dustin/go-humanize"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	mpbv8 "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -59,15 +60,15 @@ func (p *ProgressBar) Add(prompt string, desc ocispec.Descriptor, reader io.Read
 	// create a new bar if it does not exist.
 	bar := p.mpb.New(desc.Size,
 		mpbv8.BarStyle().Rbound("|"),
-		mpbv8.BarFillerClearOnComplete(),
+		mpbv8.BarFillerOnComplete("|"),
 		mpbv8.PrependDecorators(
 			decor.Name(fmt.Sprintf("%s%s", prompt, desc.Digest.String())),
 		),
 		mpbv8.AppendDecorators(
-			decor.Counters(decor.SizeB1024(0), "% .2f / % .2f"),
-			decor.Name(" ] "),
+			decor.OnComplete(decor.Counters(decor.SizeB1024(0), "% .2f / % .2f"), humanize.Bytes(uint64(desc.Size))),
+			decor.OnComplete(decor.Name(" | "), " | "),
 			decor.OnComplete(
-				decor.EwmaSpeed(decor.SizeB1024(0), "% .2f", 30), "done",
+				decor.AverageSpeed(decor.SizeB1024(0), "% .2f"), "done",
 			),
 		),
 	)
