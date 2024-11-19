@@ -43,16 +43,17 @@ func (p *readmeProcessor) Identify(_ context.Context, path string, info os.FileI
 	return info.Name() == "README.md" || info.Name() == "README"
 }
 
-func (p *readmeProcessor) Process(ctx context.Context, store storage.Storage, repo, path string, info os.FileInfo) (ocispec.Descriptor, error) {
-	desc, err := build.BuildLayer(ctx, store, repo, path)
+func (p *readmeProcessor) Process(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error) {
+	desc, err := build.BuildLayer(ctx, store, repo, path, workDir)
 	if err != nil {
 		return ocispec.Descriptor{}, nil
 	}
 
 	// add readme annotations.
-	desc.Annotations = map[string]string{
-		modelspec.AnnotationReadme: "true",
+	if desc.Annotations == nil {
+		desc.Annotations = map[string]string{}
 	}
 
+	desc.Annotations[modelspec.AnnotationReadme] = "true"
 	return desc, nil
 }

@@ -18,56 +18,58 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend"
-	"github.com/CloudNativeAI/modctl/pkg/config"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var buildConfig = config.NewBuild()
-
-// buildCmd represents the modctl command for build.
-var buildCmd = &cobra.Command{
-	Use:                "build [flags] <path>",
-	Short:              "A command line tool for modctl build",
+// inspectCmd represents the modctl command for inspect.
+var inspectCmd = &cobra.Command{
+	Use:                "inspect [flags] <target>",
+	Short:              "A command line tool for modctl inspect",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := buildConfig.Validate(); err != nil {
-			return err
-		}
-
-		return runBuild(context.Background(), args[0])
+		return runInspect(context.Background(), args[0])
 	},
 }
 
-// init initializes build command.
+// init initializes inspect command.
 func init() {
-	flags := buildCmd.Flags()
-	flags.StringVarP(&buildConfig.Target, "target", "t", "", "target model artifact name")
-	flags.StringVarP(&buildConfig.Modelfile, "modelfile", "f", "Modelfile", "model file path")
+	flags := rmCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind cache inspect flags to viper: %w", err))
 	}
 }
 
-// runBuild runs the build modctl.
-func runBuild(ctx context.Context, workDir string) error {
+// runInspect runs the inspect modctl.
+func runInspect(ctx context.Context, target string) error {
 	b, err := backend.New()
 	if err != nil {
 		return err
 	}
 
-	if err := b.Build(ctx, buildConfig.Modelfile, workDir, buildConfig.Target); err != nil {
+	if target == "" {
+		return fmt.Errorf("target is required")
+	}
+
+	inspected, err := b.Inspect(ctx, target)
+	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Successfully built model artifact: %s\n", buildConfig.Target)
+	data, err := json.MarshalIndent(inspected, "", "	")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(data))
 	return nil
 }
