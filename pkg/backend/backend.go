@@ -25,7 +25,7 @@ import (
 // Backend is the interface to represent the backend.
 type Backend interface {
 	// Login logs into a registry.
-	Login(ctx context.Context, registry, username, password string, insecure bool) error
+	Login(ctx context.Context, registry, username, password string, opts ...Option) error
 
 	// Logout logs out from a registry.
 	Logout(ctx context.Context, registry string) error
