@@ -40,8 +40,8 @@ var loginCmd = &cobra.Command{
 # login to docker hub:
 modctl login -u foo registry-1.docker.io
 
-# login to insecure register:
-modctl login -u foo --insecure registry-insecure.io 
+# login to registry served over http:
+modctl login -u foo --plain-http registry-insecure.io
 `,
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
@@ -62,7 +62,7 @@ func init() {
 	flags.StringVarP(&loginConfig.Username, "username", "u", "", "Username for login")
 	flags.StringVarP(&loginConfig.Password, "password", "p", "", "Password for login")
 	flags.BoolVar(&loginConfig.PasswordStdin, "password-stdin", true, "Take the password from stdin by default")
-	flags.BoolVar(&loginConfig.Insecure, "insecure", false, "Allow insecure connections to registry")
+	flags.BoolVar(&loginConfig.PlainHTTP, "plain-http", false, "Allow http connections to registry")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache login flags to viper: %w", err))
@@ -88,7 +88,13 @@ func runLogin(ctx context.Context, registry string) error {
 	}
 
 	fmt.Println("\nLogging In...")
-	if err := b.Login(ctx, registry, loginConfig.Username, loginConfig.Password, loginConfig.Insecure); err != nil {
+
+	opts := []backend.Option{}
+	if loginConfig.PlainHTTP {
+		opts = append(opts, backend.WithPlainHTTP())
+	}
+
+	if err := b.Login(ctx, registry, loginConfig.Username, loginConfig.Password, opts...); err != nil {
 		return err
 	}
 

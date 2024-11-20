@@ -18,13 +18,19 @@ package backend
 
 import (
 	"context"
+
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // Login logs into a registry.
-func (b *backend) Login(ctx context.Context, registry, username, password string, insecure bool) error {
+func (b *backend) Login(ctx context.Context, registry, username, password string, opts ...Option) error {
+	// apply options.
+	options := &Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
 	// read credentials from docker store.
 	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
 	if err != nil {
@@ -35,7 +41,10 @@ func (b *backend) Login(ctx context.Context, registry, username, password string
 	if err != nil {
 		return err
 	}
-	reg.PlainHTTP = insecure
+
+	if options.plainHTTP {
+		reg.PlainHTTP = true
+	}
 
 	cred := auth.Credential{
 		Username: username,
