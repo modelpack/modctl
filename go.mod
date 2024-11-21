@@ -1,8 +1,9 @@
 module github.com/CloudNativeAI/modctl
 
-go 1.23.0
+go 1.23.3
 
 require (
+	github.com/CloudNativeAI/model-spec v0.0.0-20241121031550-59ad02d4a225
 	github.com/distribution/reference v0.6.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/emirpasic/gods v1.18.1
@@ -15,10 +16,8 @@ require (
 	github.com/vbauerster/mpb/v8 v8.8.3
 	golang.org/x/crypto v0.29.0
 	oras.land/oras-go/v2 v2.5.0
-	zotregistry.dev/zot v1.4.3
+	zotregistry.dev/zot v1.4.4-0.20241020091450-edb549142830
 )
-
-replace zotregistry.dev/zot v1.4.3 => zotregistry.dev/zot v1.4.4-0.20241020091450-edb549142830
 
 require (
 	github.com/VividCortex/ewma v1.2.0 // indirect

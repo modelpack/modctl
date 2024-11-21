@@ -21,7 +21,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/CloudNativeAI/modctl/test/mocks/storage"
 
 	"github.com/stretchr/testify/assert"
