@@ -26,7 +26,7 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
-	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	humanize "github.com/dustin/go-humanize"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

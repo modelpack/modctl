@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 	"time"
 
-	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	godigest "github.com/opencontainers/go-digest"
