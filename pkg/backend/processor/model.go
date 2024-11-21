@@ -22,7 +22,7 @@ import (
 	"regexp"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
-	modelspec "github.com/CloudNativeAI/modctl/pkg/spec"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
