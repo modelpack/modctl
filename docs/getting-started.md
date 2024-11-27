@@ -59,7 +59,7 @@ MODEL \.safetensors$
 Then run the following command to build the model artifact:
 
 ```shell
-$ modctl build -t 127.0.0.1/library/test-models:v1 -f Modelfile .
+$ modctl build -t registry.com/models/llama3:v1.0.0 -f Modelfile .
 ```
 
 ### Pull & Push
@@ -73,13 +73,13 @@ $ modctl login -u username -p password example.registry.com
 Pull the model artifact from the registry:
 
 ```shell
-$ modctl pull 127.0.0.1/library/test-models:v1
+$ modctl pull registry.com/models/llama3:v1.0.0
 ```
 
 Push the model artifact to the registry:
 
 ```shell
-$ modctl push 127.0.0.1/library/test-models:v1
+$ modctl push registry.com/models/llama3:v1.0.0
 ```
 
 ### List
@@ -95,7 +95,7 @@ $ modctl ls
 Delete the model artifact in the local storage:
 
 ```shell
-$ modctl rm 127.0.0.1/library/test-models:v1
+$ modctl rm registry.com/models/llama3:v1.0.0
 ```
 
 Finally, you can use `purge` command to to remove all unnecessary blobs to free up the storage space:
