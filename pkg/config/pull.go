@@ -18,10 +18,12 @@ package config
 
 type Pull struct {
 	PlainHTTP bool
+	Proxy     string
 }
 
 func NewPull() *Pull {
 	return &Pull{
 		PlainHTTP: false,
+		Proxy:     "",
 	}
 }

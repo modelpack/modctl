@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
@@ -58,9 +60,23 @@ func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error
 		return fmt.Errorf("failed to create credential store: %w", err)
 	}
 
+	// create the http client.
+	httpClient := http.DefaultClient
+	if options.proxy != "" {
+		proxyURL, err := url.Parse(options.proxy)
+		if err != nil {
+			return fmt.Errorf("failed to parse the proxy URL: %w", err)
+		}
+
+		httpClient.Transport = &http.Transport{
+			Proxy: http.ProxyURL(proxyURL),
+		}
+	}
+
 	src.Client = &auth.Client{
 		Cache:      auth.NewCache(),
 		Credential: credentials.Credential(credStore),
+		Client:     httpClient,
 	}
 
 	if options.plainHTTP {
