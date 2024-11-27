@@ -20,11 +20,19 @@ type Option func(*Options)
 
 type Options struct {
 	plainHTTP bool
+	proxy     string
 }
 
 // WithPlainHTTP sets the plain HTTP option.
 func WithPlainHTTP() Option {
 	return func(opts *Options) {
 		opts.plainHTTP = true
+	}
+}
+
+// WithProxy sets the proxy option.
+func WithProxy(proxy string) Option {
+	return func(opts *Options) {
+		opts.proxy = proxy
 	}
 }

@@ -46,6 +46,7 @@ var pullCmd = &cobra.Command{
 func init() {
 	flags := pullCmd.Flags()
 	flags.BoolVarP(&pullConfig.PlainHTTP, "plain-http", "p", false, "use plain HTTP instead of HTTPS")
+	flags.StringVar(&pullConfig.Proxy, "proxy", "", "use proxy for the pull operation")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache pull flags to viper: %w", err))
@@ -66,6 +67,10 @@ func runPull(ctx context.Context, target string) error {
 	opts := []backend.Option{}
 	if pullConfig.PlainHTTP {
 		opts = append(opts, backend.WithPlainHTTP())
+	}
+
+	if pullConfig.Proxy != "" {
+		opts = append(opts, backend.WithProxy(pullConfig.Proxy))
 	}
 
 	if err := b.Pull(ctx, target, opts...); err != nil {
