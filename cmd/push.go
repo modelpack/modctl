@@ -45,7 +45,7 @@ var pushCmd = &cobra.Command{
 // init initializes push command.
 func init() {
 	flags := pushCmd.Flags()
-	flags.BoolVarP(&pushConfig.PlainHTTP, "plain-http", "p", false, "use plain HTTP instead of HTTPS")
+	flags.BoolVar(&pushConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache push flags to viper: %w", err))

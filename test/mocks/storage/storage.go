@@ -38,113 +38,6 @@ func (_m *Storage) EXPECT() *Storage_Expecter {
 	return &Storage_Expecter{mock: &_m.Mock}
 }
 
-// CleanupRepo provides a mock function with given fields: ctx, repo, blobs, removeRepo
-func (_m *Storage) CleanupRepo(ctx context.Context, repo string, blobs []string, removeRepo bool) (int, error) {
-	ret := _m.Called(ctx, repo, blobs, removeRepo)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CleanupRepo")
-	}
-
-	var r0 int
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string, bool) (int, error)); ok {
-		return rf(ctx, repo, blobs, removeRepo)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string, bool) int); ok {
-		r0 = rf(ctx, repo, blobs, removeRepo)
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, []string, bool) error); ok {
-		r1 = rf(ctx, repo, blobs, removeRepo)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Storage_CleanupRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CleanupRepo'
-type Storage_CleanupRepo_Call struct {
-	*mock.Call
-}
-
-// CleanupRepo is a helper method to define mock.On call
-//   - ctx context.Context
-//   - repo string
-//   - blobs []string
-//   - removeRepo bool
-func (_e *Storage_Expecter) CleanupRepo(ctx interface{}, repo interface{}, blobs interface{}, removeRepo interface{}) *Storage_CleanupRepo_Call {
-	return &Storage_CleanupRepo_Call{Call: _e.mock.On("CleanupRepo", ctx, repo, blobs, removeRepo)}
-}
-
-func (_c *Storage_CleanupRepo_Call) Run(run func(ctx context.Context, repo string, blobs []string, removeRepo bool)) *Storage_CleanupRepo_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].([]string), args[3].(bool))
-	})
-	return _c
-}
-
-func (_c *Storage_CleanupRepo_Call) Return(_a0 int, _a1 error) *Storage_CleanupRepo_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *Storage_CleanupRepo_Call) RunAndReturn(run func(context.Context, string, []string, bool) (int, error)) *Storage_CleanupRepo_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteBlob provides a mock function with given fields: ctx, repo, digest
-func (_m *Storage) DeleteBlob(ctx context.Context, repo string, digest string) error {
-	ret := _m.Called(ctx, repo, digest)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteBlob")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, repo, digest)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// Storage_DeleteBlob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBlob'
-type Storage_DeleteBlob_Call struct {
-	*mock.Call
-}
-
-// DeleteBlob is a helper method to define mock.On call
-//   - ctx context.Context
-//   - repo string
-//   - digest string
-func (_e *Storage_Expecter) DeleteBlob(ctx interface{}, repo interface{}, digest interface{}) *Storage_DeleteBlob_Call {
-	return &Storage_DeleteBlob_Call{Call: _e.mock.On("DeleteBlob", ctx, repo, digest)}
-}
-
-func (_c *Storage_DeleteBlob_Call) Run(run func(ctx context.Context, repo string, digest string)) *Storage_DeleteBlob_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *Storage_DeleteBlob_Call) Return(_a0 error) *Storage_DeleteBlob_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *Storage_DeleteBlob_Call) RunAndReturn(run func(context.Context, string, string) error) *Storage_DeleteBlob_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // DeleteManifest provides a mock function with given fields: ctx, repo, reference
 func (_m *Storage) DeleteManifest(ctx context.Context, repo string, reference string) error {
 	ret := _m.Called(ctx, repo, reference)
@@ -189,124 +82,6 @@ func (_c *Storage_DeleteManifest_Call) Return(_a0 error) *Storage_DeleteManifest
 }
 
 func (_c *Storage_DeleteManifest_Call) RunAndReturn(run func(context.Context, string, string) error) *Storage_DeleteManifest_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetIndex provides a mock function with given fields: ctx, repo
-func (_m *Storage) GetIndex(ctx context.Context, repo string) ([]byte, error) {
-	ret := _m.Called(ctx, repo)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetIndex")
-	}
-
-	var r0 []byte
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]byte, error)); ok {
-		return rf(ctx, repo)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []byte); ok {
-		r0 = rf(ctx, repo)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, repo)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Storage_GetIndex_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetIndex'
-type Storage_GetIndex_Call struct {
-	*mock.Call
-}
-
-// GetIndex is a helper method to define mock.On call
-//   - ctx context.Context
-//   - repo string
-func (_e *Storage_Expecter) GetIndex(ctx interface{}, repo interface{}) *Storage_GetIndex_Call {
-	return &Storage_GetIndex_Call{Call: _e.mock.On("GetIndex", ctx, repo)}
-}
-
-func (_c *Storage_GetIndex_Call) Run(run func(ctx context.Context, repo string)) *Storage_GetIndex_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *Storage_GetIndex_Call) Return(_a0 []byte, _a1 error) *Storage_GetIndex_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *Storage_GetIndex_Call) RunAndReturn(run func(context.Context, string) ([]byte, error)) *Storage_GetIndex_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// ListBlobs provides a mock function with given fields: ctx, repo
-func (_m *Storage) ListBlobs(ctx context.Context, repo string) ([]string, error) {
-	ret := _m.Called(ctx, repo)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListBlobs")
-	}
-
-	var r0 []string
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]string, error)); ok {
-		return rf(ctx, repo)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []string); ok {
-		r0 = rf(ctx, repo)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, repo)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Storage_ListBlobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBlobs'
-type Storage_ListBlobs_Call struct {
-	*mock.Call
-}
-
-// ListBlobs is a helper method to define mock.On call
-//   - ctx context.Context
-//   - repo string
-func (_e *Storage_Expecter) ListBlobs(ctx interface{}, repo interface{}) *Storage_ListBlobs_Call {
-	return &Storage_ListBlobs_Call{Call: _e.mock.On("ListBlobs", ctx, repo)}
-}
-
-func (_c *Storage_ListBlobs_Call) Run(run func(ctx context.Context, repo string)) *Storage_ListBlobs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *Storage_ListBlobs_Call) Return(_a0 []string, _a1 error) *Storage_ListBlobs_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *Storage_ListBlobs_Call) RunAndReturn(run func(context.Context, string) ([]string, error)) *Storage_ListBlobs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -424,6 +199,114 @@ func (_c *Storage_ListTags_Call) Return(_a0 []string, _a1 error) *Storage_ListTa
 }
 
 func (_c *Storage_ListTags_Call) RunAndReturn(run func(context.Context, string) ([]string, error)) *Storage_ListTags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PerformGC provides a mock function with given fields: ctx, dryRun, removeUntagged
+func (_m *Storage) PerformGC(ctx context.Context, dryRun bool, removeUntagged bool) error {
+	ret := _m.Called(ctx, dryRun, removeUntagged)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PerformGC")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, bool, bool) error); ok {
+		r0 = rf(ctx, dryRun, removeUntagged)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Storage_PerformGC_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PerformGC'
+type Storage_PerformGC_Call struct {
+	*mock.Call
+}
+
+// PerformGC is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dryRun bool
+//   - removeUntagged bool
+func (_e *Storage_Expecter) PerformGC(ctx interface{}, dryRun interface{}, removeUntagged interface{}) *Storage_PerformGC_Call {
+	return &Storage_PerformGC_Call{Call: _e.mock.On("PerformGC", ctx, dryRun, removeUntagged)}
+}
+
+func (_c *Storage_PerformGC_Call) Run(run func(ctx context.Context, dryRun bool, removeUntagged bool)) *Storage_PerformGC_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(bool), args[2].(bool))
+	})
+	return _c
+}
+
+func (_c *Storage_PerformGC_Call) Return(_a0 error) *Storage_PerformGC_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Storage_PerformGC_Call) RunAndReturn(run func(context.Context, bool, bool) error) *Storage_PerformGC_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PullBlob provides a mock function with given fields: ctx, repo, digest
+func (_m *Storage) PullBlob(ctx context.Context, repo string, digest string) (io.ReadCloser, error) {
+	ret := _m.Called(ctx, repo, digest)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PullBlob")
+	}
+
+	var r0 io.ReadCloser
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (io.ReadCloser, error)); ok {
+		return rf(ctx, repo, digest)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) io.ReadCloser); ok {
+		r0 = rf(ctx, repo, digest)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(io.ReadCloser)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, repo, digest)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Storage_PullBlob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PullBlob'
+type Storage_PullBlob_Call struct {
+	*mock.Call
+}
+
+// PullBlob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - repo string
+//   - digest string
+func (_e *Storage_Expecter) PullBlob(ctx interface{}, repo interface{}, digest interface{}) *Storage_PullBlob_Call {
+	return &Storage_PullBlob_Call{Call: _e.mock.On("PullBlob", ctx, repo, digest)}
+}
+
+func (_c *Storage_PullBlob_Call) Run(run func(ctx context.Context, repo string, digest string)) *Storage_PullBlob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *Storage_PullBlob_Call) Return(_a0 io.ReadCloser, _a1 error) *Storage_PullBlob_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Storage_PullBlob_Call) RunAndReturn(run func(context.Context, string, string) (io.ReadCloser, error)) *Storage_PullBlob_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -46,7 +46,7 @@ type Backend interface {
 	Remove(ctx context.Context, target string) (string, error)
 
 	// Prune prunes the unused blobs and clean up the storage.
-	Prune(ctx context.Context) ([]string, error)
+	Prune(ctx context.Context, dryRun, removeUntagged bool) error
 
 	// Inspect inspects the model artifact.
 	Inspect(ctx context.Context, target string) (*InspectedModelArtifact, error)
