@@ -88,6 +88,65 @@ func (_c *Backend_Build_Call) RunAndReturn(run func(context.Context, string, str
 	return _c
 }
 
+// Inspect provides a mock function with given fields: ctx, target
+func (_m *Backend) Inspect(ctx context.Context, target string) (*backend.InspectedModelArtifact, error) {
+	ret := _m.Called(ctx, target)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Inspect")
+	}
+
+	var r0 *backend.InspectedModelArtifact
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*backend.InspectedModelArtifact, error)); ok {
+		return rf(ctx, target)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *backend.InspectedModelArtifact); ok {
+		r0 = rf(ctx, target)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*backend.InspectedModelArtifact)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, target)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Backend_Inspect_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Inspect'
+type Backend_Inspect_Call struct {
+	*mock.Call
+}
+
+// Inspect is a helper method to define mock.On call
+//   - ctx context.Context
+//   - target string
+func (_e *Backend_Expecter) Inspect(ctx interface{}, target interface{}) *Backend_Inspect_Call {
+	return &Backend_Inspect_Call{Call: _e.mock.On("Inspect", ctx, target)}
+}
+
+func (_c *Backend_Inspect_Call) Run(run func(ctx context.Context, target string)) *Backend_Inspect_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *Backend_Inspect_Call) Return(_a0 *backend.InspectedModelArtifact, _a1 error) *Backend_Inspect_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Backend_Inspect_Call) RunAndReturn(run func(context.Context, string) (*backend.InspectedModelArtifact, error)) *Backend_Inspect_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // List provides a mock function with given fields: ctx
 func (_m *Backend) List(ctx context.Context) ([]*backend.ModelArtifact, error) {
 	ret := _m.Called(ctx)
@@ -146,17 +205,24 @@ func (_c *Backend_List_Call) RunAndReturn(run func(context.Context) ([]*backend.
 	return _c
 }
 
-// Login provides a mock function with given fields: ctx, registry, username, password, insecure
-func (_m *Backend) Login(ctx context.Context, registry string, username string, password string, insecure bool) error {
-	ret := _m.Called(ctx, registry, username, password, insecure)
+// Login provides a mock function with given fields: ctx, registry, username, password, opts
+func (_m *Backend) Login(ctx context.Context, registry string, username string, password string, opts ...backend.Option) error {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, registry, username, password)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Login")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, bool) error); ok {
-		r0 = rf(ctx, registry, username, password, insecure)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, ...backend.Option) error); ok {
+		r0 = rf(ctx, registry, username, password, opts...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -174,14 +240,21 @@ type Backend_Login_Call struct {
 //   - registry string
 //   - username string
 //   - password string
-//   - insecure bool
-func (_e *Backend_Expecter) Login(ctx interface{}, registry interface{}, username interface{}, password interface{}, insecure interface{}) *Backend_Login_Call {
-	return &Backend_Login_Call{Call: _e.mock.On("Login", ctx, registry, username, password, insecure)}
+//   - opts ...backend.Option
+func (_e *Backend_Expecter) Login(ctx interface{}, registry interface{}, username interface{}, password interface{}, opts ...interface{}) *Backend_Login_Call {
+	return &Backend_Login_Call{Call: _e.mock.On("Login",
+		append([]interface{}{ctx, registry, username, password}, opts...)...)}
 }
 
-func (_c *Backend_Login_Call) Run(run func(ctx context.Context, registry string, username string, password string, insecure bool)) *Backend_Login_Call {
+func (_c *Backend_Login_Call) Run(run func(ctx context.Context, registry string, username string, password string, opts ...backend.Option)) *Backend_Login_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(bool))
+		variadicArgs := make([]backend.Option, len(args)-4)
+		for i, a := range args[4:] {
+			if a != nil {
+				variadicArgs[i] = a.(backend.Option)
+			}
+		}
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), variadicArgs...)
 	})
 	return _c
 }
@@ -191,7 +264,7 @@ func (_c *Backend_Login_Call) Return(_a0 error) *Backend_Login_Call {
 	return _c
 }
 
-func (_c *Backend_Login_Call) RunAndReturn(run func(context.Context, string, string, string, bool) error) *Backend_Login_Call {
+func (_c *Backend_Login_Call) RunAndReturn(run func(context.Context, string, string, string, ...backend.Option) error) *Backend_Login_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -243,34 +316,22 @@ func (_c *Backend_Logout_Call) RunAndReturn(run func(context.Context, string) er
 	return _c
 }
 
-// Prune provides a mock function with given fields: ctx
-func (_m *Backend) Prune(ctx context.Context) ([]string, error) {
-	ret := _m.Called(ctx)
+// Prune provides a mock function with given fields: ctx, dryRun, removeUntagged
+func (_m *Backend) Prune(ctx context.Context, dryRun bool, removeUntagged bool) error {
+	ret := _m.Called(ctx, dryRun, removeUntagged)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Prune")
 	}
 
-	var r0 []string
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
-		r0 = rf(ctx)
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, bool, bool) error); ok {
+		r0 = rf(ctx, dryRun, removeUntagged)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
+		r0 = ret.Error(0)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
 // Backend_Prune_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Prune'
@@ -280,23 +341,25 @@ type Backend_Prune_Call struct {
 
 // Prune is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Backend_Expecter) Prune(ctx interface{}) *Backend_Prune_Call {
-	return &Backend_Prune_Call{Call: _e.mock.On("Prune", ctx)}
+//   - dryRun bool
+//   - removeUntagged bool
+func (_e *Backend_Expecter) Prune(ctx interface{}, dryRun interface{}, removeUntagged interface{}) *Backend_Prune_Call {
+	return &Backend_Prune_Call{Call: _e.mock.On("Prune", ctx, dryRun, removeUntagged)}
 }
 
-func (_c *Backend_Prune_Call) Run(run func(ctx context.Context)) *Backend_Prune_Call {
+func (_c *Backend_Prune_Call) Run(run func(ctx context.Context, dryRun bool, removeUntagged bool)) *Backend_Prune_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(bool), args[2].(bool))
 	})
 	return _c
 }
 
-func (_c *Backend_Prune_Call) Return(_a0 []string, _a1 error) *Backend_Prune_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *Backend_Prune_Call) Return(_a0 error) *Backend_Prune_Call {
+	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Backend_Prune_Call) RunAndReturn(run func(context.Context) ([]string, error)) *Backend_Prune_Call {
+func (_c *Backend_Prune_Call) RunAndReturn(run func(context.Context, bool, bool) error) *Backend_Prune_Call {
 	_c.Call.Return(run)
 	return _c
 }

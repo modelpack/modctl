@@ -29,18 +29,16 @@ func (b *backend) Remove(ctx context.Context, target string) (string, error) {
 		return "", fmt.Errorf("failed to parse target: %w", err)
 	}
 
-	repo, tag := ref.Repository(), ref.Tag()
-	_, digest, err := b.store.PullManifest(ctx, repo, tag)
-	if err != nil {
-		return "", fmt.Errorf("failed to get manifest: %w", err)
+	// if the reference is a tag, it will only untagged this manifest,
+	// but if provided a digest, it will remove the manifest and all tags referencing it.
+	repo, reference := ref.Repository(), ref.Tag()
+	if ref.Digest() != "" {
+		reference = ref.Digest()
 	}
 
-	// remove the manifest by digest.
-	if tag != "" {
-		if err := b.store.DeleteManifest(ctx, repo, digest); err != nil {
-			return "", fmt.Errorf("failed to delete manifest %s: %w", digest, err)
-		}
+	if err := b.store.DeleteManifest(ctx, repo, reference); err != nil {
+		return "", fmt.Errorf("failed to delete manifest %s: %w", reference, err)
 	}
 
-	return digest, nil
+	return reference, nil
 }

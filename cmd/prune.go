@@ -21,10 +21,13 @@ import (
 	"fmt"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend"
+	"github.com/CloudNativeAI/modctl/pkg/config"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+var pruneConfig = config.NewPrune()
 
 // pruneCmd represents the modctl command for prune.
 var pruneCmd = &cobra.Command{
@@ -42,6 +45,8 @@ var pruneCmd = &cobra.Command{
 // init initializes prune command.
 func init() {
 	flags := rmCmd.Flags()
+	flags.BoolVar(&pruneConfig.DryRun, "dry-run", false, "do not remove any blobs, just print what would be removed")
+	flags.BoolVar(&pruneConfig.RemoveUntagged, "remove-untagged", true, "remove untagged manifests")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache rm flags to viper: %w", err))
@@ -55,15 +60,5 @@ func runPrune(ctx context.Context) error {
 		return err
 	}
 
-	prunedBlobs, err := b.Prune(ctx)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Deleted Blobs:")
-	for _, blob := range prunedBlobs {
-		fmt.Printf("deleted: %s\n", blob)
-	}
-
-	return nil
+	return b.Prune(ctx, pruneConfig.DryRun, pruneConfig.RemoveUntagged)
 }

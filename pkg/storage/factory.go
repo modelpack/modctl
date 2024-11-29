@@ -20,7 +20,7 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/CloudNativeAI/modctl/pkg/storage/zot"
+	"github.com/CloudNativeAI/modctl/pkg/storage/distribution"
 )
 
 const (
@@ -48,13 +48,13 @@ func New(storageType Type, opts ...Option) (Storage, error) {
 	}
 
 	switch storageType {
-	case zot.StorageTypeZot:
-		return zot.NewStorage(storageOpts.RootDir)
+	case distribution.StorageTypeDistribution:
+		return distribution.NewStorage(storageOpts.RootDir)
 	// extend more storage types here.
 	// case "other":
 	default:
-		//  currently by default we are using zot storage.
-		return zot.NewStorage(storageOpts.RootDir)
+		//  currently by default we are using distribution as storage.
+		return distribution.NewStorage(storageOpts.RootDir)
 	}
 }
 

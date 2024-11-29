@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-package zot
+package config
 
-// nopMetricsServer is the empty metrics server implementation to adapt the metrics server interface.
-// It does nothing.
-type nopMetricsServer struct{}
+type Prune struct {
+	DryRun         bool
+	RemoveUntagged bool
+}
 
-func (*nopMetricsServer) SendMetric(interface{})      {}
-func (*nopMetricsServer) ForceSendMetric(interface{}) {}
-func (*nopMetricsServer) ReceiveMetrics() interface{} { return nil }
-func (*nopMetricsServer) IsEnabled() bool             { return false }
+func NewPrune() *Prune {
+	return &Prune{
+		DryRun:         false,
+		RemoveUntagged: true,
+	}
+}
