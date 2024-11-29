@@ -32,28 +32,24 @@ type Options struct {
 
 // Storage is an interface for storage which wraps the storage operations.
 type Storage interface {
-	// GetIndex gets the content of index.json in repo from the storage.
-	GetIndex(ctx context.Context, repo string) ([]byte, error)
 	// PullManifest pulls the manifest from the storage.
 	PullManifest(ctx context.Context, repo, reference string) ([]byte, string, error)
 	// PushManifest pushes the manifest to the storage.
 	PushManifest(ctx context.Context, repo, reference string, body []byte) (string, error)
 	// DeleteManifest deletes the manifest from the storage.
 	DeleteManifest(ctx context.Context, repo, reference string) error
+	// PullBlob pulls the blob from the storage.
+	PullBlob(ctx context.Context, repo, digest string) (io.ReadCloser, error)
 	// PushBlob pushes the blob to the storage.
 	PushBlob(ctx context.Context, repo string, body io.Reader) (string, int64, error)
 	// StatBlob stats the blob in the storage.
 	StatBlob(ctx context.Context, repo, digest string) (bool, error)
-	// DeleteBlob deletes the blob from the storage.
-	DeleteBlob(ctx context.Context, repo, digest string) error
-	// ListBlobs lists all the blobs in the repository.
-	ListBlobs(ctx context.Context, repo string) ([]string, error)
 	// ListRepositories lists all the repositories in the storage.
 	ListRepositories(ctx context.Context) ([]string, error)
-	// CleanupRepo cleans up the repository in the storage.
-	CleanupRepo(ctx context.Context, repo string, blobs []string, removeRepo bool) (int, error)
 	// ListTags lists all the tags in the repository.
 	ListTags(ctx context.Context, repo string) ([]string, error)
+	// PerformGC performs the garbage collection in the storage to free up the space.
+	PerformGC(ctx context.Context, dryRun, removeUntagged bool) error
 }
 
 // WithRootDir sets the root directory of the storage.

@@ -32,14 +32,12 @@ func TestRemove(t *testing.T) {
 	target := "example.com/repo:tag"
 	ref, err := ParseReference("example.com/repo:tag")
 	assert.NoError(t, err)
-	digest := "sha256:1234567890abcdef"
 
-	mockStore.On("PullManifest", ctx, ref.Repository(), ref.Tag()).Return(nil, digest, nil)
-	mockStore.On("DeleteManifest", ctx, ref.Repository(), digest).Return(nil)
+	mockStore.On("DeleteManifest", ctx, ref.Repository(), ref.Tag()).Return(nil)
 
 	result, err := b.Remove(ctx, target)
 	assert.NoError(t, err)
-	assert.Equal(t, digest, result)
+	assert.Equal(t, ref.Tag(), result)
 
 	mockStore.AssertExpectations(t)
 }

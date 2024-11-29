@@ -20,15 +20,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 
+	"github.com/CloudNativeAI/modctl/pkg/storage"
+
+	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"oras.land/oras-go/v2/content/oci"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
-
-	"github.com/CloudNativeAI/modctl/pkg/storage"
 )
 
 // Push pushes the image to the registry.
@@ -48,11 +47,7 @@ func (b *backend) Push(ctx context.Context, target string, opts ...Option) error
 	repo, tag := ref.Repository(), ref.Tag()
 
 	// create the src storage from the image storage path.
-	src, err := oci.New(imageStoragePath(repo))
-	if err != nil {
-		return fmt.Errorf("failed to create source storage: %w", err)
-	}
-
+	src := b.store
 	// create the dst storage from the remote repository.
 	dst, err := remote.NewRepository(target)
 	if err != nil {
@@ -74,20 +69,13 @@ func (b *backend) Push(ctx context.Context, target string, opts ...Option) error
 		dst.PlainHTTP = true
 	}
 
-	manifestDesc, err := src.Resolve(ctx, tag)
+	manifestRaw, _, err := src.PullManifest(ctx, repo, tag)
 	if err != nil {
-		return fmt.Errorf("failed to resolve the manifest from source: %w", err)
+		return fmt.Errorf("failed to pull the manifest: %w", err)
 	}
-
-	manifestReader, err := src.Fetch(ctx, manifestDesc)
-	if err != nil {
-		return fmt.Errorf("failed to fetch the manifest from source: %w", err)
-	}
-
-	defer manifestReader.Close()
 
 	var manifest ocispec.Manifest
-	if err := json.NewDecoder(manifestReader).Decode(&manifest); err != nil {
+	if err := json.Unmarshal(manifestRaw, &manifest); err != nil {
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
 
@@ -115,21 +103,19 @@ func (b *backend) Push(ctx context.Context, target string, opts ...Option) error
 	}
 
 	// copy the manifest.
-	if err := pushIfNotExist(ctx, pb, promptCopyingManifest, src, dst, manifestDesc, repo, tag); err != nil {
+	if err := pushIfNotExist(ctx, pb, promptCopyingManifest, src, dst, ocispec.Descriptor{
+		MediaType: manifest.MediaType,
+		Size:      int64(len(manifestRaw)),
+		Digest:    godigest.FromBytes(manifestRaw),
+	}, repo, tag); err != nil {
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
 
 	return nil
 }
 
-// imageStoragePath returns the image storage path.
-func imageStoragePath(repo string) string {
-	contentDir, _ := storage.GetDefaultContentDir()
-	return filepath.Join(contentDir, repo)
-}
-
 // pushIfNotExist copies the content from the src storage to the dst storage if the content does not exist.
-func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src *oci.Store, dst *remote.Repository, desc ocispec.Descriptor, repo, tag string) error {
+func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src storage.Storage, dst *remote.Repository, desc ocispec.Descriptor, repo, tag string) error {
 	// check whether the content exists in the destination storage.
 	exist, err := dst.Exists(ctx, desc)
 	if err != nil {
@@ -142,7 +128,7 @@ func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src *oc
 	}
 
 	// fetch the content from the source storage.
-	content, err := src.Fetch(ctx, desc)
+	content, err := src.PullBlob(ctx, repo, desc.Digest.String())
 	if err != nil {
 		return fmt.Errorf("failed to fetch the content from source: %w", err)
 	}
