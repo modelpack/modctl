@@ -50,6 +50,9 @@ type Backend interface {
 
 	// Inspect inspects the model artifact.
 	Inspect(ctx context.Context, target string) (*InspectedModelArtifact, error)
+
+	// Extract extracts the model artifact.
+	Extract(ctx context.Context, target string, output string) error
 }
 
 // backend is the implementation of Backend.

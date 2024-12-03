@@ -17,13 +17,15 @@
 package config
 
 type Pull struct {
-	PlainHTTP bool
-	Proxy     string
+	PlainHTTP  bool
+	Proxy      string
+	ExtractDir string
 }
 
 func NewPull() *Pull {
 	return &Pull{
-		PlainHTTP: false,
-		Proxy:     "",
+		PlainHTTP:  false,
+		Proxy:      "",
+		ExtractDir: "",
 	}
 }

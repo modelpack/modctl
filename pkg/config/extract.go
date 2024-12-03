@@ -14,33 +14,14 @@
  * limitations under the License.
  */
 
-package backend
+package config
 
-type Option func(*Options)
-
-type Options struct {
-	plainHTTP bool
-	proxy     string
-	output    string
+type Extract struct {
+	Output string
 }
 
-// WithPlainHTTP sets the plain HTTP option.
-func WithPlainHTTP() Option {
-	return func(opts *Options) {
-		opts.plainHTTP = true
-	}
-}
-
-// WithProxy sets the proxy option.
-func WithProxy(proxy string) Option {
-	return func(opts *Options) {
-		opts.proxy = proxy
-	}
-}
-
-// WithOutput sets the output option.
-func WithOutput(output string) Option {
-	return func(opts *Options) {
-		opts.output = output
+func NewExtract() *Extract {
+	return &Extract{
+		Output: "",
 	}
 }
