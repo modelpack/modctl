@@ -124,6 +124,13 @@ func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error
 		return fmt.Errorf("failed to pull manifest to local: %w", err)
 	}
 
+	// export the target model artifact to the output directory if needed.
+	if options.output != "" {
+		if err := exportModelArtifact(ctx, dst, manifest, repo, options.output); err != nil {
+			return fmt.Errorf("failed to export the artifact to the output directory: %w", err)
+		}
+	}
+
 	return nil
 }
 

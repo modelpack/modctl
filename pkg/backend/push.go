@@ -17,6 +17,7 @@
 package backend
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -127,17 +128,16 @@ func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src sto
 		return nil
 	}
 
-	// fetch the content from the source storage.
-	content, err := src.PullBlob(ctx, repo, desc.Digest.String())
-	if err != nil {
-		return fmt.Errorf("failed to fetch the content from source: %w", err)
-	}
-
-	defer content.Close()
 	// push the content to the destination, and wrap the content reader for progress bar,
 	// manifest should use dst.Manifests().Push, others should use dst.Blobs().Push.
 	if desc.MediaType == ocispec.MediaTypeImageManifest {
-		if err := dst.Manifests().Push(ctx, desc, pb.Add(prompt, desc, content)); err != nil {
+		// fetch the manifest from the source storage.
+		manifestRaw, _, err := src.PullManifest(ctx, repo, tag)
+		if err != nil {
+			return fmt.Errorf("failed to fetch the manifest from source: %w", err)
+		}
+
+		if err := dst.Manifests().Push(ctx, desc, pb.Add(prompt, desc, bytes.NewReader(manifestRaw))); err != nil {
 			return err
 		}
 
@@ -146,6 +146,14 @@ func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src sto
 			return err
 		}
 	} else {
+		// fetch the content from the source storage.
+		content, err := src.PullBlob(ctx, repo, desc.Digest.String())
+		if err != nil {
+			return fmt.Errorf("failed to fetch the content from source: %w", err)
+		}
+
+		defer content.Close()
+
 		if err := dst.Blobs().Push(ctx, desc, pb.Add(prompt, desc, content)); err != nil {
 			return err
 		}

@@ -82,6 +82,14 @@ Push the model artifact to the registry:
 $ modctl push registry.com/models/llama3:v1.0.0
 ```
 
+### Extract
+
+Extract the model artifact to the specified directory:
+
+```shell
+$ modctl extract registry.com/models/llama3:v1.0.0 --output /path/to/extract
+```
+
 ### List
 
 List the model artifacts in the local storage:

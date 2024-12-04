@@ -24,8 +24,9 @@ import (
 	"path/filepath"
 	"time"
 
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	"github.com/CloudNativeAI/modctl/pkg/archiver"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	godigest "github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go"
@@ -40,7 +41,7 @@ type ModelConfig struct {
 
 // BuildLayer converts the file to the image blob and push it to the storage.
 func BuildLayer(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error) {
-	reader, err := TarFileToStream(path)
+	reader, err := archiver.Tar(path)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to tar file: %w", err)
 	}
