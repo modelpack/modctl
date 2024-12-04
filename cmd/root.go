@@ -66,4 +66,5 @@ func init() {
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(pruneCmd)
 	rootCmd.AddCommand(inspectCmd)
+	rootCmd.AddCommand(extractCmd)
 }

@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-package build
+package archiver
 
 import (
 	"archive/tar"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
-// TarFileToStream tars the target file and return the content by stream.
-func TarFileToStream(path string) (io.Reader, error) {
+// Tar tars the target file and return the content by stream.
+func Tar(path string) (io.Reader, error) {
 	pr, pw := io.Pipe()
 	go func() {
 		defer pw.Close()
@@ -64,4 +66,63 @@ func TarFileToStream(path string) (io.Reader, error) {
 	}()
 
 	return pr, nil
+}
+
+// Untar untars the target stream to the destination path.
+func Untar(reader io.Reader, destPath string) error {
+	// uncompress gzip if it is a .tar.gz file
+	// gzipReader, err := gzip.NewReader(reader)
+	// if err != nil {
+	//     return err
+	// }
+	// defer gzipReader.Close()
+	// tarReader := tar.NewReader(gzipReader)
+
+	tarReader := tar.NewReader(reader)
+
+	if err := os.MkdirAll(destPath, 0755); err != nil {
+		return err
+	}
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		// sanitize filepaths to prevent directory traversal.
+		cleanPath := filepath.Clean(header.Name)
+		if strings.Contains(cleanPath, "..") {
+			return fmt.Errorf("tar file contains invalid path: %s", cleanPath)
+		}
+
+		path := filepath.Join(destPath, cleanPath)
+		// check the file type.
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(path, 0755); err != nil {
+				return err
+			}
+		case tar.TypeReg:
+			file, err := os.Create(path)
+			if err != nil {
+				return err
+			}
+
+			if _, err := io.Copy(file, tarReader); err != nil {
+				file.Close()
+				return err
+			}
+			file.Close()
+
+			if err := os.Chmod(path, os.FileMode(header.Mode)); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

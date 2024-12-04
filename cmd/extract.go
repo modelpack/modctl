@@ -27,35 +27,33 @@ import (
 	"github.com/spf13/viper"
 )
 
-var pullConfig = config.NewPull()
+var extractConfig = config.NewExtract()
 
-// pullCmd represents the modctl command for pull.
-var pullCmd = &cobra.Command{
-	Use:                "pull [flags] <target>",
-	Short:              "A command line tool for modctl pull",
+// extractCmd represents the modctl command for extract.
+var extractCmd = &cobra.Command{
+	Use:                "extract <target> --output <output>",
+	Short:              "A command line tool for modctl extract",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runPull(context.Background(), args[0])
+		return runExtract(context.Background(), args[0])
 	},
 }
 
-// init initializes pull command.
+// init initializes extract command.
 func init() {
-	flags := pullCmd.Flags()
-	flags.BoolVar(&pullConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
-	flags.StringVar(&pullConfig.Proxy, "proxy", "", "use proxy for the pull operation")
-	flags.StringVar(&pullConfig.ExtractDir, "extract-dir", "", "specify the extract dir for extracting the model artifact")
+	flags := extractCmd.Flags()
+	flags.StringVar(&extractConfig.Output, "output", "", "specify the output for extracting the model artifact")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache pull flags to viper: %w", err))
+		panic(fmt.Errorf("bind cache extract flags to viper: %w", err))
 	}
 }
 
-// runPull runs the pull modctl.
-func runPull(ctx context.Context, target string) error {
+// runExtract runs the extract modctl.
+func runExtract(ctx context.Context, target string) error {
 	b, err := backend.New()
 	if err != nil {
 		return err
@@ -65,23 +63,14 @@ func runPull(ctx context.Context, target string) error {
 		return fmt.Errorf("target is required")
 	}
 
-	opts := []backend.Option{}
-	if pullConfig.PlainHTTP {
-		opts = append(opts, backend.WithPlainHTTP())
+	if extractConfig.Output == "" {
+		return fmt.Errorf("output is required")
 	}
 
-	if pullConfig.Proxy != "" {
-		opts = append(opts, backend.WithProxy(pullConfig.Proxy))
-	}
-
-	if pullConfig.ExtractDir != "" {
-		opts = append(opts, backend.WithOutput(pullConfig.ExtractDir))
-	}
-
-	if err := b.Pull(ctx, target, opts...); err != nil {
+	if err := b.Extract(ctx, target, extractConfig.Output); err != nil {
 		return err
 	}
 
-	fmt.Printf("Successfully pulled model artifact: %s\n", target)
+	fmt.Printf("Successfully extracted model artifact %s to %s\n", target, extractConfig.Output)
 	return nil
 }
