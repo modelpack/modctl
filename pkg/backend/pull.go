@@ -18,6 +18,7 @@ package backend
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -70,6 +71,9 @@ func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error
 
 		httpClient.Transport = &http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: options.insecure,
+			},
 		}
 	}
 

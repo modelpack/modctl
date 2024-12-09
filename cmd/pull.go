@@ -46,6 +46,7 @@ var pullCmd = &cobra.Command{
 func init() {
 	flags := pullCmd.Flags()
 	flags.BoolVar(&pullConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
+	flags.BoolVar(&pullConfig.Insecure, "insecure", false, "use insecure connection for the pull operation and skip TLS verification")
 	flags.StringVar(&pullConfig.Proxy, "proxy", "", "use proxy for the pull operation")
 	flags.StringVar(&pullConfig.ExtractDir, "extract-dir", "", "specify the extract dir for extracting the model artifact")
 
@@ -65,7 +66,7 @@ func runPull(ctx context.Context, target string) error {
 		return fmt.Errorf("target is required")
 	}
 
-	opts := []backend.Option{}
+	opts := []backend.Option{backend.WithInsecure(pullConfig.Insecure)}
 	if pullConfig.PlainHTTP {
 		opts = append(opts, backend.WithPlainHTTP())
 	}
