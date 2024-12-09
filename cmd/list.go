@@ -53,7 +53,7 @@ func init() {
 
 // runList runs the list modctl.
 func runList(ctx context.Context) error {
-	b, err := backend.New()
+	b, err := backend.New(rootConfig.StoargeDir)
 	if err != nil {
 		return err
 	}

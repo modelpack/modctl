@@ -19,10 +19,13 @@ package cmd
 import (
 	"os"
 
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+var rootConfig *config.Root
 
 // rootCmd represents the modctl command.
 var rootCmd = &cobra.Command{
@@ -48,8 +51,15 @@ func Execute() {
 }
 
 func init() {
+	var err error
+	rootConfig, err = config.NewRoot()
+	if err != nil {
+		panic(err)
+	}
+
 	// Bind more cache specific persistent flags.
 	flags := rootCmd.PersistentFlags()
+	flags.StringVar(&rootConfig.StoargeDir, "storage-dir", "", "specify the storage directory for modctl")
 
 	// Bind common flags.
 	if err := viper.BindPFlags(flags); err != nil {

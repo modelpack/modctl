@@ -61,8 +61,8 @@ type backend struct {
 }
 
 // New creates a new backend.
-func New() (Backend, error) {
-	store, err := storage.New("")
+func New(storageDir string) (Backend, error) {
+	store, err := storage.New("", storageDir)
 	if err != nil {
 		return nil, err
 	}

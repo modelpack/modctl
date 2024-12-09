@@ -50,7 +50,7 @@ func init() {
 
 // runRm runs the rm modctl.
 func runRm(ctx context.Context, target string) error {
-	b, err := backend.New()
+	b, err := backend.New(rootConfig.StoargeDir)
 	if err != nil {
 		return err
 	}
