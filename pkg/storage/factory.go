@@ -17,7 +17,6 @@
 package storage
 
 import (
-	"os/user"
 	"path/filepath"
 
 	"github.com/CloudNativeAI/modctl/pkg/storage/distribution"
@@ -25,28 +24,20 @@ import (
 
 const (
 	// contentV1Dir is the content v1 directory.
-	contentV1Dir = "/.modctl/content.v1/"
+	contentV1Dir = "content.v1"
 )
 
 // Type is the type of storage.
 type Type = string
 
 // New gets the storage by the type.
-func New(storageType Type, opts ...Option) (Storage, error) {
+func New(storageType Type, storageDir string, opts ...Option) (Storage, error) {
 	storageOpts := &Options{}
 	for _, opt := range opts {
 		opt(storageOpts)
 	}
-	// apply default option if not set.
-	if storageOpts.RootDir == "" {
-		contentDir, err := GetDefaultContentDir()
-		if err != nil {
-			return nil, err
-		}
 
-		storageOpts.RootDir = contentDir
-	}
-
+	storageOpts.RootDir = filepath.Join(storageDir, contentV1Dir)
 	switch storageType {
 	case distribution.StorageTypeDistribution:
 		return distribution.NewStorage(storageOpts.RootDir)
@@ -56,24 +47,4 @@ func New(storageType Type, opts ...Option) (Storage, error) {
 		//  currently by default we are using distribution as storage.
 		return distribution.NewStorage(storageOpts.RootDir)
 	}
-}
-
-// getHomeDir returns the current user's home directory.
-func getHomeDir() (string, error) {
-	usr, err := user.Current()
-	if err != nil {
-		return "", err
-	}
-
-	return usr.HomeDir, nil
-}
-
-// GetDefaultContentDir returns the default content directory.
-func GetDefaultContentDir() (string, error) {
-	homeDir, err := getHomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(homeDir, contentV1Dir), nil
 }

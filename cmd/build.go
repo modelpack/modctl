@@ -59,7 +59,7 @@ func init() {
 
 // runBuild runs the build modctl.
 func runBuild(ctx context.Context, workDir string) error {
-	b, err := backend.New()
+	b, err := backend.New(rootConfig.StoargeDir)
 	if err != nil {
 		return err
 	}
