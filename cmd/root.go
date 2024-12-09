@@ -59,7 +59,7 @@ func init() {
 
 	// Bind more cache specific persistent flags.
 	flags := rootCmd.PersistentFlags()
-	flags.StringVar(&rootConfig.StoargeDir, "storage-dir", "", "specify the storage directory for modctl")
+	flags.StringVar(&rootConfig.StoargeDir, "storage-dir", rootConfig.StoargeDir, "specify the storage directory for modctl")
 
 	// Bind common flags.
 	if err := viper.BindPFlags(flags); err != nil {
