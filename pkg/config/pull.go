@@ -19,6 +19,7 @@ package config
 type Pull struct {
 	PlainHTTP  bool
 	Proxy      string
+	Insecure   bool
 	ExtractDir string
 }
 
@@ -26,6 +27,7 @@ func NewPull() *Pull {
 	return &Pull{
 		PlainHTTP:  false,
 		Proxy:      "",
+		Insecure:   false,
 		ExtractDir: "",
 	}
 }

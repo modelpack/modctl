@@ -21,6 +21,7 @@ type Option func(*Options)
 type Options struct {
 	plainHTTP bool
 	proxy     string
+	insecure  bool
 	output    string
 }
 
@@ -35,6 +36,13 @@ func WithPlainHTTP() Option {
 func WithProxy(proxy string) Option {
 	return func(opts *Options) {
 		opts.proxy = proxy
+	}
+}
+
+// WithInsecure sets the insecure option.
+func WithInsecure(insecure bool) Option {
+	return func(opts *Options) {
+		opts.insecure = insecure
 	}
 }
 
