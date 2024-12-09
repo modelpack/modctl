@@ -54,7 +54,7 @@ func init() {
 
 // runPush runs the push modctl.
 func runPush(ctx context.Context, target string) error {
-	b, err := backend.New()
+	b, err := backend.New(rootConfig.StoargeDir)
 	if err != nil {
 		return err
 	}

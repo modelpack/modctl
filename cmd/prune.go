@@ -55,7 +55,7 @@ func init() {
 
 // runPrune runs the prune modctl.
 func runPrune(ctx context.Context) error {
-	b, err := backend.New()
+	b, err := backend.New(rootConfig.StoargeDir)
 	if err != nil {
 		return err
 	}
