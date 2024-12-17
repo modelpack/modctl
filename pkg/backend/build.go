@@ -57,7 +57,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	// build the image config.
 	configDesc, err := build.BuildConfig(ctx, b.store, repo)
 	if err != nil {
-		return fmt.Errorf("faile to build image config: %w", err)
+		return fmt.Errorf("failed to build image config: %w", err)
 	}
 
 	fmt.Printf("%-15s => %s (%s)\n", "Built config", configDesc.Digest, humanize.IBytes(uint64(configDesc.Size)))
@@ -65,7 +65,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	// build the image manifest.
 	manifestDesc, err := build.BuildManifest(ctx, b.store, repo, tag, layers, configDesc, manifestAnnotation(modelfile))
 	if err != nil {
-		return fmt.Errorf("faile to build image manifest: %w", err)
+		return fmt.Errorf("failed to build image manifest: %w", err)
 	}
 
 	fmt.Printf("%-15s => %s (%s)\n", "Built manifest", manifestDesc.Digest, humanize.IBytes(uint64(manifestDesc.Size)))

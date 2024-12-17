@@ -52,7 +52,7 @@ func (b *backend) Extract(ctx context.Context, target string, output string) err
 	return exportModelArtifact(ctx, b.store, manifest, repo, output)
 }
 
-// exportModelArtifact exports the target model artifact to the output directory, which will open the artifact and extract to restore the orginal repo structure.
+// exportModelArtifact exports the target model artifact to the output directory, which will open the artifact and extract to restore the original repo structure.
 func exportModelArtifact(ctx context.Context, store storage.Storage, manifest ocispec.Manifest, repo, output string) error {
 	for _, layer := range manifest.Layers {
 		// pull the blob from the storage.
