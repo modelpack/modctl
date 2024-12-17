@@ -16,12 +16,29 @@
 
 package config
 
+import "fmt"
+
+const (
+	// defaultPushConcurrency is the default number of concurrent push operations.
+	defaultPushConcurrency = 3
+)
+
 type Push struct {
-	PlainHTTP bool
+	Concurrency int
+	PlainHTTP   bool
 }
 
 func NewPush() *Pull {
 	return &Pull{
-		PlainHTTP: false,
+		Concurrency: defaultPushConcurrency,
+		PlainHTTP:   false,
 	}
+}
+
+func (p *Push) Validate() error {
+	if p.Concurrency < 1 {
+		return fmt.Errorf("invalid concurrency: %d", p.Concurrency)
+	}
+
+	return nil
 }

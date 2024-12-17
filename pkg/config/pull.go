@@ -16,18 +16,35 @@
 
 package config
 
+import "fmt"
+
+const (
+	// defaultPullConcurrency is the default number of concurrent pull operations.
+	defaultPullConcurrency = 3
+)
+
 type Pull struct {
-	PlainHTTP  bool
-	Proxy      string
-	Insecure   bool
-	ExtractDir string
+	Concurrency int
+	PlainHTTP   bool
+	Proxy       string
+	Insecure    bool
+	ExtractDir  string
 }
 
 func NewPull() *Pull {
 	return &Pull{
-		PlainHTTP:  false,
-		Proxy:      "",
-		Insecure:   false,
-		ExtractDir: "",
+		Concurrency: defaultPullConcurrency,
+		PlainHTTP:   false,
+		Proxy:       "",
+		Insecure:    false,
+		ExtractDir:  "",
 	}
+}
+
+func (p *Pull) Validate() error {
+	if p.Concurrency < 1 {
+		return fmt.Errorf("invalid concurrency: %d", p.Concurrency)
+	}
+
+	return nil
 }

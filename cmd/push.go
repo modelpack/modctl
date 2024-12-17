@@ -38,6 +38,10 @@ var pushCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := pushConfig.Validate(); err != nil {
+			return err
+		}
+
 		return runPush(context.Background(), args[0])
 	},
 }
@@ -45,6 +49,7 @@ var pushCmd = &cobra.Command{
 // init initializes push command.
 func init() {
 	flags := pushCmd.Flags()
+	flags.IntVar(&pushConfig.Concurrency, "concurrency", pushConfig.Concurrency, "specify the number of concurrent push operations (default: 3)")
 	flags.BoolVar(&pushConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
 
 	if err := viper.BindPFlags(flags); err != nil {
@@ -59,9 +64,9 @@ func runPush(ctx context.Context, target string) error {
 		return err
 	}
 
-	opts := []backend.Option{}
-	if pushConfig.PlainHTTP {
-		opts = append(opts, backend.WithPlainHTTP())
+	opts := []backend.Option{
+		backend.WithPlainHTTP(pushConfig.PlainHTTP),
+		backend.WithConcurrency(pushConfig.Concurrency),
 	}
 
 	if err := b.Push(ctx, target, opts...); err != nil {
