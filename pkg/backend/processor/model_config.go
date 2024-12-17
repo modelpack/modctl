@@ -22,8 +22,8 @@ import (
 	"regexp"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -58,7 +58,7 @@ func (p *modelConfigProcessor) Identify(_ context.Context, path string, info os.
 func (p *modelConfigProcessor) Process(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error) {
 	desc, err := build.BuildLayer(ctx, store, repo, path, workDir)
 	if err != nil {
-		return ocispec.Descriptor{}, nil
+		return ocispec.Descriptor{}, err
 	}
 
 	// add config annotations.

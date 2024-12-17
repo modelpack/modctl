@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"regexp"
 
 	distribution "github.com/distribution/distribution/v3"
 	registry "github.com/distribution/distribution/v3/registry/storage"
@@ -30,6 +31,14 @@ import (
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+func init() {
+	// The PathRegexp in the distribution package is used to validate the repository name,
+	// which not cover the case of the repository name includes the :port, so mutate the regexp to support it.
+	// original regexp: ^(/[A-Za-z0-9._-]+)+$
+	// new regexp:      ^(/[A-Za-z0-9._:-]+)+$
+	driver.PathRegexp = regexp.MustCompile(`^(/[A-Za-z0-9._:-]+)+$`)
+}
 
 const (
 	// StorageTypeDistribution is the storage type of distribution.
