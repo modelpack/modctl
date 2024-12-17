@@ -26,6 +26,7 @@ import (
 
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
@@ -91,11 +92,14 @@ func (b *backend) Push(ctx context.Context, target string, opts ...Option) error
 	// note: the order is important, manifest should be pushed at last.
 
 	// copy the layers.
-	// TODO: parallelize the layer copy.
+	g := &errgroup.Group{}
+	g.SetLimit(options.concurrency)
 	for _, layer := range manifest.Layers {
-		if err := pushIfNotExist(ctx, pb, promptCopyingBlob, src, dst, layer, repo, tag); err != nil {
-			return fmt.Errorf("failed to push blob to remote: %w", err)
-		}
+		g.Go(func() error { return pushIfNotExist(ctx, pb, promptCopyingBlob, src, dst, layer, repo, tag) })
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("failed to push blob to remote: %w", err)
 	}
 
 	// copy the config.

@@ -28,6 +28,7 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/sync/errgroup"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
@@ -110,12 +111,15 @@ func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error
 	// note: the order is important, manifest should be pushed at last.
 
 	// copy the layers.
-	// TODO: parallelize the layer copy.
 	dst := b.store
+	g := &errgroup.Group{}
+	g.SetLimit(options.concurrency)
 	for _, layer := range manifest.Layers {
-		if err := pullIfNotExist(ctx, pb, promptCopyingBlob, src, dst, layer, repo, tag); err != nil {
-			return fmt.Errorf("failed to pull blob to local: %w", err)
-		}
+		g.Go(func() error { return pullIfNotExist(ctx, pb, promptCopyingBlob, src, dst, layer, repo, tag) })
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("failed to pull blob to local: %w", err)
 	}
 
 	// copy the config.
