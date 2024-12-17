@@ -19,16 +19,24 @@ package backend
 type Option func(*Options)
 
 type Options struct {
-	plainHTTP bool
-	proxy     string
-	insecure  bool
-	output    string
+	concurrency int
+	plainHTTP   bool
+	proxy       string
+	insecure    bool
+	output      string
+}
+
+// WithConcurrency sets the concurrency option.
+func WithConcurrency(concurrency int) Option {
+	return func(opts *Options) {
+		opts.concurrency = concurrency
+	}
 }
 
 // WithPlainHTTP sets the plain HTTP option.
-func WithPlainHTTP() Option {
+func WithPlainHTTP(plainHTTP bool) Option {
 	return func(opts *Options) {
-		opts.plainHTTP = true
+		opts.plainHTTP = plainHTTP
 	}
 }
 

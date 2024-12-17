@@ -38,6 +38,10 @@ var pullCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := pullConfig.Validate(); err != nil {
+			return err
+		}
+
 		return runPull(context.Background(), args[0])
 	},
 }
@@ -45,6 +49,7 @@ var pullCmd = &cobra.Command{
 // init initializes pull command.
 func init() {
 	flags := pullCmd.Flags()
+	flags.IntVar(&pullConfig.Concurrency, "concurrency", pullConfig.Concurrency, "specify the number of concurrent pull operations (default: 3)")
 	flags.BoolVar(&pullConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
 	flags.BoolVar(&pullConfig.Insecure, "insecure", false, "use insecure connection for the pull operation and skip TLS verification")
 	flags.StringVar(&pullConfig.Proxy, "proxy", "", "use proxy for the pull operation")
@@ -66,9 +71,10 @@ func runPull(ctx context.Context, target string) error {
 		return fmt.Errorf("target is required")
 	}
 
-	opts := []backend.Option{backend.WithInsecure(pullConfig.Insecure)}
-	if pullConfig.PlainHTTP {
-		opts = append(opts, backend.WithPlainHTTP())
+	opts := []backend.Option{
+		backend.WithInsecure(pullConfig.Insecure),
+		backend.WithPlainHTTP(pullConfig.PlainHTTP),
+		backend.WithConcurrency(pullConfig.Concurrency),
 	}
 
 	if pullConfig.Proxy != "" {
