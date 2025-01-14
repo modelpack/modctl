@@ -20,7 +20,7 @@ import "fmt"
 
 const (
 	// defaultPushConcurrency is the default number of concurrent push operations.
-	defaultPushConcurrency = 3
+	defaultPushConcurrency = 5
 )
 
 type Push struct {

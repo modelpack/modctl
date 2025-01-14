@@ -49,7 +49,7 @@ var pullCmd = &cobra.Command{
 // init initializes pull command.
 func init() {
 	flags := pullCmd.Flags()
-	flags.IntVar(&pullConfig.Concurrency, "concurrency", pullConfig.Concurrency, "specify the number of concurrent pull operations (default: 3)")
+	flags.IntVar(&pullConfig.Concurrency, "concurrency", pullConfig.Concurrency, "specify the number of concurrent pull operations")
 	flags.BoolVar(&pullConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
 	flags.BoolVar(&pullConfig.Insecure, "insecure", false, "use insecure connection for the pull operation and skip TLS verification")
 	flags.StringVar(&pullConfig.Proxy, "proxy", "", "use proxy for the pull operation")
