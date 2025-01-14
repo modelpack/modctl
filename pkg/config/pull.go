@@ -20,7 +20,7 @@ import "fmt"
 
 const (
 	// defaultPullConcurrency is the default number of concurrent pull operations.
-	defaultPullConcurrency = 3
+	defaultPullConcurrency = 5
 )
 
 type Pull struct {
