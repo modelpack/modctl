@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var pushConfig = config.NewPull()
+var pushConfig = config.NewPush()
 
 // pushCmd represents the modctl command for push.
 var pushCmd = &cobra.Command{
@@ -49,7 +49,7 @@ var pushCmd = &cobra.Command{
 // init initializes push command.
 func init() {
 	flags := pushCmd.Flags()
-	flags.IntVar(&pushConfig.Concurrency, "concurrency", pushConfig.Concurrency, "specify the number of concurrent push operations (default: 3)")
+	flags.IntVar(&pushConfig.Concurrency, "concurrency", pushConfig.Concurrency, "specify the number of concurrent push operations")
 	flags.BoolVar(&pushConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
 
 	if err := viper.BindPFlags(flags); err != nil {
