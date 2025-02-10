@@ -163,6 +163,7 @@ func pullIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src *re
 	if desc.MediaType == ocispec.MediaTypeImageManifest {
 		body, err := io.ReadAll(pb.Add(prompt, desc, content))
 		if err != nil {
+			pb.Abort(desc)
 			return fmt.Errorf("failed to read the manifest: %w", err)
 		}
 
@@ -171,6 +172,7 @@ func pullIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src *re
 		}
 	} else {
 		if _, _, err := dst.PushBlob(ctx, repo, pb.Add(prompt, desc, content)); err != nil {
+			pb.Abort(desc)
 			return err
 		}
 	}

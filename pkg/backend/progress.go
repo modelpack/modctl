@@ -105,6 +105,17 @@ func (p *ProgressBar) PrintMessage(prompt string, desc ocispec.Descriptor, messa
 	p.bars[desc.Digest.String()] = bar
 }
 
+// Abort aborts the progress bar by the given desc.
+func (p *ProgressBar) Abort(desc ocispec.Descriptor) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	// if the bar already exists, abort it.
+	bar, ok := p.bars[desc.Digest.String()]
+	if ok {
+		bar.Abort(false)
+	}
+}
+
 // Wait waits for the progress bar to finish.
 func (p *ProgressBar) Wait() {
 	p.mpb.Wait()
