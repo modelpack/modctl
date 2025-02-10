@@ -142,6 +142,7 @@ func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src sto
 		}
 
 		if err := dst.Manifests().Push(ctx, desc, pb.Add(prompt, desc, bytes.NewReader(manifestRaw))); err != nil {
+			pb.Abort(desc)
 			return err
 		}
 
@@ -159,6 +160,7 @@ func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src sto
 		defer content.Close()
 
 		if err := dst.Blobs().Push(ctx, desc, pb.Add(prompt, desc, content)); err != nil {
+			pb.Abort(desc)
 			return err
 		}
 	}
