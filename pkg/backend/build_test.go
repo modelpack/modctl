@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/CloudNativeAI/modctl/test/mocks/modelfile"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	"github.com/stretchr/testify/assert"
 )

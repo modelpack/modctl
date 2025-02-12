@@ -31,6 +31,8 @@ func TestNewModelfile(t *testing.T) {
 		expectErr    error
 		configs      []string
 		models       []string
+		codes        []string
+		datasets     []string
 		name         string
 		arch         string
 		family       string
@@ -44,6 +46,8 @@ func TestNewModelfile(t *testing.T) {
 # This is a comment
 config config1
 model model1
+code code1
+dataset dataset1
 name name1
 arch arch1
 family family1
@@ -55,6 +59,8 @@ quantization quantization1
 			expectErr:    nil,
 			configs:      []string{"config1"},
 			models:       []string{"model1"},
+			codes:        []string{"code1"},
+			datasets:     []string{"dataset1"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -68,6 +74,8 @@ quantization quantization1
 # This is a comment
 config        config1
 model         model1
+code          code1
+dataset       dataset1
 name          name1
 arch          arch1
 family        family1
@@ -79,6 +87,8 @@ quantization  quantization1
 			expectErr:    nil,
 			configs:      []string{"config1"},
 			models:       []string{"model1"},
+			codes:        []string{"code1"},
+			datasets:     []string{"dataset1"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -89,10 +99,14 @@ quantization  quantization1
 		},
 		{
 			input: `
-model model1
-model model2
 config config1
 config config2
+model model1
+model model2
+code code1
+code code2
+dataset dataset1
+dataset dataset2
 name name1
 arch arch1
 family family1
@@ -104,6 +118,8 @@ quantization quantization1
 			expectErr:    nil,
 			configs:      []string{"config1", "config2"},
 			models:       []string{"model1", "model2"},
+			codes:        []string{"code1", "code2"},
+			datasets:     []string{"dataset1", "dataset2"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -114,12 +130,18 @@ quantization quantization1
 		},
 		{
 			input: `
-model model1
-model model1
-model model2
 config config1
 config config1
 config config2
+model model1
+model model1
+model model2
+code code1
+code code1
+code code2
+dataset dataset1
+dataset dataset1
+dataset dataset2
 name name1
 arch arch1
 family family1
@@ -131,6 +153,8 @@ quantization quantization1
 			expectErr:    nil,
 			configs:      []string{"config1", "config2"},
 			models:       []string{"model1", "model2"},
+			codes:        []string{"code1", "code2"},
+			datasets:     []string{"dataset1", "dataset2"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -202,10 +226,16 @@ name bar
 		assert.NotNil(mf)
 		configs := mf.GetConfigs()
 		models := mf.GetModels()
+		codes := mf.GetCodes()
+		datasets := mf.GetDatasets()
 		sort.Strings(configs)
 		sort.Strings(models)
+		sort.Strings(codes)
+		sort.Strings(datasets)
 		assert.Equal(tc.configs, configs)
 		assert.Equal(tc.models, models)
+		assert.Equal(tc.codes, codes)
+		assert.Equal(tc.datasets, datasets)
 		assert.Equal(tc.name, mf.GetName())
 		assert.Equal(tc.arch, mf.GetArch())
 		assert.Equal(tc.family, mf.GetFamily())
