@@ -35,9 +35,19 @@ type Modelfile interface {
 	GetConfigs() []string
 
 	// GetModels returns the args of the model command in the modelfile,
-	// and deduplicates the args. The order of the args is the same as The
+	// and deduplicates the args. The order of the args is the same as the
 	// order in the modelfile.
 	GetModels() []string
+
+	// GetCode returns the args of the code command in the modelfile,
+	// and deduplicates the args. The order of the args is the same as the
+	// order in the modelfile.
+	GetCodes() []string
+
+	// GetDatasets returns the args of the dataset command in the modelfile,
+	// and deduplicates the args. The order of the args is the same as the
+	// order in the modelfile.
+	GetDatasets() []string
 
 	// GetName returns the value of the name command in the modelfile.
 	GetName() string
@@ -65,6 +75,8 @@ type Modelfile interface {
 type modelfile struct {
 	config       *hashset.Set
 	model        *hashset.Set
+	code         *hashset.Set
+	dataset      *hashset.Set
 	name         string
 	arch         string
 	family       string
@@ -78,8 +90,10 @@ type modelfile struct {
 // It parses the modelfile and returns the modelfile interface.
 func NewModelfile(path string) (Modelfile, error) {
 	mf := &modelfile{
-		config: hashset.New(),
-		model:  hashset.New(),
+		config:  hashset.New(),
+		model:   hashset.New(),
+		code:    hashset.New(),
+		dataset: hashset.New(),
 	}
 	if err := mf.parseFile(path); err != nil {
 		return nil, err
@@ -107,6 +121,10 @@ func (mf *modelfile) parseFile(path string) error {
 			mf.config.Add(child.GetNext().GetValue())
 		case modefilecommand.MODEL:
 			mf.model.Add(child.GetNext().GetValue())
+		case modefilecommand.CODE:
+			mf.code.Add(child.GetNext().GetValue())
+		case modefilecommand.DATASET:
+			mf.dataset.Add(child.GetNext().GetValue())
 		case modefilecommand.NAME:
 			if mf.name != "" {
 				return fmt.Errorf("duplicate name command on line %d", child.GetStartLine())
@@ -182,6 +200,40 @@ func (mf *modelfile) GetModels() []string {
 	}
 
 	return models
+}
+
+// GetCode returns the args of the code command in the modelfile,
+// and deduplicates the args. The order of the args is the same as the
+// order in the modelfile.
+func (mf *modelfile) GetCodes() []string {
+	var codes []string
+	for _, rawCode := range mf.code.Values() {
+		code, ok := rawCode.(string)
+		if !ok {
+			continue
+		}
+
+		codes = append(codes, code)
+	}
+
+	return codes
+}
+
+// GetDatasets returns the args of the dataset command in the modelfile,
+// and deduplicates the args. The order of the args is the same as the
+// order in the modelfile.
+func (mf *modelfile) GetDatasets() []string {
+	var datasets []string
+	for _, rawDataset := range mf.dataset.Values() {
+		dataset, ok := rawDataset.(string)
+		if !ok {
+			continue
+		}
+
+		datasets = append(datasets, dataset)
+	}
+
+	return datasets
 }
 
 // GetName returns the value of the name command in the modelfile.

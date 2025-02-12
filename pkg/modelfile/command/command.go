@@ -25,11 +25,25 @@ const (
 	CONFIG = "config"
 
 	// MODEL is the command to set the model file path. The value of this command
-	// is the regex of the model file path to match the model file name.
+	// is the glob of the model file path to match the model file name.
 	// The MODEL command can be used multiple times in a modelfile, it will scan
-	// the model file path by the regex and copy each model file to the artifact
+	// the model file path by the glob and copy each model file to the artifact
 	// package, and each model file will be a layer.
 	MODEL = "model"
+
+	// CODE is the command to set the code file path. The value of this commands
+	// is the glob of the code file path to match the code file name.
+	// The CODE command can be used multiple times in a modelfile, it will scan
+	// the code file path by the glob and copy each code file to the artifact
+	// package, and each code file will be a layer.
+	CODE = "code"
+
+	// DATASET is the command to set the dataset file path. The value of this commands
+	// is the glob of the dataset file path to match the dataset file name.
+	// The DATASET command can be used multiple times in a modelfile, it will scan
+	// the dataset file path by the glob and copy each dataset file to the artifact
+	// package, and each dataset file will be a layer.
+	DATASET = "dataset"
 
 	// NAME is the command to set the model name, such as llama3-8b-instruct, gpt2-xl,
 	// qwen2-vl-72b-instruct, etc.
@@ -59,6 +73,8 @@ const (
 var Commands = []string{
 	CONFIG,
 	MODEL,
+	CODE,
+	DATASET,
 	NAME,
 	ARCH,
 	FAMILY,

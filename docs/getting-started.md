@@ -54,6 +54,12 @@ CONFIG generation_config.json
 
 # Model weight.
 MODEL \.safetensors$
+
+# Model code.
+CODE \.py$
+
+# Model dataset.
+DATASET \.csv$
 ```
 
 Then run the following command to build the model artifact:

@@ -149,6 +149,8 @@ func TestParseCommandLine(t *testing.T) {
 		{"config foo", 1, 2, false, "config", []string{"foo"}},
 		{"CONFIG foo", 1, 2, false, "config", []string{"foo"}},
 		{"model foo", 1, 2, false, "model", []string{"foo"}},
+		{"code foo", 1, 2, false, "code", []string{"foo"}},
+		{"dataset foo", 1, 2, false, "dataset", []string{"foo"}},
 		{"name bar", 3, 4, false, "name", []string{"bar"}},
 		{"arch transformer", 5, 6, false, "arch", []string{"transformer"}},
 		{"family llama3", 7, 8, false, "family", []string{"llama3"}},
