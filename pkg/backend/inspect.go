@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -33,8 +34,8 @@ type InspectedModelArtifact struct {
 	Digest string `json:"Digest"`
 	// Architecture is the architecture of the model.
 	Architecture string `json:"Architecture"`
-	// Created is the creation time of the model artifact.
-	Created string `json:"Created"`
+	// CreatedAt is the creation time of the model artifact.
+	CreatedAt string `json:"CreatedAt"`
 	// Family is the family of the model.
 	Family string `json:"Family"`
 	// Format is the format of the model.
@@ -79,17 +80,32 @@ func (b *backend) Inspect(ctx context.Context, target string) (*InspectedModelAr
 		return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
 	}
 
+	// fetch and parse the model config.
+	configReader, err := b.store.PullBlob(ctx, repo, manifest.Config.Digest.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to pull config: %w", err)
+	}
+
+	defer configReader.Close()
+	var config modelspec.Model
+	if err := json.NewDecoder(configReader).Decode(&config); err != nil {
+		return nil, fmt.Errorf("failed to decode config: %w", err)
+	}
+
 	inspectedModelArtifact := &InspectedModelArtifact{
 		ID:           manifest.Config.Digest.String(),
 		Digest:       digest,
-		Architecture: manifest.Annotations[modelspec.AnnotationArchitecture],
-		Created:      manifest.Annotations[modelspec.AnnotationCreated],
-		Family:       manifest.Annotations[modelspec.AnnotationFamily],
-		Format:       manifest.Annotations[modelspec.AnnotationFormat],
-		Name:         manifest.Annotations[modelspec.AnnotationName],
-		ParamSize:    manifest.Annotations[modelspec.AnnotationParamSize],
-		Precision:    manifest.Annotations[modelspec.AnnotationPrecision],
-		Quantization: manifest.Annotations[modelspec.AnnotationQuantization],
+		Architecture: config.Config.Architecture,
+		Family:       config.Descriptor.Family,
+		Format:       config.Config.Format,
+		Name:         config.Descriptor.Name,
+		ParamSize:    fmt.Sprintf("%d", config.Config.ParameterSize),
+		Precision:    config.Config.Precision,
+		Quantization: config.Config.Quantization,
+	}
+
+	if config.Descriptor.CreatedAt != nil {
+		inspectedModelArtifact.CreatedAt = config.Descriptor.CreatedAt.Format(time.RFC3339)
 	}
 
 	for _, layer := range manifest.Layers {

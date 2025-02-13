@@ -67,6 +67,5 @@ func TestModelProcessor_Process(t *testing.T) {
 	assert.NotNil(t, desc)
 	assert.Equal(t, "sha256:1234567890abcdef", desc.Digest.String())
 	assert.Equal(t, int64(1024), desc.Size)
-	assert.Equal(t, "true", desc.Annotations[modelspec.AnnotationModel])
 	assert.Equal(t, "model", desc.Annotations[modelspec.AnnotationFilepath])
 }
