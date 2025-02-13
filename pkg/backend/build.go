@@ -21,12 +21,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	humanize "github.com/dustin/go-humanize"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -55,7 +53,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	layers = append(layers, layerDescs...)
 
 	// build the image config.
-	configDesc, err := build.BuildConfig(ctx, b.store, repo)
+	configDesc, err := build.BuildConfig(ctx, b.store, modelfile, repo)
 	if err != nil {
 		return fmt.Errorf("failed to build image config: %w", err)
 	}
@@ -63,7 +61,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	fmt.Printf("%-15s => %s (%s)\n", "Built config", configDesc.Digest, humanize.IBytes(uint64(configDesc.Size)))
 
 	// build the image manifest.
-	manifestDesc, err := build.BuildManifest(ctx, b.store, repo, tag, layers, configDesc, manifestAnnotation(modelfile))
+	manifestDesc, err := build.BuildManifest(ctx, b.store, repo, tag, layers, configDesc, manifestAnnotation())
 	if err != nil {
 		return fmt.Errorf("failed to build image manifest: %w", err)
 	}
@@ -133,38 +131,8 @@ func (b *backend) process(ctx context.Context, workDir string, repo string, proc
 }
 
 // manifestAnnotation returns the annotations for the manifest.
-func manifestAnnotation(modelfile modelfile.Modelfile) map[string]string {
-	anno := map[string]string{
-		modelspec.AnnotationCreated: time.Now().Format(time.RFC3339),
-	}
-
-	if arch := modelfile.GetArch(); arch != "" {
-		anno[modelspec.AnnotationArchitecture] = arch
-	}
-
-	if family := modelfile.GetFamily(); family != "" {
-		anno[modelspec.AnnotationFamily] = family
-	}
-
-	if name := modelfile.GetName(); name != "" {
-		anno[modelspec.AnnotationName] = name
-	}
-
-	if format := modelfile.GetFormat(); format != "" {
-		anno[modelspec.AnnotationFormat] = format
-	}
-
-	if paramsize := modelfile.GetParamsize(); paramsize != "" {
-		anno[modelspec.AnnotationParamSize] = paramsize
-	}
-
-	if precision := modelfile.GetPrecision(); precision != "" {
-		anno[modelspec.AnnotationPrecision] = precision
-	}
-
-	if quantization := modelfile.GetQuantization(); quantization != "" {
-		anno[modelspec.AnnotationQuantization] = quantization
-	}
-
+func manifestAnnotation() map[string]string {
+	// placeholder for future expansion of annotations.
+	anno := map[string]string{}
 	return anno
 }

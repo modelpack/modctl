@@ -56,16 +56,10 @@ func (p *modelProcessor) Identify(_ context.Context, path string, info os.FileIn
 }
 
 func (p *modelProcessor) Process(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error) {
-	desc, err := build.BuildLayer(ctx, store, repo, path, workDir)
+	desc, err := build.BuildLayer(ctx, store, modelspec.MediaTypeModelWeight, repo, path, workDir)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
 
-	// add model annotations.
-	if desc.Annotations == nil {
-		desc.Annotations = map[string]string{}
-	}
-
-	desc.Annotations[modelspec.AnnotationModel] = "true"
 	return desc, nil
 }
