@@ -17,10 +17,11 @@
 package backend
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"testing"
-	"time"
 
 	"github.com/CloudNativeAI/modctl/test/mocks/storage"
 	"github.com/stretchr/testify/assert"
@@ -35,24 +36,45 @@ func TestList(t *testing.T) {
 	ctx := context.Background()
 	repos := []string{"example.com/repo1", "example.com/repo2"}
 	tags := []string{"tag1", "tag2"}
-	createdAt := time.Now().Format(time.RFC3339)
 	manifest := ocispec.Manifest{
 		Layers: []ocispec.Descriptor{
 			{Size: 1024},
 			{Size: 1024},
 		},
 		Config: ocispec.Descriptor{Size: 1024},
-		Annotations: map[string]string{
-			"org.cnai.model.created": createdAt,
-		},
 	}
 	manifestRaw, err := json.Marshal(manifest)
 	assert.NoError(t, err)
+
+	config := `{
+  "descriptor": {
+    "createdAt": "2025-02-12T17:01:43.968027+08:00",
+    "family": "qwen2",
+    "name": "Qwen2.5-0.5B"
+  },
+  "modelfs": {
+    "type": "layers",
+    "diff_ids": null
+  },
+  "config": {
+    "architecture": "transformer",
+    "format": "tensorflow",
+    "parameterSize": 50000000000,
+    "precision": "int8",
+    "puantization": "gptq"
+  }
+}`
 
 	mockStore.On("ListRepositories", ctx).Return(repos, nil)
 	mockStore.On("ListTags", ctx, repos[0]).Return(tags, nil)
 	mockStore.On("ListTags", ctx, repos[1]).Return(tags, nil)
 	mockStore.On("PullManifest", ctx, mock.Anything, mock.Anything).Return(manifestRaw, "sha256:1234567890abcdef", nil)
+	mockStore.On("PullBlob", ctx, mock.Anything, mock.Anything).Return(
+		func(ctx context.Context, repo string, digest string) (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader([]byte(config))), nil
+		},
+		nil,
+	)
 
 	artifacts, err := b.List(ctx)
 	assert.NoError(t, err, "list failed")
@@ -61,5 +83,5 @@ func TestList(t *testing.T) {
 	assert.Equal(t, tags[0], artifacts[0].Tag, "unexpected tag")
 	assert.Equal(t, "sha256:1234567890abcdef", artifacts[0].Digest, "unexpected digest")
 	assert.Equal(t, int64(3*1024+len(manifestRaw)), artifacts[0].Size, "unexpected size")
-	assert.Equal(t, createdAt, artifacts[0].CreatedAt.Format(time.RFC3339), "unexpected created at")
+	assert.Equal(t, "2025-02-12T17:01:43.968027+08:00", artifacts[0].CreatedAt.Format("2006-01-02T15:04:05.000000-07:00"), "unexpected created at")
 }

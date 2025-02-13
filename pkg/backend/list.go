@@ -96,6 +96,18 @@ func (b *backend) assembleModelArtifact(ctx context.Context, repo, tag string) (
 		size += layer.Size
 	}
 
+	// fetch and parse the model config.
+	configReader, err := b.store.PullBlob(ctx, repo, manifest.Config.Digest.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to pull config: %w", err)
+	}
+
+	defer configReader.Close()
+	var config modelspec.Model
+	if err := json.NewDecoder(configReader).Decode(&config); err != nil {
+		return nil, fmt.Errorf("failed to decode config: %w", err)
+	}
+
 	modelArtifact := &ModelArtifact{
 		Repository: repo,
 		Tag:        tag,
@@ -103,14 +115,8 @@ func (b *backend) assembleModelArtifact(ctx context.Context, repo, tag string) (
 		Size:       size,
 	}
 
-	// parse the creation time from the manifest annotation if existed.
-	if createdStr, ok := manifest.Annotations[modelspec.AnnotationCreated]; ok {
-		created, err := time.Parse(time.RFC3339, createdStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse created time: %w", err)
-		}
-
-		modelArtifact.CreatedAt = created
+	if config.Descriptor.CreatedAt != nil {
+		modelArtifact.CreatedAt = *config.Descriptor.CreatedAt
 	}
 
 	return modelArtifact, nil

@@ -44,16 +44,10 @@ func (p *licenseProcessor) Identify(_ context.Context, path string, info os.File
 }
 
 func (p *licenseProcessor) Process(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error) {
-	desc, err := build.BuildLayer(ctx, store, repo, path, workDir)
+	desc, err := build.BuildLayer(ctx, store, modelspec.MediaTypeModelDoc, repo, path, workDir)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
 
-	// add license annotations.
-	if desc.Annotations == nil {
-		desc.Annotations = map[string]string{}
-	}
-
-	desc.Annotations[modelspec.AnnotationLicense] = "true"
 	return desc, nil
 }

@@ -36,7 +36,7 @@ func init() {
 	// The PathRegexp in the distribution package is used to validate the repository name,
 	// which not cover the case of the repository name includes the :port, so mutate the regexp to support it.
 	// original regexp: ^(/[A-Za-z0-9._-]+)+$
-	// new regexp:      ^(/[A-Za-z0-9._:-]+)+$
+	// patched regexp:  ^(/[A-Za-z0-9._:-]+)+$
 	driver.PathRegexp = regexp.MustCompile(`^(/[A-Za-z0-9._:-]+)+$`)
 }
 

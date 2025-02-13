@@ -22,9 +22,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/CloudNativeAI/modctl/pkg/archiver"
+	"github.com/CloudNativeAI/modctl/pkg/modelfile"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
@@ -33,14 +35,8 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// ModelConfig is a configuration that corresponds to the image config in the image spec.
-type ModelConfig struct {
-	// Created is the time when the model image is created.
-	Created string `json:"Created"`
-}
-
 // BuildLayer converts the file to the image blob and push it to the storage.
-func BuildLayer(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error) {
+func BuildLayer(ctx context.Context, store storage.Storage, mediaType, repo, path, workDir string) (ocispec.Descriptor, error) {
 	reader, err := archiver.Tar(path)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to tar file: %w", err)
@@ -62,21 +58,55 @@ func BuildLayer(ctx context.Context, store storage.Storage, repo, path, workDir 
 	}
 
 	return ocispec.Descriptor{
-		ArtifactType: modelspec.ArtifactTypeModelLayer,
-		MediaType:    ocispec.MediaTypeImageLayer,
-		Digest:       godigest.Digest(digest),
-		Size:         size,
+		MediaType: mediaType,
+		Digest:    godigest.Digest(digest),
+		Size:      size,
 		Annotations: map[string]string{
 			modelspec.AnnotationFilepath: filePath,
 		},
 	}, nil
 }
 
-// BuildConfig builds the image config and push it to the storage.
-func BuildConfig(ctx context.Context, store storage.Storage, repo string) (ocispec.Descriptor, error) {
-	config := &ModelConfig{
-		Created: time.Now().Format(time.RFC3339Nano),
+// buildModelConfig builds the model config.
+func buildModelConfig(modelfile modelfile.Modelfile) (*modelspec.Model, error) {
+	config := modelspec.ModelConfig{
+		Architecture: modelfile.GetArch(),
+		Format:       modelfile.GetFormat(),
+		Precision:    modelfile.GetPrecision(),
+		Quantization: modelfile.GetQuantization(),
 	}
+	// parse the parameter size.
+	paramSize, err := strconv.ParseUint(modelfile.GetParamsize(), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse paramsize %s to uint64: %w", modelfile.GetParamsize(), err)
+	}
+	config.ParameterSize = paramSize
+
+	createdAt := time.Now()
+	descriptor := modelspec.ModelDescriptor{
+		CreatedAt: &createdAt,
+		Family:    modelfile.GetFamily(),
+		Name:      modelfile.GetName(),
+	}
+
+	fs := modelspec.ModelFS{
+		Type: "layers",
+	}
+
+	return &modelspec.Model{
+		Config:     config,
+		Descriptor: descriptor,
+		ModelFS:    fs,
+	}, nil
+}
+
+// BuildConfig builds the image config and push it to the storage.
+func BuildConfig(ctx context.Context, store storage.Storage, modelfile modelfile.Modelfile, repo string) (ocispec.Descriptor, error) {
+	config, err := buildModelConfig(modelfile)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to build model config: %w", err)
+	}
+
 	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal config: %w", err)
@@ -88,8 +118,7 @@ func BuildConfig(ctx context.Context, store storage.Storage, repo string) (ocisp
 	}
 
 	return ocispec.Descriptor{
-		// reuse the image config media type for runtime compatibility.
-		MediaType: ocispec.MediaTypeImageConfig,
+		MediaType: modelspec.MediaTypeModelConfig,
 		Size:      size,
 		Digest:    godigest.Digest(digest),
 	}, nil
