@@ -88,6 +88,10 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile) []processor.Proce
 		processors = append(processors, processor.NewModelProcessor(b.store, modelspec.MediaTypeModelWeight, models))
 	}
 
+	if codes := modelfile.GetCodes(); len(codes) > 0 {
+		processors = append(processors, processor.NewCodeProcessor(b.store, modelspec.MediaTypeModelCode, codes))
+	}
+
 	return processors
 }
 

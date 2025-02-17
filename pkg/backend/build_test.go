@@ -28,13 +28,15 @@ func TestGetProcessors(t *testing.T) {
 	modelfile := &modelfile.Modelfile{}
 	modelfile.On("GetConfigs").Return([]string{"config1", "config2"})
 	modelfile.On("GetModels").Return([]string{"model1", "model2"})
+	modelfile.On("GetCodes").Return([]string{"1.py", "2.py"})
 
 	b := &backend{}
 	processors := b.getProcessors(modelfile)
 
-	assert.Len(t, processors, 4)
+	assert.Len(t, processors, 5)
 	assert.Equal(t, "readme", processors[0].Name())
 	assert.Equal(t, "license", processors[1].Name())
 	assert.Equal(t, "model_config", processors[2].Name())
 	assert.Equal(t, "model", processors[3].Name())
+	assert.Equal(t, "code", processors[4].Name())
 }
