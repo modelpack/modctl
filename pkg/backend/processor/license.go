@@ -18,36 +18,31 @@ package processor
 
 import (
 	"context"
-	"os"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
-
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // NewLicenseProcessor creates a new LICENSE processor.
-func NewLicenseProcessor() Processor {
-	return &licenseProcessor{}
+func NewLicenseProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
+	return &licenseProcessor{
+		base: &base{
+			store:     store,
+			mediaType: mediaType,
+			patterns:  patterns,
+		},
+	}
 }
 
 // licenseProcessor is the processor to process the LICENSE file.
-type licenseProcessor struct{}
+type licenseProcessor struct {
+	base *base
+}
 
 func (p *licenseProcessor) Name() string {
 	return "license"
 }
 
-func (p *licenseProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
-	return info.Name() == "LICENSE" || info.Name() == "LICENSE.txt"
-}
-
-func (p *licenseProcessor) Process(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error) {
-	desc, err := build.BuildLayer(ctx, store, modelspec.MediaTypeModelDoc, repo, path, workDir)
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-
-	return desc, nil
+func (p *licenseProcessor) Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error) {
+	return p.base.Process(ctx, workDir, repo)
 }

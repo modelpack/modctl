@@ -18,48 +18,32 @@ package processor
 
 import (
 	"context"
-	"os"
-	"regexp"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // NewModelConfigProcessor creates a new model config processor.
-func NewModelConfigProcessor(configs []string) Processor {
+func NewModelConfigProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
 	return &modelConfigProcessor{
-		configs: configs,
+		base: &base{
+			store:     store,
+			mediaType: mediaType,
+			patterns:  patterns,
+		},
 	}
 }
 
 // modelConfigProcessor is the processor to process the model config file.
 type modelConfigProcessor struct {
-	// configs is the list of regular expressions to match the model config file.
-	configs []string
+	base *base
 }
 
 func (p *modelConfigProcessor) Name() string {
 	return "model_config"
 }
 
-func (p *modelConfigProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
-	for _, config := range p.configs {
-		if matched, _ := regexp.MatchString(config, info.Name()); matched {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (p *modelConfigProcessor) Process(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error) {
-	desc, err := build.BuildLayer(ctx, store, modelspec.MediaTypeModelWeightConfig, repo, path, workDir)
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-
-	return desc, nil
+func (p *modelConfigProcessor) Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error) {
+	return p.base.Process(ctx, workDir, repo)
 }

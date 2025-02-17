@@ -19,13 +19,12 @@ package backend
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
 
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	humanize "github.com/dustin/go-humanize"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -45,7 +44,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 
 	repo, tag := ref.Repository(), ref.Tag()
 	layers := []ocispec.Descriptor{}
-	layerDescs, err := b.process(ctx, workDir, repo, getProcessors(modelfile)...)
+	layerDescs, err := b.process(ctx, workDir, repo, b.getProcessors(modelfile)...)
 	if err != nil {
 		return fmt.Errorf("failed to process files: %w", err)
 	}
@@ -70,22 +69,23 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	return nil
 }
 
-func defaultProcessors() []processor.Processor {
+func (b *backend) defaultProcessors() []processor.Processor {
 	return []processor.Processor{
-		processor.NewLicenseProcessor(),
-		processor.NewReadmeProcessor(),
+		// by default process the readme and license file.
+		processor.NewReadmeProcessor(b.store, modelspec.MediaTypeModelDoc, []string{"README.md", "README"}),
+		processor.NewLicenseProcessor(b.store, modelspec.MediaTypeModelDoc, []string{"LICENSE.txt", "LICENSE"}),
 	}
 }
 
-func getProcessors(modelfile modelfile.Modelfile) []processor.Processor {
-	processors := defaultProcessors()
+func (b *backend) getProcessors(modelfile modelfile.Modelfile) []processor.Processor {
+	processors := b.defaultProcessors()
 
 	if configs := modelfile.GetConfigs(); len(configs) > 0 {
-		processors = append(processors, processor.NewModelConfigProcessor(configs))
+		processors = append(processors, processor.NewModelConfigProcessor(b.store, modelspec.MediaTypeModelWeightConfig, configs))
 	}
 
 	if models := modelfile.GetModels(); len(models) > 0 {
-		processors = append(processors, processor.NewModelProcessor(models))
+		processors = append(processors, processor.NewModelProcessor(b.store, modelspec.MediaTypeModelWeight, models))
 	}
 
 	return processors
@@ -93,41 +93,17 @@ func getProcessors(modelfile modelfile.Modelfile) []processor.Processor {
 
 // process walks the user work directory and process the identified files.
 func (b *backend) process(ctx context.Context, workDir string, repo string, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
-	layers := []ocispec.Descriptor{}
-	// walk the user work directory and handle the default identified files.
-	if err := filepath.Walk(workDir, func(path string, info os.FileInfo, err error) error {
+	descriptors := []ocispec.Descriptor{}
+	for _, p := range processors {
+		descs, err := p.Process(ctx, workDir, repo)
 		if err != nil {
-			return fmt.Errorf("failed to walk directory: %w", err)
-		}
-		// skip directories.
-		if info.IsDir() {
-			return nil
-		}
-		// get absolute path.
-		path, err = filepath.Abs(path)
-		if err != nil {
-			return fmt.Errorf("failed to get absolute path: %w", err)
-		}
-		// fan-in file processors.
-		for _, p := range processors {
-			// process the file if it can be recognized.
-			if p.Identify(ctx, path, info) {
-				desc, err := p.Process(ctx, b.store, repo, path, workDir)
-				if err != nil {
-					return fmt.Errorf("failed to process file: %w", err)
-				}
-
-				fmt.Printf("%-15s => %s (%s)\n", "Built blob", desc.Digest, humanize.IBytes(uint64(desc.Size)))
-				layers = append(layers, desc)
-			}
+			return nil, err
 		}
 
-		return nil
-	}); err != nil {
-		return nil, err
+		descriptors = append(descriptors, descs...)
 	}
 
-	return layers, nil
+	return descriptors, nil
 }
 
 // manifestAnnotation returns the annotations for the manifest.

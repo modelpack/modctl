@@ -18,9 +18,6 @@ package processor
 
 import (
 	"context"
-	"os"
-
-	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -29,9 +26,6 @@ import (
 type Processor interface {
 	// Name returns the name of the processor.
 	Name() string
-	// Identify identifies the file, returns true if the file is identified,
-	// then the Process will be called to process the file, otherwise it will be skipped.
-	Identify(ctx context.Context, path string, info os.FileInfo) bool
 	// Process processes the file.
-	Process(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error)
+	Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error)
 }

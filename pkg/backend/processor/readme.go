@@ -18,36 +18,32 @@ package processor
 
 import (
 	"context"
-	"os"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // NewReadmeProcessor creates a new README processor.
-func NewReadmeProcessor() Processor {
-	return &readmeProcessor{}
+func NewReadmeProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
+	return &readmeProcessor{
+		base: &base{
+			store:     store,
+			mediaType: mediaType,
+			patterns:  patterns,
+		},
+	}
 }
 
 // readmeProcessor is the processor to process the README file.
-type readmeProcessor struct{}
+type readmeProcessor struct {
+	base *base
+}
 
 func (p *readmeProcessor) Name() string {
 	return "readme"
 }
 
-func (p *readmeProcessor) Identify(_ context.Context, path string, info os.FileInfo) bool {
-	return info.Name() == "README.md" || info.Name() == "README"
-}
-
-func (p *readmeProcessor) Process(ctx context.Context, store storage.Storage, repo, path, workDir string) (ocispec.Descriptor, error) {
-	desc, err := build.BuildLayer(ctx, store, modelspec.MediaTypeModelDoc, repo, path, workDir)
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-
-	return desc, nil
+func (p *readmeProcessor) Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error) {
+	return p.base.Process(ctx, workDir, repo)
 }

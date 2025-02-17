@@ -18,54 +18,52 @@ package processor
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
-	"testing/fstest"
 
 	"github.com/CloudNativeAI/modctl/test/mocks/storage"
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestLicenseProcessor_Name(t *testing.T) {
-	p := NewLicenseProcessor()
-	assert.Equal(t, "license", p.Name())
+type licenseProcessorSuite struct {
+	suite.Suite
+	mockStore *storage.Storage
+	processor Processor
+	workDir   string
 }
 
-func TestLicenseProcessor_Identify(t *testing.T) {
-	p := NewLicenseProcessor()
-	mockFS := fstest.MapFS{
-		"LICENSE":     &fstest.MapFile{},
-		"LICENSE.txt": &fstest.MapFile{},
-		"README.md":   &fstest.MapFile{},
+func (s *licenseProcessorSuite) SetupTest() {
+	s.mockStore = &storage.Storage{}
+	s.processor = NewLicenseProcessor(s.mockStore, modelspec.MediaTypeModelDoc, []string{"LICENSE"})
+	// generate test files for prorcess.
+	s.workDir = s.Suite.T().TempDir()
+	if err := os.WriteFile(filepath.Join(s.workDir, "LICENSE"), []byte(""), 0644); err != nil {
+		s.Suite.T().Fatal(err)
 	}
-	info, err := mockFS.Stat("LICENSE")
-	assert.NoError(t, err)
-	assert.True(t, p.Identify(context.Background(), "LICENSE", info))
-
-	info, err = mockFS.Stat("LICENSE.txt")
-	assert.NoError(t, err)
-	assert.True(t, p.Identify(context.Background(), "LICENSE.txt", info))
-
-	info, err = mockFS.Stat("README.md")
-	assert.NoError(t, err)
-	assert.False(t, p.Identify(context.Background(), "README.md", info))
 }
 
-func TestLicenseProcessor_Process(t *testing.T) {
-	p := NewLicenseProcessor()
+func (s *licenseProcessorSuite) TestName() {
+	assert.Equal(s.Suite.T(), "license", s.processor.Name())
+}
+
+func (s *licenseProcessorSuite) TestProcess() {
 	ctx := context.Background()
-	mockStore := &storage.Storage{}
 	repo := "test-repo"
-	path := "/tmp/LICENSE"
+	s.mockStore.On("PushBlob", ctx, repo, mock.Anything).Return("sha256:1234567890abcdef", int64(1024), nil)
 
-	mockStore.On("PushBlob", ctx, repo, mock.Anything).Return("sha256:1234567890abcdef", int64(1024), nil)
+	desc, err := s.processor.Process(ctx, s.workDir, repo)
+	assert.NoError(s.Suite.T(), err)
+	assert.NotNil(s.Suite.T(), desc)
+	assert.Equal(s.Suite.T(), "sha256:1234567890abcdef", desc[0].Digest.String())
+	assert.Equal(s.Suite.T(), int64(1024), desc[0].Size)
+	assert.Equal(s.Suite.T(), "LICENSE", desc[0].Annotations[modelspec.AnnotationFilepath])
+}
 
-	desc, err := p.Process(ctx, mockStore, repo, path, "/tmp")
-	assert.NoError(t, err)
-	assert.NotNil(t, desc)
-	assert.Equal(t, "sha256:1234567890abcdef", desc.Digest.String())
-	assert.Equal(t, int64(1024), desc.Size)
-	assert.Equal(t, "LICENSE", desc.Annotations[modelspec.AnnotationFilepath])
+func TestLicenseProcessorSuite(t *testing.T) {
+	suite.Run(t, new(licenseProcessorSuite))
 }

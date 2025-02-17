@@ -36,7 +36,7 @@ import (
 )
 
 // BuildLayer converts the file to the image blob and push it to the storage.
-func BuildLayer(ctx context.Context, store storage.Storage, mediaType, repo, path, workDir string) (ocispec.Descriptor, error) {
+func BuildLayer(ctx context.Context, store storage.Storage, mediaType, workDir, repo, path string) (ocispec.Descriptor, error) {
 	reader, err := archiver.Tar(path)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to tar file: %w", err)
