@@ -18,54 +18,52 @@ package processor
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
-	"testing/fstest"
 
 	"github.com/CloudNativeAI/modctl/test/mocks/storage"
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestModelConfigProcessor_Name(t *testing.T) {
-	p := NewModelConfigProcessor([]string{"config*"})
-	assert.Equal(t, "model_config", p.Name())
+type modelConfigProcessorSuite struct {
+	suite.Suite
+	mockStore *storage.Storage
+	processor Processor
+	workDir   string
 }
 
-func TestModelConfigProcessor_Identify(t *testing.T) {
-	p := NewModelConfigProcessor([]string{"config*"})
-	mockFS := fstest.MapFS{
-		"config-1": &fstest.MapFile{},
-		"config-2": &fstest.MapFile{},
-		"model":    &fstest.MapFile{},
+func (s *modelConfigProcessorSuite) SetupTest() {
+	s.mockStore = &storage.Storage{}
+	s.processor = NewModelConfigProcessor(s.mockStore, modelspec.MediaTypeModelWeightConfig, []string{"config"})
+	// generate test files for prorcess.
+	s.workDir = s.Suite.T().TempDir()
+	if err := os.WriteFile(filepath.Join(s.workDir, "config"), []byte(""), 0644); err != nil {
+		s.Suite.T().Fatal(err)
 	}
-	info, err := mockFS.Stat("config-1")
-	assert.NoError(t, err)
-	assert.True(t, p.Identify(context.Background(), "config-1", info))
-
-	info, err = mockFS.Stat("config-2")
-	assert.NoError(t, err)
-	assert.True(t, p.Identify(context.Background(), "config-2", info))
-
-	info, err = mockFS.Stat("model")
-	assert.NoError(t, err)
-	assert.False(t, p.Identify(context.Background(), "model", info))
 }
 
-func TestModelConfigProcessor_Process(t *testing.T) {
-	p := NewModelConfigProcessor([]string{"config*"})
+func (s *modelConfigProcessorSuite) TestName() {
+	assert.Equal(s.Suite.T(), "model_config", s.processor.Name())
+}
+
+func (s *modelConfigProcessorSuite) TestProcess() {
 	ctx := context.Background()
-	mockStore := &storage.Storage{}
 	repo := "test-repo"
-	path := "/tmp/config"
+	s.mockStore.On("PushBlob", ctx, repo, mock.Anything).Return("sha256:1234567890abcdef", int64(1024), nil)
 
-	mockStore.On("PushBlob", ctx, repo, mock.Anything).Return("sha256:1234567890abcdef", int64(1024), nil)
+	desc, err := s.processor.Process(ctx, s.workDir, repo)
+	assert.NoError(s.Suite.T(), err)
+	assert.NotNil(s.Suite.T(), desc)
+	assert.Equal(s.Suite.T(), "sha256:1234567890abcdef", desc[0].Digest.String())
+	assert.Equal(s.Suite.T(), int64(1024), desc[0].Size)
+	assert.Equal(s.Suite.T(), "config", desc[0].Annotations[modelspec.AnnotationFilepath])
+}
 
-	desc, err := p.Process(ctx, mockStore, repo, path, "/tmp")
-	assert.NoError(t, err)
-	assert.NotNil(t, desc)
-	assert.Equal(t, "sha256:1234567890abcdef", desc.Digest.String())
-	assert.Equal(t, int64(1024), desc.Size)
-	assert.Equal(t, "config", desc.Annotations[modelspec.AnnotationFilepath])
+func TestModelConfigProcessorSuite(t *testing.T) {
+	suite.Run(t, new(modelConfigProcessorSuite))
 }
