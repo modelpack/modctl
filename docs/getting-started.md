@@ -46,20 +46,14 @@ PRECISION bf16
 # Model quantization (string), such as awq, gptq, etc.
 QUANTIZATION awq
 
-# Specify model configuration file.
+# Specify model configuration file, support glob path pattern.
 CONFIG config.json
 
-# Specify model configuration file.
+# Specify model configuration file, support glob path pattern.
 CONFIG generation_config.json
 
-# Model weight.
-MODEL \.safetensors$
-
-# Model code.
-CODE \.py$
-
-# Model dataset.
-DATASET \.csv$
+# Model weight, support glob path pattern.
+MODEL *.safetensors
 ```
 
 Then run the following command to build the model artifact:
