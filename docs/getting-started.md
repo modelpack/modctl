@@ -54,6 +54,10 @@ CONFIG generation_config.json
 
 # Model weight, support glob path pattern.
 MODEL *.safetensors
+
+# Specify code, support glob path pattern.
+CODE *.py
+
 ```
 
 Then run the following command to build the model artifact:
