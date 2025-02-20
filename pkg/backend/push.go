@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
@@ -157,9 +158,11 @@ func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src sto
 			return fmt.Errorf("failed to fetch the content from source: %w", err)
 		}
 
-		defer content.Close()
-
-		if err := dst.Blobs().Push(ctx, desc, pb.Add(prompt, desc, content)); err != nil {
+		// resolve issue: https://github.com/CloudNativeAI/modctl/issues/50
+		// wrap the content to the NopCloser, because the implementation of the distribution will
+		// always return the error when Close() is called.
+		// refer: https://github.com/distribution/distribution/blob/63d3892315c817c931b88779399a8e9142899a8e/registry/storage/filereader.go#L105
+		if err := dst.Blobs().Push(ctx, desc, pb.Add(prompt, desc, io.NopCloser(content))); err != nil {
 			pb.Abort(desc)
 			return err
 		}
