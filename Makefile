@@ -118,3 +118,8 @@ install-mockery:
 		echo "Error: Homebrew is not installed. Please install Homebrew first and ensure it's in your PATH."; \
 		exit 1; \
 	fi
+
+# Generate modctl man page.
+build-modctl-man-page:
+	@pandoc -s -t man ./build/package/docs/modctl.1.md -o ./build/package/docs/modctl.1
+.PHONY: build-modctl-man-page
