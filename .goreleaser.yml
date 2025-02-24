@@ -1,0 +1,57 @@
+release:
+  draft: true
+  replace_existing_draft: true
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - main: ./cmd/main.go
+    id: modctl
+    binary: modctl
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - name_template: "modctl-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    formats: ["tar.gz"]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+nfpms:
+  - id: modctl
+    file_name_template: "modctl-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    package_name: modctl
+    description: A command line tool for managing artifact bundled based on the Model Format Specification
+    license: "Apache 2.0"
+    bindir: /usr/bin
+    builds:
+      - modctl
+    formats:
+      - rpm
+      - deb
+    contents:
+      - src: build/package/docs/modctl.1
+        dst: /usr/share/man/man1/modctl.1
+
+      - src: LICENSE
+        dst: /usr/share/doc/modctl/License
