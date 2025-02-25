@@ -67,6 +67,7 @@ func init() {
 	}
 
 	// Add sub command.
+	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(buildCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(loginCmd)
