@@ -120,7 +120,7 @@ func TestInspect(t *testing.T) {
   "config": {
     "architecture": "transformer",
     "format": "tensorflow",
-    "parameterSize": 50000000000,
+    "paramSize": "0.5b",
     "precision": "int8",
     "puantization": "gptq"
   }
@@ -138,7 +138,7 @@ func TestInspect(t *testing.T) {
 	assert.Equal(t, "qwen2", inspected.Family)
 	assert.Equal(t, "tensorflow", inspected.Format)
 	assert.Equal(t, "Qwen2.5-0.5B", inspected.Name)
-	assert.Equal(t, "50000000000", inspected.ParamSize)
+	assert.Equal(t, "0.5b", inspected.ParamSize)
 	assert.Equal(t, "int8", inspected.Precision)
 	assert.Equal(t, "gptq", inspected.Quantization)
 	assert.Len(t, inspected.Layers, 8)

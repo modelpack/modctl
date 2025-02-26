@@ -99,7 +99,7 @@ func (b *backend) Inspect(ctx context.Context, target string) (*InspectedModelAr
 		Family:       config.Descriptor.Family,
 		Format:       config.Config.Format,
 		Name:         config.Descriptor.Name,
-		ParamSize:    fmt.Sprintf("%d", config.Config.ParameterSize),
+		ParamSize:    config.Config.ParamSize,
 		Precision:    config.Config.Precision,
 		Quantization: config.Config.Quantization,
 	}
