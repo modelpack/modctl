@@ -32,7 +32,7 @@ type ModelfileGenConfig struct {
 	Arch               string
 	Family             string
 	Format             string
-	Paramsize          string
+	Paramsize          uint64
 	Precision          string
 	Quantization       string
 }
@@ -47,7 +47,7 @@ func NewModelfileGenConfig() *ModelfileGenConfig {
 		Arch:               "",
 		Family:             "",
 		Format:             "",
-		Paramsize:          "",
+		Paramsize:          0,
 		Precision:          "",
 		Quantization:       "",
 	}

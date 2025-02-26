@@ -273,7 +273,7 @@ func TestAutoModelfile(t *testing.T) {
 			config: &ModelfileGenConfig{
 				Name:               "llama2-7b",
 				Format:             "safetensors",
-				Paramsize:          "7B",
+				Paramsize:          7000000000,
 				Quantization:       "q4_k_m",
 				IgnoreUnrecognized: true,
 			},
@@ -314,7 +314,7 @@ func TestAutoModelfile(t *testing.T) {
 				assert.Equal("transformer", mf.GetArch()) // from config.json
 				assert.Equal("llama", mf.GetFamily())     // from config.json
 				assert.Equal("safetensors", mf.GetFormat())
-				assert.Equal("7B", mf.GetParamsize())
+				assert.Equal("7000000000", mf.GetParamsize())
 				assert.Equal("float16", mf.GetPrecision()) // from config.json
 				assert.Equal("q4_k_m", mf.GetQuantization())
 			},
