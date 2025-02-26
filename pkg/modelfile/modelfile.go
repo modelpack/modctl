@@ -183,6 +183,11 @@ func isFileType(filename string, patterns []string) bool {
 
 // isSkippable checks if the filename matches any of the skip patterns
 func isSkippable(filename string) bool {
+	// Special handling for current and parent directory
+	if filename == "." || filename == ".." {
+		return false
+	}
+
 	// Convert filename to lowercase for case-insensitive comparison
 	lowerFilename := strings.ToLower(filename)
 	for _, pattern := range skipPatterns {

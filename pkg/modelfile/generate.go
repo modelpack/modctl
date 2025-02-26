@@ -69,19 +69,28 @@ func RunGenModelfile(ctx context.Context, modelPath string, genConfig *Modelfile
 	if err := genConfig.Validate(); err != nil {
 		return fmt.Errorf("failed to validate modelfile gen config: %w", err)
 	}
-	genPath := filepath.Join(genConfig.OutputPath, "Modelfile")
+
+	// Convert modelPath to absolute path
+	realModelPath, err := filepath.Abs(modelPath)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for model: %w", err)
+	}
 
 	// check if file exists
+	genPath := filepath.Join(genConfig.OutputPath, "Modelfile")
+	genPath, err = filepath.Abs(genPath)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for modelfile: %w", err)
+	}
 	if _, err := os.Stat(genPath); err == nil {
 		if !genConfig.Overwrite {
-			absPath, _ := filepath.Abs(genPath)
-			return fmt.Errorf("Modelfile already exists at %s - use --overwrite to overwrite", absPath)
+			return fmt.Errorf("Modelfile already exists at %s - use --overwrite to overwrite", genPath)
 		}
 	}
 
-	fmt.Printf("Generating modelfile for %s\n", modelPath)
+	fmt.Printf("Generating modelfile for %s\n", realModelPath)
 
-	modelfile, err := AutoModelfile(modelPath, genConfig)
+	modelfile, err := AutoModelfile(realModelPath, genConfig)
 	if err != nil {
 		return fmt.Errorf("failed to generate modelfile: %w", err)
 	}

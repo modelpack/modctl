@@ -63,6 +63,7 @@ func init() {
 }
 
 func runGenModelfile(ctx context.Context, modelPath string) error {
+
 	if !strings.HasSuffix(modelPath, "/") {
 		modelPath += "/"
 	}
