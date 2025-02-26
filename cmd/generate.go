@@ -53,7 +53,7 @@ func init() {
 	flags.StringVar(&genConfig.Arch, "arch", "", "Model architecture (string), such as transformer, cnn, rnn, etc.")
 	flags.StringVar(&genConfig.Family, "family", "", "Model family (string), such as llama3, gpt2, qwen2, etc.")
 	flags.StringVar(&genConfig.Format, "format", "", "Model format (string), such as safetensors, pytorch, onnx, etc.")
-	flags.Uint64Var(&genConfig.Paramsize, "paramsize", 0, "Number of parameters in the model (uint64).")
+	flags.StringVar(&genConfig.Paramsize, "paramsize", "", "Number of parameters in the model (string), such as 7B, 13B, 72B, etc.")
 	flags.StringVar(&genConfig.Precision, "precision", "", "Model precision (string), such as bf16, fp16, int8, etc.")
 	flags.StringVar(&genConfig.Quantization, "quantization", "", "Model quantization (string), such as awq, gptq, etc.")
 

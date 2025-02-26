@@ -296,8 +296,8 @@ func overwriteModelConfig(mf *modelfile, config *ModelfileGenConfig) {
 	if config.Format != "" {
 		mf.format = config.Format
 	}
-	if config.Paramsize != 0 {
-		mf.paramsize = fmt.Sprintf("%d", config.Paramsize)
+	if config.Paramsize != "" {
+		mf.paramsize = config.Paramsize
 	}
 	if config.Precision != "" {
 		mf.precision = config.Precision
