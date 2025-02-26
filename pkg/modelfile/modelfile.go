@@ -94,76 +94,83 @@ type modelfile struct {
 	quantization string
 }
 
-// File type patterns, ignore the case of the file extensions
+// Config file patterns - supported configuration and resource files
 var (
-	// Config file patterns
 	configFilePatterns = []string{
-		// Common config files
-		"*.json",
-		"*.jsonl",
-		"*.yaml",
-		"*.yml",
-		"*.toml",
-		"*.txt",
-		"*.config",
-		"*.modelcard",
-		"*.meta",
-		"*.ini",
+		// Configuration formats
+		"*.json",      // JSON configuration files
+		"*.jsonl",     // JSON Lines format
+		"*.yaml",      // YAML configuration files
+		"*.yml",       // YAML alternative extension
+		"*.toml",      // TOML configuration files
+		"*.ini",       // INI configuration files
+		"*.config",    // Generic config files
+		"*.txt",       // Text files
+		"*.modelcard", // Model card metadata
+		"*.meta",      // Model metadata
 
-		// Common doc files
-		"*.md",
-		"LICENSE*",
-		"README*",
-		"SETUP*",
-		"*requirements*",
+		// Documentation files
+		"*.md",           // Markdown documentation
+		"LICENSE*",       // License files
+		"README*",        // Project documentation
+		"SETUP*",         // Setup instructions
+		"*requirements*", // Dependency specifications
 
-		// Image file patterns
-		"*.jpg",
-		"*.jpeg",
-		"*.png",
-		"*.gif",
-		"*.bmp",
-		"*.tiff",
-		"*.ico",
+		// Image assets
+		"*.jpg",  // JPEG image format
+		"*.jpeg", // JPEG alternative extension
+		"*.png",  // PNG image format
+		"*.gif",  // GIF image format
+		"*.bmp",  // Bitmap image format
+		"*.tiff", // TIFF image format
+		"*.ico",  // Icon format
 
-		// Other files
-		"*tokenizer.model*", // For mistral tokenizer.model.v3
-		"config.json.*",
+		// Model-specific files
+		"*tokenizer.model*", // Tokenizer files (e.g., Mistral v3)
+		"config.json.*",     // Model configuration variants
 	}
 
-	// Model file patterns
+	// Model file patterns - supported model file extensions
 	modelFilePatterns = []string{
-		"*.bin",
-		"*.safetensors",
-		"*.pt",
-		"*.pth",
-		"*.onnx",
-		"*.gguf",
-		"*.msgpack",
-		"*.tflite", // tensorflow lite
-		"*.h5",     // keras
-		"*.hdf",    // keras
-		"*.hdf5",   // keras
-		"*.ot",     // openvino
-		"*.engine", // tensorrt
-		"*.trt",    // tensorrt
+		// Huggingface formats
+		"*.safetensors", // Safe and efficient tensor serialization format
+
+		// PyTorch formats
+		"*.bin", // General binary format
+		"*.pt",  // PyTorch model
+		"*.pth", // PyTorch model (alternative extension)
+
+		// TensorFlow formats
+		"*.tflite", // TensorFlow Lite
+		"*.h5",     // Keras HDF5 format
+		"*.hdf",    // Hierarchical Data Format
+		"*.hdf5",   // HDF5 (alternative extension)
+
+		// Other ML frameworks
+		"*.ot",      // OpenVINO format
+		"*.engine",  // TensorRT format
+		"*.trt",     // TensorRT format (alternative extension)
+		"*.onnx",    // Open Neural Network Exchange format
+		"*.gguf",    // GGML Universal Format
+		"*.msgpack", // MessagePack serialization
+		"*.model",   // Some NLP frameworks
 	}
 
-	// Code file patterns
+	// Code file patterns - supported script and notebook files
 	codeFilePatterns = []string{
-		"*.py",
-		"*.sh",
-		"*.ipynb",
+		"*.py",    // Python source files
+		"*.sh",    // Shell scripts
+		"*.ipynb", // Jupyter notebooks
 	}
 
-	// Skip files/directories that match these patterns
+	// Skip patterns - files and directories to ignore during processing
 	skipPatterns = []string{
-		".*",
-		"modelfile",
-		"__pycache__",
-		"*.pyc",
-		"*.pyo",
-		"*.pyd",
+		".*",          // Hidden files and directories
+		"modelfile",   // Modelfile configuration
+		"__pycache__", // Python bytecode cache directory
+		"*.pyc",       // Python compiled bytecode
+		"*.pyo",       // Python optimized bytecode
+		"*.pyd",       // Python dynamic modules
 	}
 )
 
