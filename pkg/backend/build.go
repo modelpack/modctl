@@ -43,6 +43,10 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	}
 
 	repo, tag := ref.Repository(), ref.Tag()
+	if tag == "" {
+		return fmt.Errorf("tag is required")
+	}
+
 	layers := []ocispec.Descriptor{}
 	layerDescs, err := b.process(ctx, workDir, repo, b.getProcessors(modelfile)...)
 	if err != nil {
