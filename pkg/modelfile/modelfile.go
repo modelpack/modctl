@@ -195,6 +195,32 @@ func isSkippable(filename string) bool {
 	return false
 }
 
+// cleanModelName sanitizes a string to create a valid model name
+func cleanModelName(name string) string {
+	// Remove any trailing slashes first
+	name = strings.TrimRight(name, "/\\")
+
+	// Replace invalid characters with underscores
+	name = strings.Map(func(r rune) rune {
+		// Allow alphanumeric characters
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		// Replace everything else with underscore
+		return '_'
+	}, name)
+
+	// Remove leading/trailing underscores
+	name = strings.Trim(name, "_")
+
+	// If name is empty after cleaning, return a default
+	if name == "" {
+		return "unnamed_model"
+	}
+
+	return name
+}
+
 // NewModelfile creates a new modelfile by the path of the modelfile.
 // It parses the modelfile and returns the modelfile interface.
 func NewModelfile(path string) (Modelfile, error) {
@@ -293,7 +319,7 @@ func AutoModelfile(path string, config *ModelfileGenConfig) (Modelfile, error) {
 
 	// Use directory name as model name if config.name is empty
 	if config.Name == "" {
-		mf.name = filepath.Base(path)
+		mf.name = cleanModelName(filepath.Base(path))
 	} else {
 		mf.name = config.Name
 	}
