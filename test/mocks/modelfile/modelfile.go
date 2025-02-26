@@ -536,6 +536,24 @@ func (_c *Modelfile_GetQuantization_Call) RunAndReturn(run func() string) *Model
 	return _c
 }
 
+// SaveToFile provides a mock function with no fields
+func (_m *Modelfile) SaveToFile(path string) error {
+	ret := _m.Called(path)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SaveToFile")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(path)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // NewModelfile creates a new instance of Modelfile. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewModelfile(t interface {
