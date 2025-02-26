@@ -19,6 +19,7 @@ package modelfile
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -245,5 +246,173 @@ name bar
 		assert.Equal(tc.quantization, mf.GetQuantization())
 
 		os.Remove(tmpfile.Name())
+	}
+}
+
+func TestAutoModelfile(t *testing.T) {
+	testCases := []struct {
+		name      string
+		files     map[string]string
+		config    *ModelfileGenConfig
+		expectErr error
+		validate  func(*testing.T, Modelfile)
+	}{
+		{
+			name: "basic model directory",
+			files: map[string]string{
+				"config.json":            `{"model_type": "llama", "transformers_version": "1.0", "torch_dtype": "float16"}`,
+				"generation_config.json": `{}`,
+				"tokenizer.model":        "dummy content",
+				"pytorch_model.bin":      "dummy content",
+				"model.safetensors":      "dummy content",
+				"train.py":               "print('hello')",
+				"README.md":              "# Model Documentation",
+				".git/config":            "should be ignored",
+				"__pycache__/cache.pyc":  "should be ignored",
+			},
+			config: &ModelfileGenConfig{
+				Name:               "llama2-7b",
+				Format:             "safetensors",
+				Paramsize:          "7B",
+				Quantization:       "q4_k_m",
+				IgnoreUnrecognized: true,
+			},
+			expectErr: nil,
+			validate: func(t *testing.T, mf Modelfile) {
+				assert := assert.New(t)
+
+				// Check configs (sorted)
+				expectedConfigs := []string{
+					"README.md",
+					"config.json",
+					"generation_config.json",
+					"tokenizer.model",
+				}
+				configs := mf.GetConfigs()
+				sort.Strings(configs)
+				assert.Equal(expectedConfigs, configs)
+
+				// Check models (sorted)
+				expectedModels := []string{
+					"model.safetensors",
+					"pytorch_model.bin",
+				}
+				models := mf.GetModels()
+				sort.Strings(models)
+				assert.Equal(expectedModels, models)
+
+				// Check codes (sorted)
+				expectedCodes := []string{
+					"train.py",
+				}
+				codes := mf.GetCodes()
+				sort.Strings(codes)
+				assert.Equal(expectedCodes, codes)
+
+				// Check other fields
+				assert.Equal("llama2-7b", mf.GetName())
+				assert.Equal("transformer", mf.GetArch()) // from config.json
+				assert.Equal("llama", mf.GetFamily())     // from config.json
+				assert.Equal("safetensors", mf.GetFormat())
+				assert.Equal("7B", mf.GetParamsize())
+				assert.Equal("float16", mf.GetPrecision()) // from config.json
+				assert.Equal("q4_k_m", mf.GetQuantization())
+			},
+		},
+		{
+			name: "unrecognized files without ignore flag",
+			files: map[string]string{
+				"unknown.xyz": "some content",
+			},
+			config: &ModelfileGenConfig{
+				Name:               "test-model",
+				IgnoreUnrecognized: false,
+			},
+			expectErr: errors.New("unknown file type: unknown.xyz - use --ignore-unrecognized to ignore, and edit the Modelfile manually"),
+		},
+		{
+			name:      "empty directory",
+			files:     map[string]string{},
+			config:    &ModelfileGenConfig{Name: "empty-model"},
+			expectErr: errors.New("no recognized model files found in directory - you may need to edit the Modelfile manually"),
+		},
+		{
+			name:      "invalid config json",
+			files:     map[string]string{"config.json": `{"model_type": "llama", invalid json`},
+			config:    &ModelfileGenConfig{Name: "invalid-config"},
+			expectErr: errors.New("no recognized model files found in directory - you may need to edit the Modelfile manually"),
+		},
+		{
+			name:      "nested directories",
+			files:     map[string]string{"config.json": `{"model_type": "llama"}`, "models/shard1.safetensors": "dummy content", "models/shard2.safetensors": "dummy content", "configs/main.json": "dummy content", "src/train.py": "print('hello')"},
+			config:    &ModelfileGenConfig{Name: "nested-model", IgnoreUnrecognized: true},
+			expectErr: nil,
+			validate: func(t *testing.T, mf Modelfile) {
+				assert := assert.New(t)
+				models := mf.GetModels()
+				sort.Strings(models)
+				assert.Equal([]string{"models/shard1.safetensors", "models/shard2.safetensors"}, models)
+
+				codes := mf.GetCodes()
+				sort.Strings(codes)
+				assert.Equal([]string{"src/train.py"}, codes)
+			},
+		},
+		{
+			name: "special characters in paths",
+			files: map[string]string{
+				"config.json":                   `{"model_type": "llama"}`,
+				"model with spaces.safetensors": "dummy content",
+				"特殊字符.bin":                      "dummy content",
+				"src/test-file.py":              "print('hello')",
+			},
+			config: &ModelfileGenConfig{
+				Name:               "special-chars",
+				IgnoreUnrecognized: true,
+			},
+			validate: func(t *testing.T, mf Modelfile) {
+				assert := assert.New(t)
+				models := mf.GetModels()
+				sort.Strings(models)
+				assert.Equal([]string{"model with spaces.safetensors", "特殊字符.bin"}, models)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create temporary directory
+			tmpDir, err := os.MkdirTemp("", "modelfile_test_*")
+			assert.NoError(t, err)
+			defer os.RemoveAll(tmpDir)
+
+			// Create test files
+			for path, content := range tc.files {
+				fullPath := filepath.Join(tmpDir, path)
+
+				// Create parent directories if needed
+				err := os.MkdirAll(filepath.Dir(fullPath), 0755)
+				assert.NoError(t, err)
+
+				err = os.WriteFile(fullPath, []byte(content), 0644)
+				assert.NoError(t, err)
+			}
+
+			// Run AutoModelfile
+			mf, err := AutoModelfile(tmpDir, tc.config)
+
+			if tc.expectErr != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tc.expectErr.Error(), err.Error())
+				assert.Nil(t, mf)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.NotNil(t, mf)
+
+			// Run validation
+			tc.validate(t, mf)
+		})
 	}
 }
