@@ -77,4 +77,5 @@ func init() {
 	rootCmd.AddCommand(pruneCmd)
 	rootCmd.AddCommand(inspectCmd)
 	rootCmd.AddCommand(extractCmd)
+	rootCmd.AddCommand(modelfileGenCmd)
 }
