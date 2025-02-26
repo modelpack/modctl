@@ -71,7 +71,7 @@ func RunGenModelfile(ctx context.Context, modelPath string, genConfig *Modelfile
 	}
 	genPath := filepath.Join(genConfig.OutputPath, "Modelfile")
 
-	// Check if file exists
+	// check if file exists
 	if _, err := os.Stat(genPath); err == nil {
 		if !genConfig.Overwrite {
 			absPath, _ := filepath.Abs(genPath)
@@ -86,12 +86,12 @@ func RunGenModelfile(ctx context.Context, modelPath string, genConfig *Modelfile
 		return fmt.Errorf("failed to generate modelfile: %w", err)
 	}
 
-	// Save the modelfile to the output path
+	// save the modelfile to the output path
 	if err := modelfile.SaveToFile(genPath); err != nil {
 		return fmt.Errorf("failed to save modelfile: %w", err)
 	}
 
-	// Read modelfile from disk and print it
+	// read modelfile from disk and print it
 	content, err := os.ReadFile(genPath)
 	if err != nil {
 		return fmt.Errorf("failed to read modelfile: %w", err)

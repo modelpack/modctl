@@ -252,7 +252,7 @@ name bar
 func TestAutoModelfile(t *testing.T) {
 	testCases := []struct {
 		name      string
-		files     map[string]string // map of relative path to file content
+		files     map[string]string
 		config    *ModelfileGenConfig
 		expectErr error
 		validate  func(*testing.T, Modelfile)
@@ -328,7 +328,54 @@ func TestAutoModelfile(t *testing.T) {
 				Name:               "test-model",
 				IgnoreUnrecognized: false,
 			},
-			expectErr: errors.New("unknown file type: unknown.xyz"),
+			expectErr: errors.New("unknown file type: unknown.xyz - use --ignore-unrecognized to ignore, and edit the Modelfile manually"),
+		},
+		{
+			name:      "empty directory",
+			files:     map[string]string{},
+			config:    &ModelfileGenConfig{Name: "empty-model"},
+			expectErr: errors.New("no recognized model files found in directory - you may need to edit the Modelfile manually"),
+		},
+		{
+			name:      "invalid config json",
+			files:     map[string]string{"config.json": `{"model_type": "llama", invalid json`},
+			config:    &ModelfileGenConfig{Name: "invalid-config"},
+			expectErr: errors.New("no recognized model files found in directory - you may need to edit the Modelfile manually"),
+		},
+		{
+			name:      "nested directories",
+			files:     map[string]string{"config.json": `{"model_type": "llama"}`, "models/shard1.safetensors": "dummy content", "models/shard2.safetensors": "dummy content", "configs/main.json": "dummy content", "src/train.py": "print('hello')"},
+			config:    &ModelfileGenConfig{Name: "nested-model", IgnoreUnrecognized: true},
+			expectErr: nil,
+			validate: func(t *testing.T, mf Modelfile) {
+				assert := assert.New(t)
+				models := mf.GetModels()
+				sort.Strings(models)
+				assert.Equal([]string{"models/shard1.safetensors", "models/shard2.safetensors"}, models)
+
+				codes := mf.GetCodes()
+				sort.Strings(codes)
+				assert.Equal([]string{"src/train.py"}, codes)
+			},
+		},
+		{
+			name: "special characters in paths",
+			files: map[string]string{
+				"config.json":                   `{"model_type": "llama"}`,
+				"model with spaces.safetensors": "dummy content",
+				"特殊字符.bin":                      "dummy content",
+				"src/test-file.py":              "print('hello')",
+			},
+			config: &ModelfileGenConfig{
+				Name:               "special-chars",
+				IgnoreUnrecognized: true,
+			},
+			validate: func(t *testing.T, mf Modelfile) {
+				assert := assert.New(t)
+				models := mf.GetModels()
+				sort.Strings(models)
+				assert.Equal([]string{"model with spaces.safetensors", "特殊字符.bin"}, models)
+			},
 		},
 	}
 

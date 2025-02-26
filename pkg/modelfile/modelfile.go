@@ -310,6 +310,11 @@ func overwriteModelConfig(mf *modelfile, config *ModelfileGenConfig) {
 // AutoModelfile creates a new modelfile by the path of the model directory.
 // It walks the directory and returns the auto-generated modelfile interface.
 func AutoModelfile(path string, config *ModelfileGenConfig) (Modelfile, error) {
+	// check if the config is nil
+	if config == nil {
+		return nil, fmt.Errorf("config cannot be nil")
+	}
+
 	mf := &modelfile{
 		config:  hashset.New(),
 		model:   hashset.New(),
@@ -317,7 +322,7 @@ func AutoModelfile(path string, config *ModelfileGenConfig) (Modelfile, error) {
 		dataset: hashset.New(),
 	}
 
-	// Use directory name as model name if config.name is empty
+	// use directory name as model name if config.name is empty
 	if config.Name == "" {
 		mf.name = cleanModelName(filepath.Base(path))
 	} else {
@@ -332,7 +337,7 @@ func AutoModelfile(path string, config *ModelfileGenConfig) (Modelfile, error) {
 
 		filename := info.Name()
 
-		// Skip hidden and skippable files/directories
+		// skip hidden and skippable files/directories
 		if isSkippable(filename) {
 			if info.IsDir() {
 				return filepath.SkipDir
@@ -344,7 +349,7 @@ func AutoModelfile(path string, config *ModelfileGenConfig) (Modelfile, error) {
 			return nil
 		}
 
-		// Get relative path from the base directory
+		// get relative path from the base directory
 		relPath, err := filepath.Rel(path, fullPath)
 		if err != nil {
 			return err
@@ -358,11 +363,11 @@ func AutoModelfile(path string, config *ModelfileGenConfig) (Modelfile, error) {
 		case isFileType(filename, codeFilePatterns):
 			mf.code.Add(relPath)
 		default:
-			// Skip unrecognized files if IgnoreUnrecognized is true
+			// skip unrecognized files if IgnoreUnrecognized is true
 			if config.IgnoreUnrecognized {
 				return nil
 			}
-			return fmt.Errorf("unknown file type: %s", filename)
+			return fmt.Errorf("unknown file type: %s - use --ignore-unrecognized to ignore, and edit the Modelfile manually", filename)
 		}
 
 		return nil
@@ -372,12 +377,17 @@ func AutoModelfile(path string, config *ModelfileGenConfig) (Modelfile, error) {
 		return nil, err
 	}
 
-	// Get the model config from the config.json file
+	// check if model files are found
+	if mf.model.Size() == 0 {
+		return nil, fmt.Errorf("no recognized model files found in directory - you may need to edit the Modelfile manually")
+	}
+
+	// get the model config from the config.json file
 	if err := parseModelConfig(path, mf); err != nil {
 		return nil, err
 	}
 
-	// Overwrite the modelfile configurations with the provided config values
+	// overwrite the modelfile configurations with the provided config values
 	overwriteModelConfig(mf, config)
 
 	return mf, nil
@@ -559,7 +569,7 @@ func (mf *modelfile) SaveToFile(path string) error {
 	// generate time in the first line
 	content += fmt.Sprintf("# Generated at %s\n", time.Now().Format(time.RFC3339))
 
-	// Add single value commands
+	// add single value commands
 	if mf.name != "" {
 		content += "\n# Model name\n"
 		content += fmt.Sprintf("NAME %s\n", mf.name)
@@ -589,7 +599,7 @@ func (mf *modelfile) SaveToFile(path string) error {
 		content += fmt.Sprintf("QUANTIZATION %s\n", mf.quantization)
 	}
 
-	// Add multi-value commands
+	// add multi-value commands
 	content += "\n# Config files (Generated from the files in the model directory)\n"
 	content += "# Supported file types: " + strings.Join(configFilePatterns, ", ") + "\n"
 	configs := mf.GetConfigs()
@@ -614,6 +624,6 @@ func (mf *modelfile) SaveToFile(path string) error {
 		content += fmt.Sprintf("MODEL %s\n", model)
 	}
 
-	// Write to file
+	// write to file
 	return os.WriteFile(path, []byte(content), 0644)
 }
