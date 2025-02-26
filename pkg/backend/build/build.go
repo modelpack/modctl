@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/CloudNativeAI/modctl/pkg/archiver"
@@ -74,13 +73,8 @@ func buildModelConfig(modelfile modelfile.Modelfile) (*modelspec.Model, error) {
 		Format:       modelfile.GetFormat(),
 		Precision:    modelfile.GetPrecision(),
 		Quantization: modelfile.GetQuantization(),
+		ParamSize:    modelfile.GetParamsize(),
 	}
-	// parse the parameter size.
-	paramSize, err := strconv.ParseUint(modelfile.GetParamsize(), 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse paramsize %s to uint64: %w", modelfile.GetParamsize(), err)
-	}
-	config.ParameterSize = paramSize
 
 	createdAt := time.Now()
 	descriptor := modelspec.ModelDescriptor{

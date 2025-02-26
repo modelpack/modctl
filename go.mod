@@ -3,7 +3,7 @@ module github.com/CloudNativeAI/modctl
 go 1.23.3
 
 require (
-	github.com/CloudNativeAI/model-spec v0.0.1
+	github.com/CloudNativeAI/model-spec v0.0.2
 	github.com/distribution/distribution/v3 v3.0.0-rc.3
 	github.com/distribution/reference v0.6.0
 	github.com/dustin/go-humanize v1.0.1
