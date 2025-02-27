@@ -536,7 +536,7 @@ func (_c *Modelfile_GetQuantization_Call) RunAndReturn(run func() string) *Model
 	return _c
 }
 
-// SaveToFile provides a mock function with no fields
+// SaveToFile provides a mock function with given fields: path
 func (_m *Modelfile) SaveToFile(path string) error {
 	ret := _m.Called(path)
 
@@ -552,6 +552,34 @@ func (_m *Modelfile) SaveToFile(path string) error {
 	}
 
 	return r0
+}
+
+// Modelfile_SaveToFile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveToFile'
+type Modelfile_SaveToFile_Call struct {
+	*mock.Call
+}
+
+// SaveToFile is a helper method to define mock.On call
+//   - path string
+func (_e *Modelfile_Expecter) SaveToFile(path interface{}) *Modelfile_SaveToFile_Call {
+	return &Modelfile_SaveToFile_Call{Call: _e.mock.On("SaveToFile", path)}
+}
+
+func (_c *Modelfile_SaveToFile_Call) Run(run func(path string)) *Modelfile_SaveToFile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *Modelfile_SaveToFile_Call) Return(_a0 error) *Modelfile_SaveToFile_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Modelfile_SaveToFile_Call) RunAndReturn(run func(string) error) *Modelfile_SaveToFile_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // NewModelfile creates a new instance of Modelfile. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

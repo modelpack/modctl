@@ -203,6 +203,43 @@ func (s *storage) PushBlob(ctx context.Context, repo string, blobReader io.Reade
 	return desc.Digest.String(), desc.Size, nil
 }
 
+// MountBlob mounts the blob to the storage.
+func (s *storage) MountBlob(ctx context.Context, fromRepo, toRepo string, desc ocispec.Descriptor) error {
+	repository, err := s.repository(ctx, toRepo)
+	if err != nil {
+		return err
+	}
+
+	named, err := ref.ParseNamed(fromRepo)
+	if err != nil {
+		return err
+	}
+
+	can, err := ref.WithDigest(named, desc.Digest)
+	if err != nil {
+		return err
+	}
+
+	blob, err := repository.Blobs(ctx).Create(ctx, registry.WithMountFrom(can))
+	if blob != nil {
+		return fmt.Errorf("Expected blob writer to be nil, was %v", blob)
+	}
+
+	// distribution will return the ErrBlobMounted error if the blob is already mounted.
+	if ebm, ok := err.(distribution.ErrBlobMounted); ok {
+		if ebm.From.Digest() != desc.Digest {
+			return fmt.Errorf("Unexpected digest: %s, expected %s", ebm.From.Digest(), desc.Digest)
+		}
+		if ebm.From.Name() != fromRepo {
+			return fmt.Errorf("Unexpected from: %s, expected %s", ebm.From.Name(), fromRepo)
+		}
+	} else {
+		return fmt.Errorf("Unexpected error: %w, expected an ErrBlobMounted", err)
+	}
+
+	return nil
+}
+
 // StatBlob stats the blob in the storage.
 func (s *storage) StatBlob(ctx context.Context, repo, digest string) (bool, error) {
 	repository, err := s.repository(ctx, repo)

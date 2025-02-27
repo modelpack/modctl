@@ -53,6 +53,9 @@ type Backend interface {
 
 	// Extract extracts the model artifact.
 	Extract(ctx context.Context, target string, output string) error
+
+	// Tag creates a new tag that refers to the source model artifact.
+	Tag(ctx context.Context, source, target string) error
 }
 
 // backend is the implementation of Backend.
