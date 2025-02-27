@@ -79,4 +79,5 @@ func init() {
 	rootCmd.AddCommand(inspectCmd)
 	rootCmd.AddCommand(extractCmd)
 	rootCmd.AddCommand(modelfileGenCmd)
+	rootCmd.AddCommand(tagCmd)
 }
