@@ -98,6 +98,8 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
+MOCKERY_VERSION=v2.52.1
+
 .PHONY: gen
 gen: gen-mockery## Generate all we need!
 
@@ -107,15 +109,15 @@ gen-mockery: check-mockery ## Generate mockery code
 	@mockery
 
 check-mockery:
-	@which mockery > /dev/null || { echo "mockery not found. Trying to install via Homebrew..."; $(MAKE)  install-mockery; }
-	@mockery --version | grep -q "2.46.3" || { echo "mockery version is not v2.46.3. Trying to install the correct version..."; $(MAKE)  install-mockery; }
+	@which mockery > /dev/null || { echo "mockery not found. Trying to install via go install..."; $(MAKE)  install-mockery; }
+	@mockery --version | grep -q $(MOCKERY_VERSION) || { echo "mockery version is not $(MOCKERY_VERSION). Trying to install the correct version..."; $(MAKE)  install-mockery; }
 
 install-mockery:
-	@if command -v brew > /dev/null; then \
-		echo "Installing mockery via Homebrew"; \
-		brew install mockery; \
+	@if command -v go > /dev/null; then \
+		echo "Installing mockery via go install"; \
+		go install github.com/vektra/mockery/v2@$(MOCKERY_VERSION); \
 	else \
-		echo "Error: Homebrew is not installed. Please install Homebrew first and ensure it's in your PATH."; \
+		echo "Error: Golang is not installed. Please install golang first and ensure it's in your PATH."; \
 		exit 1; \
 	fi
 
