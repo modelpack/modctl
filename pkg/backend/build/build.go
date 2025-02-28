@@ -21,14 +21,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/CloudNativeAI/modctl/pkg/archiver"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -36,7 +37,21 @@ import (
 
 // BuildLayer converts the file to the image blob and push it to the storage.
 func BuildLayer(ctx context.Context, store storage.Storage, mediaType, workDir, repo, path string) (ocispec.Descriptor, error) {
-	reader, err := archiver.Tar(path)
+	info, err := os.Stat(path)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	if info.IsDir() {
+		return ocispec.Descriptor{}, fmt.Errorf("%s is a directory and not supported yet", path)
+	}
+
+	workDirPath, err := filepath.Abs(workDir)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to get absolute path of workDir: %w", err)
+	}
+
+	reader, err := archiver.Tar(path, workDirPath)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to tar file: %w", err)
 	}
@@ -46,12 +61,9 @@ func BuildLayer(ctx context.Context, store storage.Storage, mediaType, workDir, 
 		return ocispec.Descriptor{}, fmt.Errorf("failed to push blob to storage: %w", err)
 	}
 
-	absPath, err := filepath.Abs(workDir)
-	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to get absolute path of workDir: %w", err)
-	}
-
-	filePath, err := filepath.Rel(absPath, path)
+	// Gets the relative path of the file as annotation.
+	//nolint:typecheck
+	relPath, err := filepath.Rel(workDirPath, path)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to get relative path: %w", err)
 	}
@@ -61,7 +73,7 @@ func BuildLayer(ctx context.Context, store storage.Storage, mediaType, workDir, 
 		Digest:    godigest.Digest(digest),
 		Size:      size,
 		Annotations: map[string]string{
-			modelspec.AnnotationFilepath: filePath,
+			modelspec.AnnotationFilepath: relPath,
 		},
 	}, nil
 }
