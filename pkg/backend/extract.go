@@ -21,11 +21,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 
 	"github.com/CloudNativeAI/modctl/pkg/archiver"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -66,18 +64,12 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 		if err != nil {
 			return fmt.Errorf("failed to pull the blob from storage: %w", err)
 		}
+
 		defer reader.Close()
+
 		bufferedReader := bufio.NewReaderSize(reader, defaultBufferSize)
-
-		targetDir := output
-		// get the original filepath in order to restore the original repo structure.
-		originalFilePath := layer.Annotations[modelspec.AnnotationFilepath]
-		if dir := filepath.Dir(originalFilePath); dir != "" {
-			targetDir = filepath.Join(targetDir, dir)
-		}
-
 		// untar the blob to the target directory.
-		if err := archiver.Untar(bufferedReader, targetDir); err != nil {
+		if err := archiver.Untar(bufferedReader, output); err != nil {
 			return fmt.Errorf("failed to untar the blob to output directory: %w", err)
 		}
 	}
