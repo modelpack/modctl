@@ -54,6 +54,11 @@ type Modelfile interface {
 	// order in the modelfile.
 	GetDatasets() []string
 
+	// GetDocs returns the args of the doc command in the modelfile,
+	// and deduplicates the args. The order of the args is the same as the
+	// order in the modelfile.
+	GetDocs() []string
+
 	// GetName returns the value of the name command in the modelfile.
 	GetName() string
 
@@ -85,6 +90,7 @@ type modelfile struct {
 	model        *hashset.Set
 	code         *hashset.Set
 	dataset      *hashset.Set
+	doc          *hashset.Set
 	name         string
 	arch         string
 	family       string
@@ -105,25 +111,8 @@ var (
 		"*.toml",      // TOML configuration files
 		"*.ini",       // INI configuration files
 		"*.config",    // Generic config files
-		"*.txt",       // Text files
 		"*.modelcard", // Model card metadata
 		"*.meta",      // Model metadata
-
-		// Documentation files
-		"*.md",           // Markdown documentation
-		"LICENSE*",       // License files
-		"README*",        // Project documentation
-		"SETUP*",         // Setup instructions
-		"*requirements*", // Dependency specifications
-
-		// Image assets
-		"*.jpg",  // JPEG image format
-		"*.jpeg", // JPEG alternative extension
-		"*.png",  // PNG image format
-		"*.gif",  // GIF image format
-		"*.bmp",  // Bitmap image format
-		"*.tiff", // TIFF image format
-		"*.ico",  // Icon format
 
 		// Model-specific files
 		"*tokenizer.model*", // Tokenizer files (e.g., Mistral v3)
@@ -161,6 +150,26 @@ var (
 		"*.py",    // Python source files
 		"*.sh",    // Shell scripts
 		"*.ipynb", // Jupyter notebooks
+	}
+
+	// Doc file patterns - supported documentation files
+	docFilePatterns = []string{
+		// Documentation files
+		"*.txt",          // Text files
+		"*.md",           // Markdown documentation
+		"LICENSE*",       // License files
+		"README*",        // Project documentation
+		"SETUP*",         // Setup instructions
+		"*requirements*", // Dependency specifications
+
+		// Image assets
+		"*.jpg",  // JPEG image format
+		"*.jpeg", // JPEG alternative extension
+		"*.png",  // PNG image format
+		"*.gif",  // GIF image format
+		"*.bmp",  // Bitmap image format
+		"*.tiff", // TIFF image format
+		"*.ico",  // Icon format
 	}
 
 	// Skip patterns - files and directories to ignore during processing
@@ -241,6 +250,7 @@ func NewModelfile(path string) (Modelfile, error) {
 		model:   hashset.New(),
 		code:    hashset.New(),
 		dataset: hashset.New(),
+		doc:     hashset.New(),
 	}
 	if err := mf.parseFile(path); err != nil {
 		return nil, err
@@ -332,6 +342,7 @@ func AutoModelfile(path string, config *ModelfileGenConfig) (Modelfile, error) {
 		model:   hashset.New(),
 		code:    hashset.New(),
 		dataset: hashset.New(),
+		doc:     hashset.New(),
 	}
 
 	// use directory name as model name if config.name is empty
@@ -374,6 +385,8 @@ func AutoModelfile(path string, config *ModelfileGenConfig) (Modelfile, error) {
 			mf.model.Add(relPath)
 		case isFileType(filename, codeFilePatterns):
 			mf.code.Add(relPath)
+		case isFileType(filename, docFilePatterns):
+			mf.doc.Add(relPath)
 		default:
 			// skip unrecognized files if IgnoreUnrecognized is true
 			if config.IgnoreUnrecognized {
@@ -428,6 +441,8 @@ func (mf *modelfile) parseFile(path string) error {
 			mf.code.Add(child.GetNext().GetValue())
 		case modefilecommand.DATASET:
 			mf.dataset.Add(child.GetNext().GetValue())
+		case modefilecommand.DOC:
+			mf.doc.Add(child.GetNext().GetValue())
 		case modefilecommand.NAME:
 			if mf.name != "" {
 				return fmt.Errorf("duplicate name command on line %d", child.GetStartLine())
@@ -539,6 +554,23 @@ func (mf *modelfile) GetDatasets() []string {
 	return datasets
 }
 
+// GetDocs returns the args of the doc command in the modelfile,
+// and deduplicates the args. The order of the args is the same as the
+// order in the modelfile.
+func (mf *modelfile) GetDocs() []string {
+	var docs []string
+	for _, rawDoc := range mf.doc.Values() {
+		doc, ok := rawDoc.(string)
+		if !ok {
+			continue
+		}
+
+		docs = append(docs, doc)
+	}
+
+	return docs
+}
+
 // GetName returns the value of the name command in the modelfile.
 func (mf *modelfile) GetName() string {
 	return mf.name
@@ -634,6 +666,14 @@ func (mf *modelfile) SaveToFile(path string) error {
 	sort.Strings(models)
 	for _, model := range models {
 		content += fmt.Sprintf("MODEL %s\n", model)
+	}
+
+	content += "\n# Doc files (Generated from the files in the model directory)\n"
+	content += "# Supported file types: " + strings.Join(docFilePatterns, ", ") + "\n"
+	docs := mf.GetDocs()
+	sort.Strings(docs)
+	for _, doc := range docs {
+		content += fmt.Sprintf("DOC %s\n", doc)
 	}
 
 	// write to file
