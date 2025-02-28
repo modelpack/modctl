@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sort"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
@@ -53,6 +54,8 @@ func (b *base) Process(ctx context.Context, workDir, repo string) ([]ocispec.Des
 
 		matchedPaths = append(matchedPaths, matches...)
 	}
+
+	sort.Strings(matchedPaths)
 
 	var descriptors []ocispec.Descriptor
 	for _, path := range matchedPaths {

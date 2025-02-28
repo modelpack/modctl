@@ -30,28 +30,28 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type readmeProcessorSuite struct {
+type docProcessorSuite struct {
 	suite.Suite
 	mockStore *storage.Storage
 	processor Processor
 	workDir   string
 }
 
-func (s *readmeProcessorSuite) SetupTest() {
+func (s *docProcessorSuite) SetupTest() {
 	s.mockStore = &storage.Storage{}
-	s.processor = NewReadmeProcessor(s.mockStore, modelspec.MediaTypeModelWeight, []string{"README"})
+	s.processor = NewDocProcessor(s.mockStore, modelspec.MediaTypeModelDoc, []string{"LICENSE"})
 	// generate test files for prorcess.
 	s.workDir = s.Suite.T().TempDir()
-	if err := os.WriteFile(filepath.Join(s.workDir, "README"), []byte(""), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(s.workDir, "LICENSE"), []byte(""), 0644); err != nil {
 		s.Suite.T().Fatal(err)
 	}
 }
 
-func (s *readmeProcessorSuite) TestName() {
-	assert.Equal(s.Suite.T(), "readme", s.processor.Name())
+func (s *docProcessorSuite) TestName() {
+	assert.Equal(s.Suite.T(), "doc", s.processor.Name())
 }
 
-func (s *readmeProcessorSuite) TestProcess() {
+func (s *docProcessorSuite) TestProcess() {
 	ctx := context.Background()
 	repo := "test-repo"
 	s.mockStore.On("PushBlob", ctx, repo, mock.Anything).Return("sha256:1234567890abcdef", int64(1024), nil)
@@ -61,9 +61,9 @@ func (s *readmeProcessorSuite) TestProcess() {
 	assert.NotNil(s.Suite.T(), desc)
 	assert.Equal(s.Suite.T(), "sha256:1234567890abcdef", desc[0].Digest.String())
 	assert.Equal(s.Suite.T(), int64(1024), desc[0].Size)
-	assert.Equal(s.Suite.T(), "README", desc[0].Annotations[modelspec.AnnotationFilepath])
+	assert.Equal(s.Suite.T(), "LICENSE", desc[0].Annotations[modelspec.AnnotationFilepath])
 }
 
-func TestReadmeProcessorSuite(t *testing.T) {
-	suite.Run(t, new(readmeProcessorSuite))
+func TestDocProcessorSuite(t *testing.T) {
+	suite.Run(t, new(docProcessorSuite))
 }
