@@ -105,12 +105,12 @@ var (
 		"*.toml",      // TOML configuration files
 		"*.ini",       // INI configuration files
 		"*.config",    // Generic config files
-		"*.txt",       // Text files
 		"*.modelcard", // Model card metadata
 		"*.meta",      // Model metadata
 
 		// Documentation files
 		"*.md",           // Markdown documentation
+		"*.txt",          // Text files
 		"LICENSE*",       // License files
 		"README*",        // Project documentation
 		"SETUP*",         // Setup instructions
