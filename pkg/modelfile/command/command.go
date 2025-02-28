@@ -45,6 +45,13 @@ const (
 	// package, and each dataset file will be a layer.
 	DATASET = "dataset"
 
+	// DOC is the command to set the documentation file path. The value of this commands
+	// is the glob of the documentation file path to match the documentation file name.
+	// The DOC command can be used multiple times in a modelfile, it will scan
+	// the documentation file path by the glob and copy each documentation file to the artifact
+	// package, and each documentation file will be a layer.
+	DOC = "doc"
+
 	// NAME is the command to set the model name, such as llama3-8b-instruct, gpt2-xl,
 	// qwen2-vl-72b-instruct, etc.
 	NAME = "name"
@@ -75,6 +82,7 @@ var Commands = []string{
 	MODEL,
 	CODE,
 	DATASET,
+	DOC,
 	NAME,
 	ARCH,
 	FAMILY,

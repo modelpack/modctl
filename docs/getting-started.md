@@ -58,6 +58,9 @@ MODEL *.safetensors
 # Specify code, support glob path pattern.
 CODE *.py
 
+# Specify documentation, support glob path pattern.
+DOC *.md
+
 ```
 
 Then run the following command to build the model artifact:
@@ -110,8 +113,8 @@ Delete the model artifact in the local storage:
 $ modctl rm registry.com/models/llama3:v1.0.0
 ```
 
-Finally, you can use `purge` command to to remove all unnecessary blobs to free up the storage space:
+Finally, you can use `prune` command to remove all unnecessary blobs to free up the storage space:
 
 ```shell
-$ modctl purge
+$ modctl prune
 ```

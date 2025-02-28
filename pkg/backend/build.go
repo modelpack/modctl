@@ -73,16 +73,8 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	return nil
 }
 
-func (b *backend) defaultProcessors() []processor.Processor {
-	return []processor.Processor{
-		// by default process the readme and license file.
-		processor.NewReadmeProcessor(b.store, modelspec.MediaTypeModelDoc, []string{"README.md", "README"}),
-		processor.NewLicenseProcessor(b.store, modelspec.MediaTypeModelDoc, []string{"LICENSE.txt", "LICENSE"}),
-	}
-}
-
 func (b *backend) getProcessors(modelfile modelfile.Modelfile) []processor.Processor {
-	processors := b.defaultProcessors()
+	processors := []processor.Processor{}
 
 	if configs := modelfile.GetConfigs(); len(configs) > 0 {
 		processors = append(processors, processor.NewModelConfigProcessor(b.store, modelspec.MediaTypeModelWeightConfig, configs))
@@ -94,6 +86,10 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile) []processor.Proce
 
 	if codes := modelfile.GetCodes(); len(codes) > 0 {
 		processors = append(processors, processor.NewCodeProcessor(b.store, modelspec.MediaTypeModelCode, codes))
+	}
+
+	if docs := modelfile.GetDocs(); len(docs) > 0 {
+		processors = append(processors, processor.NewDocProcessor(b.store, modelspec.MediaTypeModelDoc, docs))
 	}
 
 	return processors

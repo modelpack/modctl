@@ -219,6 +219,53 @@ func (_c *Modelfile_GetDatasets_Call) RunAndReturn(run func() []string) *Modelfi
 	return _c
 }
 
+// GetDocs provides a mock function with no fields
+func (_m *Modelfile) GetDocs() []string {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDocs")
+	}
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func() []string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	return r0
+}
+
+// Modelfile_GetDocs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDocs'
+type Modelfile_GetDocs_Call struct {
+	*mock.Call
+}
+
+// GetDocs is a helper method to define mock.On call
+func (_e *Modelfile_Expecter) GetDocs() *Modelfile_GetDocs_Call {
+	return &Modelfile_GetDocs_Call{Call: _e.mock.On("GetDocs")}
+}
+
+func (_c *Modelfile_GetDocs_Call) Run(run func()) *Modelfile_GetDocs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Modelfile_GetDocs_Call) Return(_a0 []string) *Modelfile_GetDocs_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Modelfile_GetDocs_Call) RunAndReturn(run func() []string) *Modelfile_GetDocs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetFamily provides a mock function with no fields
 func (_m *Modelfile) GetFamily() string {
 	ret := _m.Called()

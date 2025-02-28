@@ -23,9 +23,9 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// NewLicenseProcessor creates a new LICENSE processor.
-func NewLicenseProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
-	return &licenseProcessor{
+// NewDocProcessor creates a new doc processor.
+func NewDocProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
+	return &docProcessor{
 		base: &base{
 			store:     store,
 			mediaType: mediaType,
@@ -34,15 +34,15 @@ func NewLicenseProcessor(store storage.Storage, mediaType string, patterns []str
 	}
 }
 
-// licenseProcessor is the processor to process the LICENSE file.
-type licenseProcessor struct {
+// docProcessor is the processor to process the doc file.
+type docProcessor struct {
 	base *base
 }
 
-func (p *licenseProcessor) Name() string {
-	return "license"
+func (p *docProcessor) Name() string {
+	return "doc"
 }
 
-func (p *licenseProcessor) Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error) {
+func (p *docProcessor) Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error) {
 	return p.base.Process(ctx, workDir, repo)
 }

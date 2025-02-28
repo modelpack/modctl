@@ -34,6 +34,7 @@ func TestNewModelfile(t *testing.T) {
 		models       []string
 		codes        []string
 		datasets     []string
+		docs         []string
 		name         string
 		arch         string
 		family       string
@@ -49,6 +50,7 @@ config config1
 model model1
 code code1
 dataset dataset1
+doc doc1
 name name1
 arch arch1
 family family1
@@ -62,6 +64,7 @@ quantization quantization1
 			models:       []string{"model1"},
 			codes:        []string{"code1"},
 			datasets:     []string{"dataset1"},
+			docs:         []string{"doc1"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -77,6 +80,7 @@ config        config1
 model         model1
 code          code1
 dataset       dataset1
+doc           doc1
 name          name1
 arch          arch1
 family        family1
@@ -90,6 +94,7 @@ quantization  quantization1
 			models:       []string{"model1"},
 			codes:        []string{"code1"},
 			datasets:     []string{"dataset1"},
+			docs:         []string{"doc1"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -108,6 +113,8 @@ code code1
 code code2
 dataset dataset1
 dataset dataset2
+doc doc1
+doc doc2
 name name1
 arch arch1
 family family1
@@ -121,6 +128,7 @@ quantization quantization1
 			models:       []string{"model1", "model2"},
 			codes:        []string{"code1", "code2"},
 			datasets:     []string{"dataset1", "dataset2"},
+			docs:         []string{"doc1", "doc2"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -143,6 +151,9 @@ code code2
 dataset dataset1
 dataset dataset1
 dataset dataset2
+doc doc1
+doc doc1
+doc doc2
 name name1
 arch arch1
 family family1
@@ -156,6 +167,7 @@ quantization quantization1
 			models:       []string{"model1", "model2"},
 			codes:        []string{"code1", "code2"},
 			datasets:     []string{"dataset1", "dataset2"},
+			docs:         []string{"doc1", "doc2"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -229,14 +241,17 @@ name bar
 		models := mf.GetModels()
 		codes := mf.GetCodes()
 		datasets := mf.GetDatasets()
+		docs := mf.GetDocs()
 		sort.Strings(configs)
 		sort.Strings(models)
 		sort.Strings(codes)
 		sort.Strings(datasets)
+		sort.Strings(docs)
 		assert.Equal(tc.configs, configs)
 		assert.Equal(tc.models, models)
 		assert.Equal(tc.codes, codes)
 		assert.Equal(tc.datasets, datasets)
+		assert.Equal(tc.docs, docs)
 		assert.Equal(tc.name, mf.GetName())
 		assert.Equal(tc.arch, mf.GetArch())
 		assert.Equal(tc.family, mf.GetFamily())
@@ -283,7 +298,6 @@ func TestAutoModelfile(t *testing.T) {
 
 				// Check configs (sorted)
 				expectedConfigs := []string{
-					"README.md",
 					"config.json",
 					"generation_config.json",
 					"tokenizer.model",
@@ -308,6 +322,14 @@ func TestAutoModelfile(t *testing.T) {
 				codes := mf.GetCodes()
 				sort.Strings(codes)
 				assert.Equal(expectedCodes, codes)
+
+				// Check doc files (sorted)
+				expectedDocs := []string{
+					"README.md",
+				}
+				docs := mf.GetDocs()
+				sort.Strings(docs)
+				assert.Equal(expectedDocs, docs)
 
 				// Check other fields
 				assert.Equal("llama2-7b", mf.GetName())

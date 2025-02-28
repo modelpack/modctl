@@ -102,7 +102,7 @@ func parseCommandLine(line string, start, end int) (Node, error) {
 	}
 
 	switch cmd {
-	case command.CONFIG, command.MODEL, command.CODE, command.DATASET, command.NAME, command.ARCH, command.FAMILY, command.FORMAT, command.PARAMSIZE, command.PRECISION, command.QUANTIZATION:
+	case command.CONFIG, command.MODEL, command.CODE, command.DATASET, command.DOC, command.NAME, command.ARCH, command.FAMILY, command.FORMAT, command.PARAMSIZE, command.PRECISION, command.QUANTIZATION:
 		argsNode, err := parseStringArgs(args, start, end)
 		if err != nil {
 			return nil, err
