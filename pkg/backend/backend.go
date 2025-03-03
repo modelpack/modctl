@@ -31,7 +31,7 @@ type Backend interface {
 	Logout(ctx context.Context, registry string) error
 
 	// Build builds the user materials into the OCI image which follows the Model Spec.
-	Build(ctx context.Context, modelfilePath, workDir, target string) error
+	Build(ctx context.Context, modelfilePath, workDir, target string, opts ...Option) error
 
 	// Pull pulls an artifact from a registry.
 	Pull(ctx context.Context, target string, opts ...Option) error

@@ -24,10 +24,15 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+const (
+	modelConfigProcessorName = "config"
+)
+
 // NewModelConfigProcessor creates a new model config processor.
 func NewModelConfigProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
 	return &modelConfigProcessor{
 		base: &base{
+			name:      modelConfigProcessorName,
 			store:     store,
 			mediaType: mediaType,
 			patterns:  patterns,
@@ -41,9 +46,9 @@ type modelConfigProcessor struct {
 }
 
 func (p *modelConfigProcessor) Name() string {
-	return "model_config"
+	return modelConfigProcessorName
 }
 
-func (p *modelConfigProcessor) Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error) {
-	return p.base.Process(ctx, workDir, repo)
+func (p *modelConfigProcessor) Process(ctx context.Context, workDir, repo string, opts ...Option) ([]ocispec.Descriptor, error) {
+	return p.base.Process(ctx, workDir, repo, opts...)
 }

@@ -22,9 +22,14 @@ import (
 
 func TestNewBuild(t *testing.T) {
 	build := NewBuild()
+	if build.Concurrency == 0 {
+		t.Errorf("expected Concurrency to be greater than 0, got %d", build.Concurrency)
+	}
+
 	if build.Target != "" {
 		t.Errorf("expected Target to be empty, got %s", build.Target)
 	}
+
 	if build.Modelfile != "Modelfile" {
 		t.Errorf("expected Modelfile to be 'Modelfile', got %s", build.Modelfile)
 	}
@@ -39,10 +44,20 @@ func TestBuild_Validate(t *testing.T) {
 		{
 			name: "valid build",
 			build: &Build{
-				Target:    "target",
-				Modelfile: "Modelfile",
+				Concurrency: 1,
+				Target:      "target",
+				Modelfile:   "Modelfile",
 			},
 			expectErr: false,
+		},
+		{
+			name: "missing concurrency",
+			build: &Build{
+				Concurrency: 0,
+				Target:      "target",
+				Modelfile:   "Modelfile",
+			},
+			expectErr: true,
 		},
 		{
 			name: "missing target",

@@ -30,7 +30,13 @@ import (
 )
 
 // Build builds the user materials into the OCI image which follows the Model Spec.
-func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string) error {
+func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string, opts ...Option) error {
+	// apply options.
+	options := &Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	// parse the repo name and tag name from target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -48,7 +54,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	}
 
 	layers := []ocispec.Descriptor{}
-	layerDescs, err := b.process(ctx, workDir, repo, b.getProcessors(modelfile)...)
+	layerDescs, err := b.process(ctx, workDir, repo, options, b.getProcessors(modelfile)...)
 	if err != nil {
 		return fmt.Errorf("failed to process files: %w", err)
 	}
@@ -61,7 +67,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		return fmt.Errorf("failed to build image config: %w", err)
 	}
 
-	fmt.Printf("%-15s => %s (%s)\n", "Built config", configDesc.Digest, humanize.IBytes(uint64(configDesc.Size)))
+	fmt.Printf("%s => %s (%s)\n", "Built config", configDesc.Digest, humanize.IBytes(uint64(configDesc.Size)))
 
 	// build the image manifest.
 	manifestDesc, err := build.BuildManifest(ctx, b.store, repo, tag, layers, configDesc, manifestAnnotation())
@@ -69,7 +75,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		return fmt.Errorf("failed to build image manifest: %w", err)
 	}
 
-	fmt.Printf("%-15s => %s (%s)\n", "Built manifest", manifestDesc.Digest, humanize.IBytes(uint64(manifestDesc.Size)))
+	fmt.Printf("%s => %s (%s)\n", "Built manifest", manifestDesc.Digest, humanize.IBytes(uint64(manifestDesc.Size)))
 	return nil
 }
 
@@ -96,10 +102,10 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile) []processor.Proce
 }
 
 // process walks the user work directory and process the identified files.
-func (b *backend) process(ctx context.Context, workDir string, repo string, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
+func (b *backend) process(ctx context.Context, workDir string, repo string, opts *Options, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
 	descriptors := []ocispec.Descriptor{}
 	for _, p := range processors {
-		descs, err := p.Process(ctx, workDir, repo)
+		descs, err := p.Process(ctx, workDir, repo, processor.WithConcurrency(opts.concurrency))
 		if err != nil {
 			return nil, err
 		}

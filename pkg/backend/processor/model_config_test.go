@@ -48,7 +48,7 @@ func (s *modelConfigProcessorSuite) SetupTest() {
 }
 
 func (s *modelConfigProcessorSuite) TestName() {
-	assert.Equal(s.Suite.T(), "model_config", s.processor.Name())
+	assert.Equal(s.Suite.T(), "config", s.processor.Name())
 }
 
 func (s *modelConfigProcessorSuite) TestProcess() {

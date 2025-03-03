@@ -20,13 +20,19 @@ import (
 	"context"
 
 	"github.com/CloudNativeAI/modctl/pkg/storage"
+
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+)
+
+const (
+	docProcessorName = "doc"
 )
 
 // NewDocProcessor creates a new doc processor.
 func NewDocProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
 	return &docProcessor{
 		base: &base{
+			name:      docProcessorName,
 			store:     store,
 			mediaType: mediaType,
 			patterns:  patterns,
@@ -40,9 +46,9 @@ type docProcessor struct {
 }
 
 func (p *docProcessor) Name() string {
-	return "doc"
+	return docProcessorName
 }
 
-func (p *docProcessor) Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error) {
-	return p.base.Process(ctx, workDir, repo)
+func (p *docProcessor) Process(ctx context.Context, workDir, repo string, opts ...Option) ([]ocispec.Descriptor, error) {
+	return p.base.Process(ctx, workDir, repo, opts...)
 }

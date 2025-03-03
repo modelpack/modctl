@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2025 The CNAI Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,15 @@
 
 package processor
 
-import (
-	"context"
+type Option func(*options)
 
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-)
+type options struct {
+	// concurrency is the number of concurrent workers to use for processing.
+	concurrency int
+}
 
-// Processor is the interface to recognize and process the identified file.
-type Processor interface {
-	// Name returns the name of the processor.
-	Name() string
-	// Process processes the file.
-	Process(ctx context.Context, workDir, repo string, opts ...Option) ([]ocispec.Descriptor, error)
+func WithConcurrency(concurrency int) Option {
+	return func(o *options) {
+		o.concurrency = concurrency
+	}
 }
