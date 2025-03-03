@@ -35,7 +35,7 @@ func TestGetProcessors(t *testing.T) {
 	processors := b.getProcessors(modelfile)
 
 	assert.Len(t, processors, 4)
-	assert.Equal(t, "model_config", processors[0].Name())
+	assert.Equal(t, "config", processors[0].Name())
 	assert.Equal(t, "model", processors[1].Name())
 	assert.Equal(t, "code", processors[2].Name())
 	assert.Equal(t, "doc", processors[3].Name())

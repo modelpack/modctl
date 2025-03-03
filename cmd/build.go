@@ -49,6 +49,7 @@ var buildCmd = &cobra.Command{
 // init initializes build command.
 func init() {
 	flags := buildCmd.Flags()
+	flags.IntVarP(&buildConfig.Concurrency, "concurrency", "c", buildConfig.Concurrency, "specify the number of concurrent build operations")
 	flags.StringVarP(&buildConfig.Target, "target", "t", "", "target model artifact name")
 	flags.StringVarP(&buildConfig.Modelfile, "modelfile", "f", "Modelfile", "model file path")
 
@@ -64,7 +65,11 @@ func runBuild(ctx context.Context, workDir string) error {
 		return err
 	}
 
-	if err := b.Build(ctx, buildConfig.Modelfile, workDir, buildConfig.Target); err != nil {
+	opts := []backend.Option{
+		backend.WithConcurrency(buildConfig.Concurrency),
+	}
+
+	if err := b.Build(ctx, buildConfig.Modelfile, workDir, buildConfig.Target, opts...); err != nil {
 		return err
 	}
 
