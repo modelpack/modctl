@@ -39,17 +39,24 @@ func (_m *Backend) EXPECT() *Backend_Expecter {
 	return &Backend_Expecter{mock: &_m.Mock}
 }
 
-// Build provides a mock function with given fields: ctx, modelfilePath, workDir, target
-func (_m *Backend) Build(ctx context.Context, modelfilePath string, workDir string, target string) error {
-	ret := _m.Called(ctx, modelfilePath, workDir, target)
+// Build provides a mock function with given fields: ctx, modelfilePath, workDir, target, opts
+func (_m *Backend) Build(ctx context.Context, modelfilePath string, workDir string, target string, opts ...backend.Option) error {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, modelfilePath, workDir, target)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Build")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
-		r0 = rf(ctx, modelfilePath, workDir, target)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, ...backend.Option) error); ok {
+		r0 = rf(ctx, modelfilePath, workDir, target, opts...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -67,13 +74,21 @@ type Backend_Build_Call struct {
 //   - modelfilePath string
 //   - workDir string
 //   - target string
-func (_e *Backend_Expecter) Build(ctx interface{}, modelfilePath interface{}, workDir interface{}, target interface{}) *Backend_Build_Call {
-	return &Backend_Build_Call{Call: _e.mock.On("Build", ctx, modelfilePath, workDir, target)}
+//   - opts ...backend.Option
+func (_e *Backend_Expecter) Build(ctx interface{}, modelfilePath interface{}, workDir interface{}, target interface{}, opts ...interface{}) *Backend_Build_Call {
+	return &Backend_Build_Call{Call: _e.mock.On("Build",
+		append([]interface{}{ctx, modelfilePath, workDir, target}, opts...)...)}
 }
 
-func (_c *Backend_Build_Call) Run(run func(ctx context.Context, modelfilePath string, workDir string, target string)) *Backend_Build_Call {
+func (_c *Backend_Build_Call) Run(run func(ctx context.Context, modelfilePath string, workDir string, target string, opts ...backend.Option)) *Backend_Build_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+		variadicArgs := make([]backend.Option, len(args)-4)
+		for i, a := range args[4:] {
+			if a != nil {
+				variadicArgs[i] = a.(backend.Option)
+			}
+		}
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), variadicArgs...)
 	})
 	return _c
 }
@@ -83,7 +98,7 @@ func (_c *Backend_Build_Call) Return(_a0 error) *Backend_Build_Call {
 	return _c
 }
 
-func (_c *Backend_Build_Call) RunAndReturn(run func(context.Context, string, string, string) error) *Backend_Build_Call {
+func (_c *Backend_Build_Call) RunAndReturn(run func(context.Context, string, string, string, ...backend.Option) error) *Backend_Build_Call {
 	_c.Call.Return(run)
 	return _c
 }
