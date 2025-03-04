@@ -22,6 +22,11 @@ $ ./output/modctl -h
 
 Build the model artifact you need to prepare a Modelfile describe your expected layout of the model artifact in your model repo.
 
+Notes: We support Unix-like glob path patterns, where:
+- `*` matches any number of characters except path separators (`/`).
+- `**` matches any number of directories, including zero directories.
+For example, `**/*.py` matches all `.py` files in the current directory and its subdirectories.
+
 Example of Modelfile:
 
 ```shell
