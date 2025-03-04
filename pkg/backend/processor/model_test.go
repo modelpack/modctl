@@ -54,7 +54,7 @@ func (s *modelProcessorSuite) TestName() {
 func (s *modelProcessorSuite) TestProcess() {
 	ctx := context.Background()
 	repo := "test-repo"
-	s.mockStore.On("PushBlob", ctx, repo, mock.Anything).Return("sha256:1234567890abcdef", int64(1024), nil)
+	s.mockStore.On("PushBlob", ctx, repo, mock.Anything, mock.Anything).Return("sha256:1234567890abcdef", int64(1024), nil)
 
 	desc, err := s.processor.Process(ctx, s.workDir, repo)
 	assert.NoError(s.Suite.T(), err)

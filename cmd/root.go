@@ -18,9 +18,11 @@ package cmd
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/sirupsen/logrus"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -36,8 +38,6 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logrus.Debug("modctl is running")
-
 		return nil
 	},
 }
@@ -45,6 +45,14 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-sig
+		os.Exit(1)
+	}()
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

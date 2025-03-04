@@ -172,7 +172,7 @@ func pullIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src *re
 			return err
 		}
 	} else {
-		if _, _, err := dst.PushBlob(ctx, repo, pb.Add(prompt, desc, content)); err != nil {
+		if _, _, err := dst.PushBlob(ctx, repo, pb.Add(prompt, desc, content), desc); err != nil {
 			pb.Abort(desc)
 			return err
 		}
