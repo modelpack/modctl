@@ -56,7 +56,7 @@ func BuildLayer(ctx context.Context, store storage.Storage, mediaType, workDir, 
 		return ocispec.Descriptor{}, fmt.Errorf("failed to tar file: %w", err)
 	}
 
-	digest, size, err := store.PushBlob(ctx, repo, reader)
+	digest, size, err := store.PushBlob(ctx, repo, reader, ocispec.Descriptor{})
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to push blob to storage: %w", err)
 	}
@@ -118,7 +118,7 @@ func BuildConfig(ctx context.Context, store storage.Storage, modelfile modelfile
 		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	digest, size, err := store.PushBlob(ctx, repo, bytes.NewReader(configJSON))
+	digest, size, err := store.PushBlob(ctx, repo, bytes.NewReader(configJSON), ocispec.Descriptor{})
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to push config to storage: %w", err)
 	}
