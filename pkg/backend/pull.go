@@ -32,6 +32,7 @@ import (
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
+	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 // Pull pulls an artifact from a registry.
@@ -63,19 +64,19 @@ func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error
 	}
 
 	// create the http client.
-	httpClient := http.DefaultClient
+	httpClient := &http.Client{}
 	if options.proxy != "" {
 		proxyURL, err := url.Parse(options.proxy)
 		if err != nil {
 			return fmt.Errorf("failed to parse the proxy URL: %w", err)
 		}
 
-		httpClient.Transport = &http.Transport{
+		httpClient.Transport = retry.NewTransport(&http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: options.insecure,
 			},
-		}
+		})
 	}
 
 	src.Client = &auth.Client{

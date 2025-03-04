@@ -31,6 +31,7 @@ import (
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
+	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 // Push pushes the image to the registry.
@@ -66,6 +67,7 @@ func (b *backend) Push(ctx context.Context, target string, opts ...Option) error
 	dst.Client = &auth.Client{
 		Cache:      auth.NewCache(),
 		Credential: credentials.Credential(credStore),
+		Client:     retry.DefaultClient,
 	}
 
 	if options.plainHTTP {
