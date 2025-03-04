@@ -429,9 +429,9 @@ func (_c *Storage_PullManifest_Call) RunAndReturn(run func(context.Context, stri
 	return _c
 }
 
-// PushBlob provides a mock function with given fields: ctx, repo, body
-func (_m *Storage) PushBlob(ctx context.Context, repo string, body io.Reader) (string, int64, error) {
-	ret := _m.Called(ctx, repo, body)
+// PushBlob provides a mock function with given fields: ctx, repo, body, desc
+func (_m *Storage) PushBlob(ctx context.Context, repo string, body io.Reader, desc v1.Descriptor) (string, int64, error) {
+	ret := _m.Called(ctx, repo, body, desc)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PushBlob")
@@ -440,23 +440,23 @@ func (_m *Storage) PushBlob(ctx context.Context, repo string, body io.Reader) (s
 	var r0 string
 	var r1 int64
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, io.Reader) (string, int64, error)); ok {
-		return rf(ctx, repo, body)
+	if rf, ok := ret.Get(0).(func(context.Context, string, io.Reader, v1.Descriptor) (string, int64, error)); ok {
+		return rf(ctx, repo, body, desc)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, io.Reader) string); ok {
-		r0 = rf(ctx, repo, body)
+	if rf, ok := ret.Get(0).(func(context.Context, string, io.Reader, v1.Descriptor) string); ok {
+		r0 = rf(ctx, repo, body, desc)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, io.Reader) int64); ok {
-		r1 = rf(ctx, repo, body)
+	if rf, ok := ret.Get(1).(func(context.Context, string, io.Reader, v1.Descriptor) int64); ok {
+		r1 = rf(ctx, repo, body, desc)
 	} else {
 		r1 = ret.Get(1).(int64)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, string, io.Reader) error); ok {
-		r2 = rf(ctx, repo, body)
+	if rf, ok := ret.Get(2).(func(context.Context, string, io.Reader, v1.Descriptor) error); ok {
+		r2 = rf(ctx, repo, body, desc)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -473,13 +473,14 @@ type Storage_PushBlob_Call struct {
 //   - ctx context.Context
 //   - repo string
 //   - body io.Reader
-func (_e *Storage_Expecter) PushBlob(ctx interface{}, repo interface{}, body interface{}) *Storage_PushBlob_Call {
-	return &Storage_PushBlob_Call{Call: _e.mock.On("PushBlob", ctx, repo, body)}
+//   - desc v1.Descriptor
+func (_e *Storage_Expecter) PushBlob(ctx interface{}, repo interface{}, body interface{}, desc interface{}) *Storage_PushBlob_Call {
+	return &Storage_PushBlob_Call{Call: _e.mock.On("PushBlob", ctx, repo, body, desc)}
 }
 
-func (_c *Storage_PushBlob_Call) Run(run func(ctx context.Context, repo string, body io.Reader)) *Storage_PushBlob_Call {
+func (_c *Storage_PushBlob_Call) Run(run func(ctx context.Context, repo string, body io.Reader, desc v1.Descriptor)) *Storage_PushBlob_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(io.Reader))
+		run(args[0].(context.Context), args[1].(string), args[2].(io.Reader), args[3].(v1.Descriptor))
 	})
 	return _c
 }
@@ -489,7 +490,7 @@ func (_c *Storage_PushBlob_Call) Return(_a0 string, _a1 int64, _a2 error) *Stora
 	return _c
 }
 
-func (_c *Storage_PushBlob_Call) RunAndReturn(run func(context.Context, string, io.Reader) (string, int64, error)) *Storage_PushBlob_Call {
+func (_c *Storage_PushBlob_Call) RunAndReturn(run func(context.Context, string, io.Reader, v1.Descriptor) (string, int64, error)) *Storage_PushBlob_Call {
 	_c.Call.Return(run)
 	return _c
 }

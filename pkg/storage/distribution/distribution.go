@@ -18,7 +18,6 @@ package distribution
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"regexp"
@@ -28,6 +27,7 @@ import (
 	"github.com/distribution/distribution/v3/registry/storage/driver"
 	"github.com/distribution/distribution/v3/registry/storage/driver/filesystem"
 	ref "github.com/distribution/reference"
+	sha256 "github.com/minio/sha256-simd"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -172,30 +172,35 @@ func (s *storage) PullBlob(ctx context.Context, repo, digest string) (io.ReadClo
 }
 
 // PushBlob pushes the blob to the storage.
-func (s *storage) PushBlob(ctx context.Context, repo string, blobReader io.Reader) (string, int64, error) {
+func (s *storage) PushBlob(ctx context.Context, repo string, blobReader io.Reader, provisional ocispec.Descriptor) (string, int64, error) {
 	repository, err := s.repository(ctx, repo)
 	if err != nil {
 		return "", 0, err
 	}
 
-	// use teeReader to calculate the digest.
 	hash := sha256.New()
-	teeReader := io.TeeReader(blobReader, hash)
+	if provisional.Digest == "" {
+		blobReader = io.TeeReader(blobReader, hash)
+	}
 
 	blob, err := repository.Blobs(ctx).Create(ctx)
 	if err != nil {
 		return "", 0, err
 	}
 
-	size, err := blob.ReadFrom(teeReader)
+	size, err := blob.ReadFrom(blobReader)
 	if err != nil {
 		return "", 0, err
 	}
 
-	desc, err := blob.Commit(ctx, ocispec.Descriptor{
-		Digest: godigest.Digest(fmt.Sprintf("sha256:%x", hash.Sum(nil))),
-		Size:   size,
-	})
+	// if the provided provisional descriptor is not empty, we can just use it to commit,
+	// otherwise we need to calculate the digest.
+	if provisional.Digest == "" {
+		provisional.Digest = godigest.Digest(fmt.Sprintf("sha256:%x", hash.Sum(nil)))
+		provisional.Size = size
+	}
+
+	desc, err := blob.Commit(ctx, provisional)
 	if err != nil {
 		return "", 0, nil
 	}

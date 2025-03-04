@@ -43,7 +43,7 @@ type Storage interface {
 	// PullBlob pulls the blob from the storage.
 	PullBlob(ctx context.Context, repo, digest string) (io.ReadCloser, error)
 	// PushBlob pushes the blob to the storage.
-	PushBlob(ctx context.Context, repo string, body io.Reader) (string, int64, error)
+	PushBlob(ctx context.Context, repo string, body io.Reader, desc ocispec.Descriptor) (string, int64, error)
 	// MountBlob mounts the blob to the storage.
 	MountBlob(ctx context.Context, fromRepo, toRepo string, desc ocispec.Descriptor) error
 	// StatBlob stats the blob in the storage.
