@@ -131,6 +131,18 @@ func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src sto
 	}
 
 	if exist {
+		// if the descriptor is the manifest, should check the tag existence as well.
+		if desc.MediaType == ocispec.MediaTypeImageManifest {
+			_, _, err := dst.FetchReference(ctx, tag)
+			if err != nil {
+				// try to push the tag if error occurred when fetch reference.
+				if err := dst.Tag(ctx, desc, tag); err != nil {
+					pb.Abort(desc)
+					return fmt.Errorf("failed to push tag to remote: %w", err)
+				}
+			}
+		}
+
 		pb.PrintMessage(prompt, desc, "skipped: already exists")
 		return nil
 	}
