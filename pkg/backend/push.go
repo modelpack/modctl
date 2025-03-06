@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	godigest "github.com/opencontainers/go-digest"
@@ -35,13 +36,7 @@ import (
 )
 
 // Push pushes the image to the registry.
-func (b *backend) Push(ctx context.Context, target string, opts ...Option) error {
-	// apply options.
-	options := &Options{}
-	for _, opt := range opts {
-		opt(options)
-	}
-
+func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) error {
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -70,7 +65,7 @@ func (b *backend) Push(ctx context.Context, target string, opts ...Option) error
 		Client:     retry.DefaultClient,
 	}
 
-	if options.plainHTTP {
+	if cfg.PlainHTTP {
 		dst.PlainHTTP = true
 	}
 
@@ -96,7 +91,7 @@ func (b *backend) Push(ctx context.Context, target string, opts ...Option) error
 
 	// copy the layers.
 	g := &errgroup.Group{}
-	g.SetLimit(options.concurrency)
+	g.SetLimit(cfg.Concurrency)
 	for _, layer := range manifest.Layers {
 		g.Go(func() error { return pushIfNotExist(ctx, pb, promptCopyingBlob, src, dst, layer, repo, tag) })
 	}

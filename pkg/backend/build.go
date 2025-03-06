@@ -22,6 +22,7 @@ import (
 
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
@@ -30,13 +31,7 @@ import (
 )
 
 // Build builds the user materials into the OCI image which follows the Model Spec.
-func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string, opts ...Option) error {
-	// apply options.
-	options := &Options{}
-	for _, opt := range opts {
-		opt(options)
-	}
-
+func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string, cfg *config.Build) error {
 	// parse the repo name and tag name from target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -53,8 +48,23 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		return fmt.Errorf("tag is required")
 	}
 
+	// using the local output by default.
+	outputType := build.OutputTypeLocal
+	if cfg.OutputRemote {
+		outputType = build.OutputTypeRemote
+	}
+
+	opts := []build.Option{
+		build.WithPlainHTTP(cfg.PlainHTTP),
+		build.WithInsecure(cfg.Insecure),
+	}
+	builder, err := build.NewBuilder(outputType, b.store, modelfile, repo, tag, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to create builder: %w", err)
+	}
+
 	layers := []ocispec.Descriptor{}
-	layerDescs, err := b.process(ctx, workDir, repo, options, b.getProcessors(modelfile)...)
+	layerDescs, err := b.process(ctx, builder, workDir, cfg, b.getProcessors(modelfile)...)
 	if err != nil {
 		return fmt.Errorf("failed to process files: %w", err)
 	}
@@ -62,7 +72,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	layers = append(layers, layerDescs...)
 
 	// build the image config.
-	configDesc, err := build.BuildConfig(ctx, b.store, modelfile, repo)
+	configDesc, err := builder.BuildConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to build image config: %w", err)
 	}
@@ -70,7 +80,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	fmt.Printf("%s => %s (%s)\n", "Built config", configDesc.Digest, humanize.IBytes(uint64(configDesc.Size)))
 
 	// build the image manifest.
-	manifestDesc, err := build.BuildManifest(ctx, b.store, repo, tag, layers, configDesc, manifestAnnotation())
+	manifestDesc, err := builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation())
 	if err != nil {
 		return fmt.Errorf("failed to build image manifest: %w", err)
 	}
@@ -102,10 +112,10 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile) []processor.Proce
 }
 
 // process walks the user work directory and process the identified files.
-func (b *backend) process(ctx context.Context, workDir string, repo string, opts *Options, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
+func (b *backend) process(ctx context.Context, builder build.Builder, workDir string, cfg *config.Build, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
 	descriptors := []ocispec.Descriptor{}
 	for _, p := range processors {
-		descs, err := p.Process(ctx, workDir, repo, processor.WithConcurrency(opts.concurrency))
+		descs, err := p.Process(ctx, builder, workDir, processor.WithConcurrency(cfg.Concurrency))
 		if err != nil {
 			return nil, err
 		}

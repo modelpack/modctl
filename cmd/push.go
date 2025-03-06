@@ -64,12 +64,7 @@ func runPush(ctx context.Context, target string) error {
 		return err
 	}
 
-	opts := []backend.Option{
-		backend.WithPlainHTTP(pushConfig.PlainHTTP),
-		backend.WithConcurrency(pushConfig.Concurrency),
-	}
-
-	if err := b.Push(ctx, target, opts...); err != nil {
+	if err := b.Push(ctx, target, pushConfig); err != nil {
 		return err
 	}
 

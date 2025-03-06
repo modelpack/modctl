@@ -4,7 +4,6 @@ run:
   skip-dirs:
     - test/mocks
 
-
 linters-settings:
   gocyclo:
     min-complexity: 100

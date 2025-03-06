@@ -54,6 +54,7 @@ func init() {
 	flags.BoolVar(&pullConfig.Insecure, "insecure", false, "use insecure connection for the pull operation and skip TLS verification")
 	flags.StringVar(&pullConfig.Proxy, "proxy", "", "use proxy for the pull operation")
 	flags.StringVar(&pullConfig.ExtractDir, "extract-dir", "", "specify the extract dir for extracting the model artifact")
+	flags.BoolVar(&pullConfig.ExtractFromRemote, "extract-from-remote", false, "turning on this flag will pull and extract the data from remote registry and no longer store model artifact locally, so user must specify extract-dir as the output directory")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache pull flags to viper: %w", err))
@@ -71,21 +72,7 @@ func runPull(ctx context.Context, target string) error {
 		return fmt.Errorf("target is required")
 	}
 
-	opts := []backend.Option{
-		backend.WithInsecure(pullConfig.Insecure),
-		backend.WithPlainHTTP(pullConfig.PlainHTTP),
-		backend.WithConcurrency(pullConfig.Concurrency),
-	}
-
-	if pullConfig.Proxy != "" {
-		opts = append(opts, backend.WithProxy(pullConfig.Proxy))
-	}
-
-	if pullConfig.ExtractDir != "" {
-		opts = append(opts, backend.WithOutput(pullConfig.ExtractDir))
-	}
-
-	if err := b.Pull(ctx, target, opts...); err != nil {
+	if err := b.Pull(ctx, target, pullConfig); err != nil {
 		return err
 	}
 

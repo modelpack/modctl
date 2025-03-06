@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2025 The CNAI Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,31 +14,24 @@
  * limitations under the License.
  */
 
-package config
+package build
 
-import "fmt"
+type Option func(*config)
 
-const (
-	// defaultPushConcurrency is the default number of concurrent push operations.
-	defaultPushConcurrency = 5
-)
-
-type Push struct {
-	Concurrency int
-	PlainHTTP   bool
+// config is the configuration for the building.
+type config struct {
+	plainHTTP bool
+	insecure  bool
 }
 
-func NewPush() *Push {
-	return &Push{
-		Concurrency: defaultPushConcurrency,
-		PlainHTTP:   false,
+func WithPlainHTTP(plainHTTP bool) Option {
+	return func(c *config) {
+		c.plainHTTP = plainHTTP
 	}
 }
 
-func (p *Push) Validate() error {
-	if p.Concurrency < 1 {
-		return fmt.Errorf("invalid concurrency: %d", p.Concurrency)
+func WithInsecure(insecure bool) Option {
+	return func(c *config) {
+		c.insecure = insecure
 	}
-
-	return nil
 }

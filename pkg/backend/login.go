@@ -19,18 +19,14 @@ package backend
 import (
 	"context"
 
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // Login logs into a registry.
-func (b *backend) Login(ctx context.Context, registry, username, password string, opts ...Option) error {
-	// apply options.
-	options := &Options{}
-	for _, opt := range opts {
-		opt(options)
-	}
+func (b *backend) Login(ctx context.Context, registry, username, password string, cfg *config.Login) error {
 	// read credentials from docker store.
 	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
 	if err != nil {
@@ -42,7 +38,7 @@ func (b *backend) Login(ctx context.Context, registry, username, password string
 		return err
 	}
 
-	if options.plainHTTP {
+	if cfg.PlainHTTP {
 		reg.PlainHTTP = true
 	}
 
