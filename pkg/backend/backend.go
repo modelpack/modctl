@@ -19,25 +19,26 @@ package backend
 import (
 	"context"
 
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 )
 
 // Backend is the interface to represent the backend.
 type Backend interface {
 	// Login logs into a registry.
-	Login(ctx context.Context, registry, username, password string, opts ...Option) error
+	Login(ctx context.Context, registry, username, password string, cfg *config.Login) error
 
 	// Logout logs out from a registry.
 	Logout(ctx context.Context, registry string) error
 
 	// Build builds the user materials into the OCI image which follows the Model Spec.
-	Build(ctx context.Context, modelfilePath, workDir, target string, opts ...Option) error
+	Build(ctx context.Context, modelfilePath, workDir, target string, cfg *config.Build) error
 
 	// Pull pulls an artifact from a registry.
-	Pull(ctx context.Context, target string, opts ...Option) error
+	Pull(ctx context.Context, target string, cfg *config.Pull) error
 
 	// Push pushes the image to the registry.
-	Push(ctx context.Context, target string, opts ...Option) error
+	Push(ctx context.Context, target string, cfg *config.Push) error
 
 	// List lists all the model artifacts.
 	List(ctx context.Context) ([]*ModelArtifact, error)

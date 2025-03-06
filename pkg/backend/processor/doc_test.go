@@ -22,9 +22,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	buildmock "github.com/CloudNativeAI/modctl/test/mocks/backend/build"
 	"github.com/CloudNativeAI/modctl/test/mocks/storage"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	godigest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -32,13 +35,15 @@ import (
 
 type docProcessorSuite struct {
 	suite.Suite
-	mockStore *storage.Storage
-	processor Processor
-	workDir   string
+	mockStore   *storage.Storage
+	mockBuilder *buildmock.Builder
+	processor   Processor
+	workDir     string
 }
 
 func (s *docProcessorSuite) SetupTest() {
 	s.mockStore = &storage.Storage{}
+	s.mockBuilder = &buildmock.Builder{}
 	s.processor = NewDocProcessor(s.mockStore, modelspec.MediaTypeModelDoc, []string{"LICENSE"})
 	// generate test files for prorcess.
 	s.workDir = s.Suite.T().TempDir()
@@ -53,10 +58,15 @@ func (s *docProcessorSuite) TestName() {
 
 func (s *docProcessorSuite) TestProcess() {
 	ctx := context.Background()
-	repo := "test-repo"
-	s.mockStore.On("PushBlob", ctx, repo, mock.Anything, mock.Anything).Return("sha256:1234567890abcdef", int64(1024), nil)
+	s.mockBuilder.On("BuildLayer", ctx, mock.Anything, mock.Anything, mock.Anything).Return(ocispec.Descriptor{
+		Digest: godigest.Digest("sha256:1234567890abcdef"),
+		Size:   int64(1024),
+		Annotations: map[string]string{
+			modelspec.AnnotationFilepath: "LICENSE",
+		},
+	}, nil)
 
-	desc, err := s.processor.Process(ctx, s.workDir, repo)
+	desc, err := s.processor.Process(ctx, s.mockBuilder, s.workDir)
 	assert.NoError(s.Suite.T(), err)
 	assert.NotNil(s.Suite.T(), desc)
 	assert.Equal(s.Suite.T(), "sha256:1234567890abcdef", desc[0].Digest.String())

@@ -19,6 +19,7 @@ package processor
 import (
 	"context"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -49,6 +50,6 @@ func (p *modelProcessor) Name() string {
 	return modelProcessorName
 }
 
-func (p *modelProcessor) Process(ctx context.Context, workDir, repo string, opts ...Option) ([]ocispec.Descriptor, error) {
-	return p.base.Process(ctx, workDir, repo, opts...)
+func (p *modelProcessor) Process(ctx context.Context, builder build.Builder, workDir string, opts ...Option) ([]ocispec.Descriptor, error) {
+	return p.base.Process(ctx, builder, workDir, opts...)
 }
