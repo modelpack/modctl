@@ -24,16 +24,22 @@ const (
 )
 
 type Build struct {
-	Concurrency int
-	Target      string
-	Modelfile   string
+	Concurrency  int
+	Target       string
+	Modelfile    string
+	OutputRemote bool
+	PlainHTTP    bool
+	Insecure     bool
 }
 
 func NewBuild() *Build {
 	return &Build{
-		Concurrency: defaultBuildConcurrency,
-		Target:      "",
-		Modelfile:   "Modelfile",
+		Concurrency:  defaultBuildConcurrency,
+		Target:       "",
+		Modelfile:    "Modelfile",
+		OutputRemote: false,
+		PlainHTTP:    false,
+		Insecure:     false,
 	}
 }
 

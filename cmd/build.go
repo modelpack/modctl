@@ -52,6 +52,9 @@ func init() {
 	flags.IntVarP(&buildConfig.Concurrency, "concurrency", "c", buildConfig.Concurrency, "specify the number of concurrent build operations")
 	flags.StringVarP(&buildConfig.Target, "target", "t", "", "target model artifact name")
 	flags.StringVarP(&buildConfig.Modelfile, "modelfile", "f", "Modelfile", "model file path")
+	flags.BoolVarP(&buildConfig.OutputRemote, "output-remote", "", false, "turning on this flag will output model artifact to remote registry directly")
+	flags.BoolVarP(&buildConfig.PlainHTTP, "plain-http", "", false, "turning on this flag will use plain HTTP instead of HTTPS")
+	flags.BoolVarP(&buildConfig.Insecure, "insecure", "", false, "turning on this flag will disable TLS verification")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
@@ -65,11 +68,7 @@ func runBuild(ctx context.Context, workDir string) error {
 		return err
 	}
 
-	opts := []backend.Option{
-		backend.WithConcurrency(buildConfig.Concurrency),
-	}
-
-	if err := b.Build(ctx, buildConfig.Modelfile, workDir, buildConfig.Target, opts...); err != nil {
+	if err := b.Build(ctx, buildConfig.Modelfile, workDir, buildConfig.Target, buildConfig); err != nil {
 		return err
 	}
 

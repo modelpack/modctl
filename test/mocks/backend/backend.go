@@ -19,9 +19,10 @@
 package backend
 
 import (
-	context "context"
-
 	backend "github.com/CloudNativeAI/modctl/pkg/backend"
+	config "github.com/CloudNativeAI/modctl/pkg/config"
+
+	context "context"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -39,24 +40,17 @@ func (_m *Backend) EXPECT() *Backend_Expecter {
 	return &Backend_Expecter{mock: &_m.Mock}
 }
 
-// Build provides a mock function with given fields: ctx, modelfilePath, workDir, target, opts
-func (_m *Backend) Build(ctx context.Context, modelfilePath string, workDir string, target string, opts ...backend.Option) error {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, modelfilePath, workDir, target)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
+// Build provides a mock function with given fields: ctx, modelfilePath, workDir, target, cfg
+func (_m *Backend) Build(ctx context.Context, modelfilePath string, workDir string, target string, cfg *config.Build) error {
+	ret := _m.Called(ctx, modelfilePath, workDir, target, cfg)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Build")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, ...backend.Option) error); ok {
-		r0 = rf(ctx, modelfilePath, workDir, target, opts...)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, *config.Build) error); ok {
+		r0 = rf(ctx, modelfilePath, workDir, target, cfg)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -74,21 +68,14 @@ type Backend_Build_Call struct {
 //   - modelfilePath string
 //   - workDir string
 //   - target string
-//   - opts ...backend.Option
-func (_e *Backend_Expecter) Build(ctx interface{}, modelfilePath interface{}, workDir interface{}, target interface{}, opts ...interface{}) *Backend_Build_Call {
-	return &Backend_Build_Call{Call: _e.mock.On("Build",
-		append([]interface{}{ctx, modelfilePath, workDir, target}, opts...)...)}
+//   - cfg *config.Build
+func (_e *Backend_Expecter) Build(ctx interface{}, modelfilePath interface{}, workDir interface{}, target interface{}, cfg interface{}) *Backend_Build_Call {
+	return &Backend_Build_Call{Call: _e.mock.On("Build", ctx, modelfilePath, workDir, target, cfg)}
 }
 
-func (_c *Backend_Build_Call) Run(run func(ctx context.Context, modelfilePath string, workDir string, target string, opts ...backend.Option)) *Backend_Build_Call {
+func (_c *Backend_Build_Call) Run(run func(ctx context.Context, modelfilePath string, workDir string, target string, cfg *config.Build)) *Backend_Build_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		variadicArgs := make([]backend.Option, len(args)-4)
-		for i, a := range args[4:] {
-			if a != nil {
-				variadicArgs[i] = a.(backend.Option)
-			}
-		}
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), variadicArgs...)
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(*config.Build))
 	})
 	return _c
 }
@@ -98,7 +85,7 @@ func (_c *Backend_Build_Call) Return(_a0 error) *Backend_Build_Call {
 	return _c
 }
 
-func (_c *Backend_Build_Call) RunAndReturn(run func(context.Context, string, string, string, ...backend.Option) error) *Backend_Build_Call {
+func (_c *Backend_Build_Call) RunAndReturn(run func(context.Context, string, string, string, *config.Build) error) *Backend_Build_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -268,24 +255,17 @@ func (_c *Backend_List_Call) RunAndReturn(run func(context.Context) ([]*backend.
 	return _c
 }
 
-// Login provides a mock function with given fields: ctx, registry, username, password, opts
-func (_m *Backend) Login(ctx context.Context, registry string, username string, password string, opts ...backend.Option) error {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, registry, username, password)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
+// Login provides a mock function with given fields: ctx, registry, username, password, cfg
+func (_m *Backend) Login(ctx context.Context, registry string, username string, password string, cfg *config.Login) error {
+	ret := _m.Called(ctx, registry, username, password, cfg)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Login")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, ...backend.Option) error); ok {
-		r0 = rf(ctx, registry, username, password, opts...)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, *config.Login) error); ok {
+		r0 = rf(ctx, registry, username, password, cfg)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -303,21 +283,14 @@ type Backend_Login_Call struct {
 //   - registry string
 //   - username string
 //   - password string
-//   - opts ...backend.Option
-func (_e *Backend_Expecter) Login(ctx interface{}, registry interface{}, username interface{}, password interface{}, opts ...interface{}) *Backend_Login_Call {
-	return &Backend_Login_Call{Call: _e.mock.On("Login",
-		append([]interface{}{ctx, registry, username, password}, opts...)...)}
+//   - cfg *config.Login
+func (_e *Backend_Expecter) Login(ctx interface{}, registry interface{}, username interface{}, password interface{}, cfg interface{}) *Backend_Login_Call {
+	return &Backend_Login_Call{Call: _e.mock.On("Login", ctx, registry, username, password, cfg)}
 }
 
-func (_c *Backend_Login_Call) Run(run func(ctx context.Context, registry string, username string, password string, opts ...backend.Option)) *Backend_Login_Call {
+func (_c *Backend_Login_Call) Run(run func(ctx context.Context, registry string, username string, password string, cfg *config.Login)) *Backend_Login_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		variadicArgs := make([]backend.Option, len(args)-4)
-		for i, a := range args[4:] {
-			if a != nil {
-				variadicArgs[i] = a.(backend.Option)
-			}
-		}
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), variadicArgs...)
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(*config.Login))
 	})
 	return _c
 }
@@ -327,7 +300,7 @@ func (_c *Backend_Login_Call) Return(_a0 error) *Backend_Login_Call {
 	return _c
 }
 
-func (_c *Backend_Login_Call) RunAndReturn(run func(context.Context, string, string, string, ...backend.Option) error) *Backend_Login_Call {
+func (_c *Backend_Login_Call) RunAndReturn(run func(context.Context, string, string, string, *config.Login) error) *Backend_Login_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -427,24 +400,17 @@ func (_c *Backend_Prune_Call) RunAndReturn(run func(context.Context, bool, bool)
 	return _c
 }
 
-// Pull provides a mock function with given fields: ctx, target, opts
-func (_m *Backend) Pull(ctx context.Context, target string, opts ...backend.Option) error {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, target)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
+// Pull provides a mock function with given fields: ctx, target, cfg
+func (_m *Backend) Pull(ctx context.Context, target string, cfg *config.Pull) error {
+	ret := _m.Called(ctx, target, cfg)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Pull")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, ...backend.Option) error); ok {
-		r0 = rf(ctx, target, opts...)
+	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Pull) error); ok {
+		r0 = rf(ctx, target, cfg)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -460,21 +426,14 @@ type Backend_Pull_Call struct {
 // Pull is a helper method to define mock.On call
 //   - ctx context.Context
 //   - target string
-//   - opts ...backend.Option
-func (_e *Backend_Expecter) Pull(ctx interface{}, target interface{}, opts ...interface{}) *Backend_Pull_Call {
-	return &Backend_Pull_Call{Call: _e.mock.On("Pull",
-		append([]interface{}{ctx, target}, opts...)...)}
+//   - cfg *config.Pull
+func (_e *Backend_Expecter) Pull(ctx interface{}, target interface{}, cfg interface{}) *Backend_Pull_Call {
+	return &Backend_Pull_Call{Call: _e.mock.On("Pull", ctx, target, cfg)}
 }
 
-func (_c *Backend_Pull_Call) Run(run func(ctx context.Context, target string, opts ...backend.Option)) *Backend_Pull_Call {
+func (_c *Backend_Pull_Call) Run(run func(ctx context.Context, target string, cfg *config.Pull)) *Backend_Pull_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		variadicArgs := make([]backend.Option, len(args)-2)
-		for i, a := range args[2:] {
-			if a != nil {
-				variadicArgs[i] = a.(backend.Option)
-			}
-		}
-		run(args[0].(context.Context), args[1].(string), variadicArgs...)
+		run(args[0].(context.Context), args[1].(string), args[2].(*config.Pull))
 	})
 	return _c
 }
@@ -484,29 +443,22 @@ func (_c *Backend_Pull_Call) Return(_a0 error) *Backend_Pull_Call {
 	return _c
 }
 
-func (_c *Backend_Pull_Call) RunAndReturn(run func(context.Context, string, ...backend.Option) error) *Backend_Pull_Call {
+func (_c *Backend_Pull_Call) RunAndReturn(run func(context.Context, string, *config.Pull) error) *Backend_Pull_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// Push provides a mock function with given fields: ctx, target, opts
-func (_m *Backend) Push(ctx context.Context, target string, opts ...backend.Option) error {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, target)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
+// Push provides a mock function with given fields: ctx, target, cfg
+func (_m *Backend) Push(ctx context.Context, target string, cfg *config.Push) error {
+	ret := _m.Called(ctx, target, cfg)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Push")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, ...backend.Option) error); ok {
-		r0 = rf(ctx, target, opts...)
+	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Push) error); ok {
+		r0 = rf(ctx, target, cfg)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -522,21 +474,14 @@ type Backend_Push_Call struct {
 // Push is a helper method to define mock.On call
 //   - ctx context.Context
 //   - target string
-//   - opts ...backend.Option
-func (_e *Backend_Expecter) Push(ctx interface{}, target interface{}, opts ...interface{}) *Backend_Push_Call {
-	return &Backend_Push_Call{Call: _e.mock.On("Push",
-		append([]interface{}{ctx, target}, opts...)...)}
+//   - cfg *config.Push
+func (_e *Backend_Expecter) Push(ctx interface{}, target interface{}, cfg interface{}) *Backend_Push_Call {
+	return &Backend_Push_Call{Call: _e.mock.On("Push", ctx, target, cfg)}
 }
 
-func (_c *Backend_Push_Call) Run(run func(ctx context.Context, target string, opts ...backend.Option)) *Backend_Push_Call {
+func (_c *Backend_Push_Call) Run(run func(ctx context.Context, target string, cfg *config.Push)) *Backend_Push_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		variadicArgs := make([]backend.Option, len(args)-2)
-		for i, a := range args[2:] {
-			if a != nil {
-				variadicArgs[i] = a.(backend.Option)
-			}
-		}
-		run(args[0].(context.Context), args[1].(string), variadicArgs...)
+		run(args[0].(context.Context), args[1].(string), args[2].(*config.Push))
 	})
 	return _c
 }
@@ -546,7 +491,7 @@ func (_c *Backend_Push_Call) Return(_a0 error) *Backend_Push_Call {
 	return _c
 }
 
-func (_c *Backend_Push_Call) RunAndReturn(run func(context.Context, string, ...backend.Option) error) *Backend_Push_Call {
+func (_c *Backend_Push_Call) RunAndReturn(run func(context.Context, string, *config.Push) error) *Backend_Push_Call {
 	_c.Call.Return(run)
 	return _c
 }

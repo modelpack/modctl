@@ -24,26 +24,35 @@ const (
 )
 
 type Pull struct {
-	Concurrency int
-	PlainHTTP   bool
-	Proxy       string
-	Insecure    bool
-	ExtractDir  string
+	Concurrency       int
+	PlainHTTP         bool
+	Proxy             string
+	Insecure          bool
+	ExtractDir        string
+	ExtractFromRemote bool
 }
 
 func NewPull() *Pull {
 	return &Pull{
-		Concurrency: defaultPullConcurrency,
-		PlainHTTP:   false,
-		Proxy:       "",
-		Insecure:    false,
-		ExtractDir:  "",
+		Concurrency:       defaultPullConcurrency,
+		PlainHTTP:         false,
+		Proxy:             "",
+		Insecure:          false,
+		ExtractDir:        "",
+		ExtractFromRemote: false,
 	}
 }
 
 func (p *Pull) Validate() error {
 	if p.Concurrency < 1 {
 		return fmt.Errorf("invalid concurrency: %d", p.Concurrency)
+	}
+
+	// Validate the ExtractDir if user specify the ExtractFromRemote to true.
+	if p.ExtractFromRemote {
+		if p.ExtractDir == "" {
+			return fmt.Errorf("the extract dir must be specified when enabled extract from remote")
+		}
 	}
 
 	return nil
