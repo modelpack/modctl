@@ -48,7 +48,7 @@ func init() {
 	flags.StringVarP(&genConfig.Name, "name", "n", "", "Model name (string), such as llama3-8b-instruct, gpt2-xl, qwen2-vl-72b-instruct, etc.")
 	flags.StringVarP(&genConfig.Version, "version", "v", "", "Model version (string), such as v1, v2, etc.")
 	flags.StringVarP(&genConfig.OutputPath, "output", "o", "./", "Output path (string), such as /path/to/output.")
-	flags.BoolVar(&genConfig.IgnoreUnrecognized, "ignore_unrecognized", false, "Ignore the unrecognized file types in directory.")
+	flags.BoolVar(&genConfig.IgnoreUnrecognized, "ignore-unrecognized", false, "Ignore the unrecognized file types in directory.")
 	flags.BoolVar(&genConfig.Overwrite, "overwrite", false, "Overwrite the existing modelfile.")
 	flags.StringVar(&genConfig.Arch, "arch", "", "Model architecture (string), such as transformer, cnn, rnn, etc.")
 	flags.StringVar(&genConfig.Family, "family", "", "Model family (string), such as llama3, gpt2, qwen2, etc.")
