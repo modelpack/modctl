@@ -19,6 +19,7 @@ package processor
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
+	doublestar "github.com/bmatcuk/doublestar/v4"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/chelnak/ysmrr"
@@ -59,11 +61,14 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 	var matchedPaths []string
 	for _, pattern := range b.patterns {
-		matches, err := filepath.Glob(filepath.Join(absWorkDir, pattern))
+		matches, err := doublestar.Glob(os.DirFS(absWorkDir), pattern)
 		if err != nil {
 			return nil, err
 		}
-
+		// convert to absolute paths
+		for i := range matches {
+			matches[i] = filepath.Join(absWorkDir, matches[i])
+		}
 		matchedPaths = append(matchedPaths, matches...)
 	}
 
