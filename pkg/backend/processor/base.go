@@ -72,9 +72,19 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 	var (
 		idx         atomic.Int64
 		mu          sync.Mutex
-		eg          errgroup.Group
+		eg          *errgroup.Group
 		descriptors []ocispec.Descriptor
 	)
+
+	total := int64(len(matchedPaths))
+	sm := ysmrr.NewSpinnerManager()
+	sm.Start()
+	defer sm.Stop()
+
+	// Initialize errgroup with a context can be canceled.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eg, ctx = errgroup.WithContext(ctx)
 
 	// Set default concurrency limit to 1 if not specified.
 	if baseOpts.concurrency > 0 {
@@ -83,14 +93,15 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		eg.SetLimit(1)
 	}
 
-	total := int64(len(matchedPaths))
-	sm := ysmrr.NewSpinnerManager()
-	sm.Start()
-
 	for _, path := range matchedPaths {
+		if ctx.Err() != nil {
+			break
+		}
+
 		eg.Go(func() error {
 			relPath, err := filepath.Rel(absWorkDir, path)
 			if err != nil {
+				cancel()
 				return err
 			}
 
@@ -100,6 +111,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 			desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path)
 			if err != nil {
 				sp.ErrorWithMessagef("Failed to build blob %s: %v", relPath, err)
+				cancel()
 				return err
 			}
 
@@ -116,8 +128,6 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-
-	sm.Stop()
 
 	sort.Slice(descriptors, func(i int, j int) bool {
 		// Sort by filepath by default.
