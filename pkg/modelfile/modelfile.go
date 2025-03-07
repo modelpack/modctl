@@ -150,6 +150,7 @@ var (
 		"*.py",    // Python source files
 		"*.sh",    // Shell scripts
 		"*.ipynb", // Jupyter notebooks
+		"*.patch", // Patch files
 	}
 
 	// Doc file patterns - supported documentation files
@@ -157,6 +158,7 @@ var (
 		// Documentation files
 		"*.txt",          // Text files
 		"*.md",           // Markdown documentation
+		"*.pdf",          // PDF files
 		"LICENSE*",       // License files
 		"README*",        // Project documentation
 		"SETUP*",         // Setup instructions
