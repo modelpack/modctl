@@ -78,7 +78,7 @@ func isComment(line string) bool {
 
 // isCommand checks if the line is a command.
 func isCommand(line string) bool {
-	line = strings.ToLower(line)
+	line = strings.ToUpper(line)
 	for _, cmd := range command.Commands {
 		if strings.HasPrefix(line, cmd) {
 			return true
@@ -125,5 +125,5 @@ func splitCommand(line string) (string, []string, error) {
 		return "", nil, fmt.Errorf("invalid command line: %s", line)
 	}
 
-	return strings.ToLower(parts[0]), parts[1:], nil
+	return strings.ToUpper(parts[0]), parts[1:], nil
 }
