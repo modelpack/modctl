@@ -49,18 +49,18 @@ func TestNewModelfile(t *testing.T) {
 		{
 			input: `
 # This is a comment
-config config1
-model model1
-code code1
-dataset dataset1
-doc doc1
-name name1
-arch arch1
-family family1
-format format1
-paramsize paramsize1
-precision precision1
-quantization quantization1
+CONFIG config1
+MODEL model1
+CODE code1
+DATASET dataset1
+DOC doc1
+NAME name1
+ARCH arch1
+FAMILY family1
+FORMAT format1
+PARAMSIZE paramsize1
+PRECISION precision1
+QUANTIZATION quantization1
 `,
 			expectErr:    nil,
 			configs:      []string{"config1"},
@@ -79,18 +79,18 @@ quantization quantization1
 		{
 			input: `
 # This is a comment
-config        config1
-model         model1
-code          code1
-dataset       dataset1
-doc           doc1
-name          name1
-arch          arch1
-family        family1
-format        format1
-paramsize     paramsize1
-precision     precision1
-quantization  quantization1
+CONFIG        config1
+MODEL         model1
+CODE          code1
+DATASET       dataset1
+DOC           doc1
+NAME          name1
+ARCH          arch1
+FAMILY        family1
+FORMAT        format1
+PARAMSIZE     paramsize1
+PRECISION     precision1
+QUANTIZATION  quantization1
 `,
 			expectErr:    nil,
 			configs:      []string{"config1"},
@@ -108,23 +108,23 @@ quantization  quantization1
 		},
 		{
 			input: `
-config config1
-config config2
-model model1
-model model2
-code code1
-code code2
-dataset dataset1
-dataset dataset2
-doc doc1
-doc doc2
-name name1
-arch arch1
-family family1
-format format1
-paramsize paramsize1
-precision precision1
-quantization quantization1
+CONFIG config1
+CONFIG config2
+MODEL model1
+MODEL model2
+CODE code1
+CODE code2
+DATASET dataset1
+DATASET dataset2
+DOC doc1
+DOC doc2
+NAME name1
+ARCH arch1
+FAMILY family1
+FORMAT format1
+PARAMSIZE paramsize1
+PRECISION precision1
+QUANTIZATION quantization1
 		`,
 			expectErr:    nil,
 			configs:      []string{"config1", "config2"},
@@ -142,28 +142,28 @@ quantization quantization1
 		},
 		{
 			input: `
-config config1
-config config1
-config config2
-model model1
-model model1
-model model2
-code code1
-code code1
-code code2
-dataset dataset1
-dataset dataset1
-dataset dataset2
-doc doc1
-doc doc1
-doc doc2
-name name1
-arch arch1
-family family1
-format format1
-paramsize paramsize1
-precision precision1
-quantization quantization1
+CONFIG config1
+CONFIG config1
+CONFIG config2
+MODEL model1
+MODEL model1
+MODEL model2
+CODE code1
+CODE code1
+CODE code2
+DATASET dataset1
+DATASET dataset1
+DATASET dataset2
+DOC doc1
+DOC doc1
+DOC doc2
+NAME name1
+ARCH arch1
+FAMILY family1
+FORMAT format1
+PARAMSIZE paramsize1
+PRECISION precision1
+QUANTIZATION quantization1
 		`,
 			expectErr:    nil,
 			configs:      []string{"config1", "config2"},
@@ -181,40 +181,40 @@ quantization quantization1
 		},
 		{
 			input: `
-invalid command
+INVALID command
 		`,
-			expectErr: errors.New("parse error on line 1: invalid command"),
+			expectErr: errors.New("parse error on line 1: INVALID command"),
 		},
 		{
 			input: `
 # This is a comment
-invalid command
+INVALID command
 		`,
-			expectErr: errors.New("parse error on line 2: invalid command"),
+			expectErr: errors.New("parse error on line 2: INVALID command"),
 		},
 		{
 			input: `
 
 
 # This is a comment
-invalid command
+INVALID command
 		`,
-			expectErr: errors.New("parse error on line 4: invalid command"),
+			expectErr: errors.New("parse error on line 4: INVALID command"),
 		},
 		{
 			input: `
 # This is a comment
 
-invalid command
+INVALID command
 		`,
-			expectErr: errors.New("parse error on line 3: invalid command"),
+			expectErr: errors.New("parse error on line 3: INVALID command"),
 		},
 		{
 			input: `
 # This is a comment
-model adapter1
-name foo
-name bar
+MODEL adapter1
+NAME foo
+NAME bar
 		`,
 			expectErr: errors.New("duplicate name command on line 4"),
 		},
@@ -787,32 +787,32 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name test-model",
+				"NAME test-model",
 				"# Model architecture",
-				"arch transformer",
+				"ARCH transformer",
 				"# Model family",
-				"family llama",
+				"FAMILY llama",
 				"# Model format",
-				"format safetensors",
+				"FORMAT safetensors",
 				"# Model paramsize",
-				"paramsize 7B",
+				"PARAMSIZE 7B",
 				"# Model precision",
-				"precision float16",
+				"PRECISION float16",
 				"# Model quantization",
-				"quantization int8",
+				"QUANTIZATION int8",
 				"# Config files",
-				"config config.json",
+				"CONFIG config.json",
 				"# Documentation files",
-				"doc README.md",
+				"DOC README.md",
 				"# Code files",
-				"code convert.py",
-				"code inference.py",
+				"CODE convert.py",
+				"CODE inference.py",
 				"# Model files",
-				"model model.bin",
-				"model model.safetensors",
+				"MODEL model.bin",
+				"MODEL model.safetensors",
 			},
 			notExpectParts: []string{
-				"dataset",
+				"DATASET",
 			},
 		},
 		{
@@ -828,11 +828,11 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name minimal",
+				"NAME minimal",
 			},
 			notExpectParts: []string{
-				"arch", "family", "format", "paramsize", "precision", "quantization",
-				"config", "code", "model", "dataset", "doc",
+				"ARCH", "FAMILY", "FORMAT", "PARAMSIZE", "PRECISION", "QUANTIZATION",
+				"CONFIG", "CODE", "MODEL", "DATASET", "DOC",
 			},
 		},
 		{
@@ -854,24 +854,24 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name tiny-gpt",
+				"NAME tiny-gpt",
 				"# Model architecture",
-				"arch transformer",
+				"ARCH transformer",
 				"# Model family",
-				"family gpt2",
+				"FAMILY gpt2",
 				"# Model format",
-				"format pytorch",
+				"FORMAT pytorch",
 				"# Model paramsize",
-				"paramsize 125M",
+				"PARAMSIZE 125M",
 				"# Model precision",
-				"precision float32",
+				"PRECISION float32",
 				"# Config files",
-				"config config.json",
+				"CONFIG config.json",
 				"# Model files",
-				"model pytorch_model.bin",
+				"MODEL pytorch_model.bin",
 			},
 			notExpectParts: []string{
-				"quantization", "code", "dataset", "doc",
+				"QUANTIZATION", "CODE", "DATASET", "DOC",
 			},
 		},
 		{
@@ -893,26 +893,26 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name llama-large",
+				"NAME llama-large",
 				"# Model architecture",
-				"arch transformer",
+				"ARCH transformer",
 				"# Model family",
-				"family llama",
+				"FAMILY llama",
 				"# Model format",
-				"format safetensors",
+				"FORMAT safetensors",
 				"# Model paramsize",
-				"paramsize 13B",
+				"PARAMSIZE 13B",
 				"# Model precision",
-				"precision bfloat16",
+				"PRECISION bfloat16",
 				"# Config files",
-				"config config.json",
+				"CONFIG config.json",
 				"# Model files",
-				"model model-00001-of-00003.safetensors",
-				"model model-00002-of-00003.safetensors",
-				"model model-00003-of-00003.safetensors",
+				"MODEL model-00001-of-00003.safetensors",
+				"MODEL model-00002-of-00003.safetensors",
+				"MODEL model-00003-of-00003.safetensors",
 			},
 			notExpectParts: []string{
-				"quantization", "code", "dataset", "doc",
+				"QUANTIZATION", "CODE", "DATASET", "DOC",
 			},
 		},
 		{
@@ -933,24 +933,24 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name mistral-quantized",
+				"NAME mistral-quantized",
 				"# Model architecture",
-				"arch transformer",
+				"ARCH transformer",
 				"# Model family",
-				"family mistral",
+				"FAMILY mistral",
 				"# Model format",
-				"format gguf",
+				"FORMAT gguf",
 				"# Model paramsize",
-				"paramsize 7B",
+				"PARAMSIZE 7B",
 				"# Model quantization",
-				"quantization Q4_K_M",
+				"QUANTIZATION Q4_K_M",
 				"# Config files",
-				"config config.json",
+				"CONFIG config.json",
 				"# Model files",
-				"model model.gguf",
+				"MODEL model.gguf",
 			},
 			notExpectParts: []string{
-				"precision", "code", "dataset", "doc",
+				"PRECISION", "CODE", "DATASET", "DOC",
 			},
 		},
 		{
@@ -971,25 +971,25 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name mega-model",
+				"NAME mega-model",
 				"# Model architecture",
-				"arch moe",
+				"ARCH moe",
 				"# Model family",
-				"family mixtral",
+				"FAMILY mixtral",
 				"# Model format",
-				"format pytorch",
+				"FORMAT pytorch",
 				"# Model paramsize",
-				"paramsize 1.5T",
+				"PARAMSIZE 1.5T",
 				"# Model precision",
-				"precision float16",
+				"PRECISION float16",
 				"# Config files",
-				"config config.json",
+				"CONFIG config.json",
 				"# Model files",
-				"model shard-00001.bin",
-				"model shard-00002.bin",
+				"MODEL shard-00001.bin",
+				"MODEL shard-00002.bin",
 			},
 			notExpectParts: []string{
-				"quantization", "code", "dataset", "doc",
+				"QUANTIZATION", "CODE", "DATASET", "DOC",
 			},
 		},
 		{
@@ -1005,19 +1005,20 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name nested-paths-model",
-				"paramsize 3B",
+				"NAME nested-paths-model",
+				"# Model paramsize",
+				"PARAMSIZE 3B",
 				"# Config files",
-				"config configs/main.json",
-				"config configs/tokenizer/config.json",
+				"CONFIG configs/main.json",
+				"CONFIG configs/tokenizer/config.json",
 				"# Model files",
-				"model models/weights/pytorch_model.bin",
+				"MODEL models/weights/pytorch_model.bin",
 				"# Code files",
-				"code src/utils.py",
-				"code src/models/model.py",
+				"CODE src/utils.py",
+				"CODE src/models/model.py",
 			},
 			notExpectParts: []string{
-				"arch", "family", "format", "precision", "quantization", "dataset", "doc",
+				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "DATASET", "DOC",
 			},
 		},
 		{
@@ -1033,15 +1034,16 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name fractional-size",
-				"paramsize 2.7B",
+				"NAME fractional-size",
+				"# Model paramsize",
+				"PARAMSIZE 2.7B",
 				"# Config files",
-				"config config.json",
+				"CONFIG config.json",
 				"# Model files",
-				"model model.bin",
+				"MODEL model.bin",
 			},
 			notExpectParts: []string{
-				"arch", "family", "format", "precision", "quantization", "code", "dataset", "doc",
+				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "DATASET", "DOC", "CODE",
 			},
 		},
 		{
@@ -1062,22 +1064,22 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name metadata-only",
+				"NAME metadata-only",
 				"# Model architecture",
-				"arch transformer",
+				"ARCH transformer",
 				"# Model family",
-				"family gpt-neox",
+				"FAMILY gpt-neox",
 				"# Model format",
-				"format pytorch",
+				"FORMAT pytorch",
 				"# Model paramsize",
-				"paramsize 20B",
+				"PARAMSIZE 20B",
 				"# Model precision",
-				"precision bfloat16",
+				"PRECISION bfloat16",
 				"# Model quantization",
-				"quantization int4",
+				"QUANTIZATION int4",
 			},
 			notExpectParts: []string{
-				"code", "doc", "dataset",
+				"CODE", "CONFIG", "DOC",
 			},
 		},
 		{
@@ -1093,18 +1095,18 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name files-only",
+				"NAME files-only",
 				"# Config files",
-				"config config.json",
+				"CONFIG config.json",
 				"# Model files",
-				"model model.bin",
+				"MODEL model.bin",
 				"# Code files",
-				"code script.py",
+				"CODE script.py",
 				"# Documentation files",
-				"doc README.md",
+				"DOC README.md",
 			},
 			notExpectParts: []string{
-				"arch", "family", "format", "paramsize", "precision", "quantization", "dataset",
+				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "PARAMSIZE", "DATASET",
 			},
 		},
 		{
@@ -1120,27 +1122,27 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name multi-file",
+				"NAME multi-file",
 				"# Model paramsize",
-				"paramsize 7B",
+				"PARAMSIZE 7B",
 				"# Config files",
-				"config config1.json",
-				"config config2.json",
-				"config config3.json",
+				"CONFIG config1.json",
+				"CONFIG config2.json",
+				"CONFIG config3.json",
 				"# Model files",
-				"model model1.bin",
-				"model model2.bin",
-				"model model3.bin",
-				"model model4.bin",
+				"MODEL model1.bin",
+				"MODEL model2.bin",
+				"MODEL model3.bin",
+				"MODEL model4.bin",
 				"# Code files",
-				"code script1.py",
-				"code script2.py",
+				"CODE script1.py",
+				"CODE script2.py",
 				"# Documentation files",
-				"doc README1.md",
-				"doc README2.md",
+				"DOC README1.md",
+				"DOC README2.md",
 			},
 			notExpectParts: []string{
-				"aarch", "family", "format", "precision", "quantization", "dataset",
+				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "DATASET",
 			},
 		},
 		{
@@ -1156,21 +1158,21 @@ func TestModelfile_Content(t *testing.T) {
 			expectedParts: []string{
 				"# Generated at",
 				"# Model name",
-				"name special-chars",
+				"NAME special-chars",
 				"# Model paramsize",
-				"paramsize 1B",
+				"PARAMSIZE 1B",
 				"# Config files",
-				"config spaces.json",
-				"config weird-name!.yaml",
+				"CONFIG spaces.json",
+				"CONFIG weird-name!.yaml",
 				"# Model files",
-				"model model-v1.0_beta.bin",
+				"MODEL model-v1.0_beta.bin",
 				"# Code files",
-				"code spaces/script.py",
+				"CODE spaces/script.py",
 				"# Documentation files",
-				"doc weird-name!.md",
+				"DOC weird-name!.md",
 			},
 			notExpectParts: []string{
-				"arch", "family", "format", "precision", "quantization", "dataset",
+				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "DATASET",
 			},
 		},
 	}

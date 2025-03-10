@@ -116,6 +116,7 @@ func isFileType(filename string, patterns []string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -135,5 +136,6 @@ func isSkippable(filename string) bool {
 			return true
 		}
 	}
+
 	return false
 }
