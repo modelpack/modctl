@@ -36,6 +36,10 @@ func (b *backend) Remove(ctx context.Context, target string) (string, error) {
 		reference = ref.Digest()
 	}
 
+	if reference == "" {
+		return "", fmt.Errorf("invalid reference, tag or digest must be provided")
+	}
+
 	if err := b.store.DeleteManifest(ctx, repo, reference); err != nil {
 		return "", fmt.Errorf("failed to delete manifest %s: %w", reference, err)
 	}
