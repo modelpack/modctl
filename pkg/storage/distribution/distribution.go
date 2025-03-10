@@ -30,6 +30,7 @@ import (
 	sha256 "github.com/minio/sha256-simd"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 func init() {
@@ -55,6 +56,9 @@ type storage struct {
 }
 
 func NewStorage(rootDir string) (*storage, error) {
+	// Mute the logging from distribution.
+	logrus.SetOutput(io.Discard)
+
 	fsDriver := filesystem.New(filesystem.DriverParameters{
 		RootDirectory: rootDir,
 		MaxThreads:    defaultMaxThreads,
