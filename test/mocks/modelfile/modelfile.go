@@ -33,6 +33,53 @@ func (_m *Modelfile) EXPECT() *Modelfile_Expecter {
 	return &Modelfile_Expecter{mock: &_m.Mock}
 }
 
+// Content provides a mock function with no fields
+func (_m *Modelfile) Content() []byte {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Content")
+	}
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func() []byte); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	return r0
+}
+
+// Modelfile_Content_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Content'
+type Modelfile_Content_Call struct {
+	*mock.Call
+}
+
+// Content is a helper method to define mock.On call
+func (_e *Modelfile_Expecter) Content() *Modelfile_Content_Call {
+	return &Modelfile_Content_Call{Call: _e.mock.On("Content")}
+}
+
+func (_c *Modelfile_Content_Call) Run(run func()) *Modelfile_Content_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Modelfile_Content_Call) Return(_a0 []byte) *Modelfile_Content_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Modelfile_Content_Call) RunAndReturn(run func() []byte) *Modelfile_Content_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetArch provides a mock function with no fields
 func (_m *Modelfile) GetArch() string {
 	ret := _m.Called()
@@ -579,52 +626,6 @@ func (_c *Modelfile_GetQuantization_Call) Return(_a0 string) *Modelfile_GetQuant
 }
 
 func (_c *Modelfile_GetQuantization_Call) RunAndReturn(run func() string) *Modelfile_GetQuantization_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SaveToFile provides a mock function with given fields: path
-func (_m *Modelfile) SaveToFile(path string) error {
-	ret := _m.Called(path)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SaveToFile")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(path)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// Modelfile_SaveToFile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveToFile'
-type Modelfile_SaveToFile_Call struct {
-	*mock.Call
-}
-
-// SaveToFile is a helper method to define mock.On call
-//   - path string
-func (_e *Modelfile_Expecter) SaveToFile(path interface{}) *Modelfile_SaveToFile_Call {
-	return &Modelfile_SaveToFile_Call{Call: _e.mock.On("SaveToFile", path)}
-}
-
-func (_c *Modelfile_SaveToFile_Call) Run(run func(path string)) *Modelfile_SaveToFile_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
-	})
-	return _c
-}
-
-func (_c *Modelfile_SaveToFile_Call) Return(_a0 error) *Modelfile_SaveToFile_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *Modelfile_SaveToFile_Call) RunAndReturn(run func(string) error) *Modelfile_SaveToFile_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/CloudNativeAI/modctl/cmd/modelfile"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 
 	"github.com/spf13/cobra"
@@ -86,6 +87,6 @@ func init() {
 	rootCmd.AddCommand(pruneCmd)
 	rootCmd.AddCommand(inspectCmd)
 	rootCmd.AddCommand(extractCmd)
-	rootCmd.AddCommand(modelfileGenCmd)
 	rootCmd.AddCommand(tagCmd)
+	rootCmd.AddCommand(modelfile.RootCmd)
 }
