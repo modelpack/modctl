@@ -89,11 +89,7 @@ func runLogin(ctx context.Context, registry string) error {
 
 	fmt.Println("\nLogging In...")
 
-	opts := []backend.Option{
-		backend.WithPlainHTTP(loginConfig.PlainHTTP),
-	}
-
-	if err := b.Login(ctx, registry, loginConfig.Username, loginConfig.Password, opts...); err != nil {
+	if err := b.Login(ctx, registry, loginConfig.Username, loginConfig.Password, loginConfig); err != nil {
 		return err
 	}
 

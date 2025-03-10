@@ -18,6 +18,19 @@ $ ./output/modctl -h
 
 ## Usage
 
+### Modelfile
+
+#### Generate
+
+Generate a Modelfile for the model artifact in the current directory(workspace),
+you need go to the directory where the model artifact is located and
+run the following command. Then the `Modelfile` will be generated in the current
+directory(workspace).
+
+```shell
+$ modctl modelfile generate .
+```
+
 ### Build
 
 Build the model artifact you need to prepare a Modelfile describe your expected layout of the model artifact in your model repo.
@@ -26,38 +39,43 @@ Example of Modelfile:
 
 ```shell
 # Model name (string), such as llama3-8b-instruct, gpt2-xl, qwen2-vl-72b-instruct, etc.
-NAME gemma-2b
+name gemma-2b
 
 # Model architecture (string), such as transformer, cnn, rnn, etc.
-ARCH transformer
+arch transformer
 
 # Model family (string), such as llama3, gpt2, qwen2, etc.
-FAMILY gemma
+family gemma
 
 # Model format (string), such as onnx, tensorflow, pytorch, etc.
-FORMAT safetensors
+format safetensors
 
 # Number of parameters in the model (integer).
-PARAMSIZE 16
+paramsize 16
 
 # Model precision (string), such as bf16, fp16, int8, etc.
-PRECISION bf16
+precision bf16
 
 # Model quantization (string), such as awq, gptq, etc.
-QUANTIZATION awq
+quantization awq
 
 # Specify model configuration file, support glob path pattern.
-CONFIG config.json
+config config.json
 
 # Specify model configuration file, support glob path pattern.
-CONFIG generation_config.json
+config generation_config.json
 
 # Model weight, support glob path pattern.
-MODEL *.safetensors
+model *.safetensors
 
 # Specify code, support glob path pattern.
-CODE *.py
+code *.py
 
+# Specify documentation, support glob path pattern.
+doc *.md
+
+# Specify dataset, support glob path pattern.
+dataset *.csv
 ```
 
 Then run the following command to build the model artifact:
@@ -110,8 +128,8 @@ Delete the model artifact in the local storage:
 $ modctl rm registry.com/models/llama3:v1.0.0
 ```
 
-Finally, you can use `purge` command to to remove all unnecessary blobs to free up the storage space:
+Finally, you can use `prune` command to remove all unnecessary blobs to free up the storage space:
 
 ```shell
-$ modctl purge
+$ modctl prune
 ```

@@ -19,15 +19,21 @@ package processor
 import (
 	"context"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+)
+
+const (
+	codeProcessorName = "code"
 )
 
 // NewCodeProcessor creates a new code processor.
 func NewCodeProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
 	return &codeProcessor{
 		base: &base{
+			name:      codeProcessorName,
 			store:     store,
 			mediaType: mediaType,
 			patterns:  patterns,
@@ -41,9 +47,9 @@ type codeProcessor struct {
 }
 
 func (p *codeProcessor) Name() string {
-	return "code"
+	return codeProcessorName
 }
 
-func (p *codeProcessor) Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error) {
-	return p.base.Process(ctx, workDir, repo)
+func (p *codeProcessor) Process(ctx context.Context, builder build.Builder, workDir string, opts ...Option) ([]ocispec.Descriptor, error) {
+	return p.base.Process(ctx, builder, workDir, opts...)
 }

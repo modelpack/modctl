@@ -37,6 +37,7 @@ func TestNewModelfile(t *testing.T) {
 		models       []string
 		codes        []string
 		datasets     []string
+		docs         []string
 		name         string
 		arch         string
 		family       string
@@ -52,6 +53,7 @@ config config1
 model model1
 code code1
 dataset dataset1
+doc doc1
 name name1
 arch arch1
 family family1
@@ -65,6 +67,7 @@ quantization quantization1
 			models:       []string{"model1"},
 			codes:        []string{"code1"},
 			datasets:     []string{"dataset1"},
+			docs:         []string{"doc1"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -80,6 +83,7 @@ config        config1
 model         model1
 code          code1
 dataset       dataset1
+doc           doc1
 name          name1
 arch          arch1
 family        family1
@@ -93,6 +97,7 @@ quantization  quantization1
 			models:       []string{"model1"},
 			codes:        []string{"code1"},
 			datasets:     []string{"dataset1"},
+			docs:         []string{"doc1"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -111,6 +116,8 @@ code code1
 code code2
 dataset dataset1
 dataset dataset2
+doc doc1
+doc doc2
 name name1
 arch arch1
 family family1
@@ -124,6 +131,7 @@ quantization quantization1
 			models:       []string{"model1", "model2"},
 			codes:        []string{"code1", "code2"},
 			datasets:     []string{"dataset1", "dataset2"},
+			docs:         []string{"doc1", "doc2"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -146,6 +154,9 @@ code code2
 dataset dataset1
 dataset dataset1
 dataset dataset2
+doc doc1
+doc doc1
+doc doc2
 name name1
 arch arch1
 family family1
@@ -159,6 +170,7 @@ quantization quantization1
 			models:       []string{"model1", "model2"},
 			codes:        []string{"code1", "code2"},
 			datasets:     []string{"dataset1", "dataset2"},
+			docs:         []string{"doc1", "doc2"},
 			name:         "name1",
 			arch:         "arch1",
 			family:       "family1",
@@ -232,14 +244,17 @@ name bar
 		models := mf.GetModels()
 		codes := mf.GetCodes()
 		datasets := mf.GetDatasets()
+		docs := mf.GetDocs()
 		sort.Strings(configs)
 		sort.Strings(models)
 		sort.Strings(codes)
 		sort.Strings(datasets)
+		sort.Strings(docs)
 		assert.Equal(tc.configs, configs)
 		assert.Equal(tc.models, models)
 		assert.Equal(tc.codes, codes)
 		assert.Equal(tc.datasets, datasets)
+		assert.Equal(tc.docs, docs)
 		assert.Equal(tc.name, mf.GetName())
 		assert.Equal(tc.arch, mf.GetArch())
 		assert.Equal(tc.family, mf.GetFamily())
@@ -265,6 +280,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 		expectConfigs              []string
 		expectModels               []string
 		expectCodes                []string
+		expectDocs                 []string
 		expectName                 string
 		expectArch                 string
 		expectFamily               string
@@ -288,9 +304,10 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			},
 			ignoreUnrecognizedFileType: false,
 			expectError:                false,
-			expectConfigs:              []string{"README.md", "LICENSE", "config.json"},
+			expectConfigs:              []string{"config.json"},
 			expectModels:               []string{"model.bin"},
 			expectCodes:                []string{"model.py", "tokenizer.py"},
+			expectDocs:                 []string{"README.md", "LICENSE"},
 			expectName:                 "test-model",
 		},
 		{
@@ -300,7 +317,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 				Name: "empty-model",
 			},
 			ignoreUnrecognizedFileType: false,
-			expectError:                false,
+			expectError:                true,
 			expectConfigs:              []string{},
 			expectModels:               []string{},
 			expectCodes:                []string{},
@@ -309,6 +326,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 		{
 			name: "with config.json values",
 			setupFiles: map[string]string{
+				"model.bin":   "",
 				"config.json": "",
 			},
 			configJson: map[string]interface{}{
@@ -322,7 +340,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			ignoreUnrecognizedFileType: false,
 			expectError:                false,
 			expectConfigs:              []string{"config.json"},
-			expectModels:               []string{},
+			expectModels:               []string{"model.bin"},
 			expectCodes:                []string{},
 			expectName:                 "config-model",
 			expectArch:                 "transformer",
@@ -355,8 +373,6 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			ignoreUnrecognizedFileType: false,
 			expectError:                false,
 			expectConfigs: []string{
-				"assets/README.md",
-				"assets/images/preview.jpg",
 				"config.json",
 				"docs/config/parameters.yaml",
 			},
@@ -367,6 +383,10 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			expectCodes: []string{
 				"src/utils.py",
 				"src/models/model.py",
+			},
+			expectDocs: []string{
+				"assets/README.md",
+				"assets/images/preview.jpg",
 			},
 			expectName: "nested-model",
 		},
@@ -419,6 +439,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 		{
 			name: "multiple config files in directories",
 			setupFiles: map[string]string{
+				"model.bin":              "",
 				"models/config.json":     "",
 				"models/gen_config.json": "",
 			},
@@ -435,7 +456,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			ignoreUnrecognizedFileType: false,
 			expectError:                false,
 			expectConfigs:              []string{"config.json", "models/config.json", "models/gen_config.json"},
-			expectModels:               []string{},
+			expectModels:               []string{"model.bin"},
 			expectCodes:                []string{},
 			expectName:                 "multi-config",
 			expectArch:                 "transformer",
@@ -586,7 +607,6 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			ignoreUnrecognizedFileType: false,
 			expectError:                false,
 			expectConfigs: []string{
-				"README.md",
 				"config.json",
 				"generation_config.json",
 				"tokenizer_config.json",
@@ -594,7 +614,6 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 				"tokenizer.json",
 				"special_tokens_map.json",
 				"vocab.json",
-				"merges.txt",
 			},
 			expectModels: []string{
 				"pytorch_model.bin",
@@ -606,6 +625,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 				"scripts/convert_weights.py",
 				"scripts/preprocessing/prep.py",
 			},
+			expectDocs:      []string{"merges.txt", "README.md"},
 			expectName:      "llama-7b",
 			expectArch:      "transformer",
 			expectFamily:    "llama",
@@ -615,6 +635,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 		{
 			name: "config file conflicts",
 			setupFiles: map[string]string{
+				"model.bin":              "",
 				"config.json":            "",
 				"generation_config.json": "",
 			},
@@ -632,7 +653,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			ignoreUnrecognizedFileType: false,
 			expectError:                false,
 			expectConfigs:              []string{"config.json", "generation_config.json"},
-			expectModels:               []string{},
+			expectModels:               []string{"model.bin"},
 			expectCodes:                []string{},
 			expectName:                 "conflict-test",
 			expectFamily:               "llama",
@@ -735,11 +756,12 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			assert.ElementsMatch(tc.expectConfigs, mf.GetConfigs())
 			assert.ElementsMatch(tc.expectModels, mf.GetModels())
 			assert.ElementsMatch(tc.expectCodes, mf.GetCodes())
+			assert.ElementsMatch(tc.expectDocs, mf.GetDocs())
 		})
 	}
 }
 
-func TestContent(t *testing.T) {
+func TestModelfile_Content(t *testing.T) {
 	testcases := []struct {
 		name           string
 		modelfile      *modelfile
@@ -756,60 +778,63 @@ func TestContent(t *testing.T) {
 				paramsize:    "7B",
 				precision:    "float16",
 				quantization: "int8",
-				config:       createHashSet([]string{"config.json", "README.md"}),
+				config:       createHashSet([]string{"config.json"}),
 				model:        createHashSet([]string{"model.bin", "model.safetensors"}),
 				code:         createHashSet([]string{"convert.py", "inference.py"}),
+				doc:          createHashSet([]string{"README.md"}),
 				dataset:      createHashSet([]string{}),
 			},
 			expectedParts: []string{
 				"# Generated at",
-				"# Model name\nNAME test-model",
+				"# Model name",
+				"name test-model",
 				"# Model architecture",
-				"ARCH transformer",
+				"arch transformer",
 				"# Model family",
-				"FAMILY llama",
+				"family llama",
 				"# Model format",
-				"FORMAT safetensors",
+				"format safetensors",
 				"# Model paramsize",
-				"PARAMSIZE 7B",
+				"paramsize 7B",
 				"# Model precision",
-				"PRECISION float16",
+				"precision float16",
 				"# Model quantization",
-				"QUANTIZATION int8",
+				"quantization int8",
 				"# Config files",
-				"CONFIG config.json",
-				"CONFIG README.md",
+				"config config.json",
+				"# Documentation files",
+				"doc README.md",
 				"# Code files",
-				"CODE convert.py",
-				"CODE inference.py",
+				"code convert.py",
+				"code inference.py",
 				"# Model files",
-				"MODEL model.bin",
-				"MODEL model.safetensors",
+				"model model.bin",
+				"model model.safetensors",
 			},
 			notExpectParts: []string{
-				"DATASET",
+				"dataset",
 			},
 		},
 		{
 			name: "minimal modelfile",
 			modelfile: &modelfile{
-				name:    "minimal-model",
+				name:    "minimal",
 				config:  createHashSet([]string{}),
 				model:   createHashSet([]string{}),
 				code:    createHashSet([]string{}),
+				doc:     createHashSet([]string{}),
 				dataset: createHashSet([]string{}),
 			},
 			expectedParts: []string{
 				"# Generated at",
-				"# Model name\nNAME minimal-model",
+				"# Model name",
+				"name minimal",
 			},
 			notExpectParts: []string{
-				"ARCH", "FAMILY", "FORMAT", "PARAMSIZE", "PRECISION", "QUANTIZATION",
-				"CONFIG", "CODE", "MODEL", "DATASET",
+				"arch", "family", "format", "paramsize", "precision", "quantization",
+				"config", "code", "model", "dataset", "doc",
 			},
 		},
-
-		// 新增测试用例：不同的参数大小和配置
 		{
 			name: "tiny model",
 			modelfile: &modelfile{
@@ -823,20 +848,30 @@ func TestContent(t *testing.T) {
 				config:       createHashSet([]string{"config.json"}),
 				model:        createHashSet([]string{"pytorch_model.bin"}),
 				code:         createHashSet([]string{}),
+				doc:          createHashSet([]string{}),
 				dataset:      createHashSet([]string{}),
 			},
 			expectedParts: []string{
-				"# Model name\nNAME tiny-gpt",
-				"ARCH transformer",
-				"FAMILY gpt2",
-				"FORMAT pytorch",
-				"PARAMSIZE 125M",
-				"PRECISION float32",
-				"CONFIG config.json",
-				"MODEL pytorch_model.bin",
+				"# Generated at",
+				"# Model name",
+				"name tiny-gpt",
+				"# Model architecture",
+				"arch transformer",
+				"# Model family",
+				"family gpt2",
+				"# Model format",
+				"format pytorch",
+				"# Model paramsize",
+				"paramsize 125M",
+				"# Model precision",
+				"precision float32",
+				"# Config files",
+				"config config.json",
+				"# Model files",
+				"model pytorch_model.bin",
 			},
 			notExpectParts: []string{
-				"QUANTIZATION", "CODE", "DATASET",
+				"quantization", "code", "dataset", "doc",
 			},
 		},
 		{
@@ -852,18 +887,32 @@ func TestContent(t *testing.T) {
 				config:       createHashSet([]string{"config.json"}),
 				model:        createHashSet([]string{"model-00001-of-00003.safetensors", "model-00002-of-00003.safetensors", "model-00003-of-00003.safetensors"}),
 				code:         createHashSet([]string{}),
+				doc:          createHashSet([]string{}),
 				dataset:      createHashSet([]string{}),
 			},
 			expectedParts: []string{
-				"# Model name\nNAME llama-large",
-				"PARAMSIZE 13B",
-				"PRECISION bfloat16",
-				"MODEL model-00001-of-00003.safetensors",
-				"MODEL model-00002-of-00003.safetensors",
-				"MODEL model-00003-of-00003.safetensors",
+				"# Generated at",
+				"# Model name",
+				"name llama-large",
+				"# Model architecture",
+				"arch transformer",
+				"# Model family",
+				"family llama",
+				"# Model format",
+				"format safetensors",
+				"# Model paramsize",
+				"paramsize 13B",
+				"# Model precision",
+				"precision bfloat16",
+				"# Config files",
+				"config config.json",
+				"# Model files",
+				"model model-00001-of-00003.safetensors",
+				"model model-00002-of-00003.safetensors",
+				"model model-00003-of-00003.safetensors",
 			},
 			notExpectParts: []string{
-				"QUANTIZATION", "CODE", "DATASET",
+				"quantization", "code", "dataset", "doc",
 			},
 		},
 		{
@@ -879,16 +928,29 @@ func TestContent(t *testing.T) {
 				config:       createHashSet([]string{"config.json"}),
 				model:        createHashSet([]string{"model.gguf"}),
 				code:         createHashSet([]string{}),
+				doc:          createHashSet([]string{}),
 			},
 			expectedParts: []string{
-				"# Model name\nNAME mistral-quantized",
-				"PARAMSIZE 7B",
-				"QUANTIZATION Q4_K_M",
-				"FORMAT gguf",
-				"MODEL model.gguf",
+				"# Generated at",
+				"# Model name",
+				"name mistral-quantized",
+				"# Model architecture",
+				"arch transformer",
+				"# Model family",
+				"family mistral",
+				"# Model format",
+				"format gguf",
+				"# Model paramsize",
+				"paramsize 7B",
+				"# Model quantization",
+				"quantization Q4_K_M",
+				"# Config files",
+				"config config.json",
+				"# Model files",
+				"model model.gguf",
 			},
 			notExpectParts: []string{
-				"PRECISION", "CODE", "DATASET",
+				"precision", "code", "dataset", "doc",
 			},
 		},
 		{
@@ -904,19 +966,30 @@ func TestContent(t *testing.T) {
 				config:       createHashSet([]string{"config.json"}),
 				model:        createHashSet([]string{"shard-00001.bin", "shard-00002.bin"}),
 				code:         createHashSet([]string{}),
+				doc:          createHashSet([]string{}),
 			},
 			expectedParts: []string{
-				"# Model name\nNAME mega-model",
+				"# Generated at",
+				"# Model name",
+				"name mega-model",
 				"# Model architecture",
-				"ARCH moe",
-				"FAMILY mixtral",
-				"FORMAT pytorch",
-				"PARAMSIZE 1.5T",
-				"MODEL shard-00001.bin",
-				"MODEL shard-00002.bin",
+				"arch moe",
+				"# Model family",
+				"family mixtral",
+				"# Model format",
+				"format pytorch",
+				"# Model paramsize",
+				"paramsize 1.5T",
+				"# Model precision",
+				"precision float16",
+				"# Config files",
+				"config config.json",
+				"# Model files",
+				"model shard-00001.bin",
+				"model shard-00002.bin",
 			},
 			notExpectParts: []string{
-				"QUANTIZATION", "CODE", "DATASET",
+				"quantization", "code", "dataset", "doc",
 			},
 		},
 		{
@@ -927,18 +1000,24 @@ func TestContent(t *testing.T) {
 				config:    createHashSet([]string{"configs/main.json", "configs/tokenizer/config.json"}),
 				model:     createHashSet([]string{"models/weights/pytorch_model.bin"}),
 				code:      createHashSet([]string{"src/utils.py", "src/models/model.py"}),
+				doc:       createHashSet([]string{}),
 			},
 			expectedParts: []string{
-				"# Model name\nNAME nested-paths-model",
-				"PARAMSIZE 3B",
-				"CONFIG configs/main.json",
-				"CONFIG configs/tokenizer/config.json",
-				"MODEL models/weights/pytorch_model.bin",
-				"CODE src/utils.py",
-				"CODE src/models/model.py",
+				"# Generated at",
+				"# Model name",
+				"name nested-paths-model",
+				"paramsize 3B",
+				"# Config files",
+				"config configs/main.json",
+				"config configs/tokenizer/config.json",
+				"# Model files",
+				"model models/weights/pytorch_model.bin",
+				"# Code files",
+				"code src/utils.py",
+				"code src/models/model.py",
 			},
 			notExpectParts: []string{
-				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "DATASET",
+				"arch", "family", "format", "precision", "quantization", "dataset", "doc",
 			},
 		},
 		{
@@ -948,15 +1027,21 @@ func TestContent(t *testing.T) {
 				paramsize: "2.7B",
 				config:    createHashSet([]string{"config.json"}),
 				model:     createHashSet([]string{"model.bin"}),
+				code:      createHashSet([]string{}),
+				doc:       createHashSet([]string{}),
 			},
 			expectedParts: []string{
-				"# Model name\nNAME fractional-size",
-				"PARAMSIZE 2.7B",
-				"CONFIG config.json",
-				"MODEL model.bin",
+				"# Generated at",
+				"# Model name",
+				"name fractional-size",
+				"paramsize 2.7B",
+				"# Config files",
+				"config config.json",
+				"# Model files",
+				"model model.bin",
 			},
 			notExpectParts: []string{
-				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "CODE", "DATASET",
+				"arch", "family", "format", "precision", "quantization", "code", "dataset", "doc",
 			},
 		},
 		{
@@ -972,38 +1057,54 @@ func TestContent(t *testing.T) {
 				config:       createHashSet([]string{}),
 				model:        createHashSet([]string{}),
 				code:         createHashSet([]string{}),
+				doc:          createHashSet([]string{}),
 			},
 			expectedParts: []string{
-				"# Model name\nNAME metadata-only",
-				"ARCH transformer",
-				"FAMILY gpt-neox",
-				"FORMAT pytorch",
-				"PARAMSIZE 20B",
-				"PRECISION bfloat16",
-				"QUANTIZATION int4",
+				"# Generated at",
+				"# Model name",
+				"name metadata-only",
+				"# Model architecture",
+				"arch transformer",
+				"# Model family",
+				"family gpt-neox",
+				"# Model format",
+				"format pytorch",
+				"# Model paramsize",
+				"paramsize 20B",
+				"# Model precision",
+				"precision bfloat16",
+				"# Model quantization",
+				"quantization int4",
 			},
 			notExpectParts: []string{
-				"CONFIG", "MODEL", "CODE", "DATASET",
+				"code", "doc", "dataset",
 			},
 		},
 		{
 			name: "files only no metadata",
 			modelfile: &modelfile{
 				name:    "files-only",
-				config:  createHashSet([]string{"config.json", "README.md"}),
+				config:  createHashSet([]string{"config.json"}),
 				model:   createHashSet([]string{"model.bin"}),
 				code:    createHashSet([]string{"script.py"}),
+				doc:     createHashSet([]string{"README.md"}),
 				dataset: createHashSet([]string{}),
 			},
 			expectedParts: []string{
-				"# Model name\nNAME files-only",
-				"CONFIG config.json",
-				"CONFIG README.md",
-				"MODEL model.bin",
-				"CODE script.py",
+				"# Generated at",
+				"# Model name",
+				"name files-only",
+				"# Config files",
+				"config config.json",
+				"# Model files",
+				"model model.bin",
+				"# Code files",
+				"code script.py",
+				"# Documentation files",
+				"doc README.md",
 			},
 			notExpectParts: []string{
-				"ARCH", "FAMILY", "FORMAT", "PARAMSIZE", "PRECISION", "QUANTIZATION", "DATASET",
+				"arch", "family", "format", "paramsize", "precision", "quantization", "dataset",
 			},
 		},
 		{
@@ -1014,22 +1115,32 @@ func TestContent(t *testing.T) {
 				config:    createHashSet([]string{"config1.json", "config2.json", "config3.json"}),
 				model:     createHashSet([]string{"model1.bin", "model2.bin", "model3.bin", "model4.bin"}),
 				code:      createHashSet([]string{"script1.py", "script2.py"}),
+				doc:       createHashSet([]string{"README1.md", "README2.md"}),
 			},
 			expectedParts: []string{
-				"# Model name\nNAME multi-file",
-				"PARAMSIZE 7B",
-				"CONFIG config1.json",
-				"CONFIG config2.json",
-				"CONFIG config3.json",
-				"MODEL model1.bin",
-				"MODEL model2.bin",
-				"MODEL model3.bin",
-				"MODEL model4.bin",
-				"CODE script1.py",
-				"CODE script2.py",
+				"# Generated at",
+				"# Model name",
+				"name multi-file",
+				"# Model paramsize",
+				"paramsize 7B",
+				"# Config files",
+				"config config1.json",
+				"config config2.json",
+				"config config3.json",
+				"# Model files",
+				"model model1.bin",
+				"model model2.bin",
+				"model model3.bin",
+				"model model4.bin",
+				"# Code files",
+				"code script1.py",
+				"code script2.py",
+				"# Documentation files",
+				"doc README1.md",
+				"doc README2.md",
 			},
 			notExpectParts: []string{
-				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "DATASET",
+				"aarch", "family", "format", "precision", "quantization", "dataset",
 			},
 		},
 		{
@@ -1037,20 +1148,29 @@ func TestContent(t *testing.T) {
 			modelfile: &modelfile{
 				name:      "special-chars",
 				paramsize: "1B",
-				config:    createHashSet([]string{"config with spaces.json", "weird-name!.yaml"}),
+				config:    createHashSet([]string{"spaces.json", "weird-name!.yaml"}),
 				model:     createHashSet([]string{"model-v1.0_beta.bin"}),
-				code:      createHashSet([]string{"dir with spaces/script.py"}),
+				code:      createHashSet([]string{"spaces/script.py"}),
+				doc:       createHashSet([]string{"weird-name!.md"}),
 			},
 			expectedParts: []string{
-				"# Model name\nNAME special-chars",
-				"PARAMSIZE 1B",
-				"CONFIG config with spaces.json",
-				"CONFIG weird-name!.yaml",
-				"MODEL model-v1.0_beta.bin",
-				"CODE dir with spaces/script.py",
+				"# Generated at",
+				"# Model name",
+				"name special-chars",
+				"# Model paramsize",
+				"paramsize 1B",
+				"# Config files",
+				"config spaces.json",
+				"config weird-name!.yaml",
+				"# Model files",
+				"model model-v1.0_beta.bin",
+				"# Code files",
+				"code spaces/script.py",
+				"# Documentation files",
+				"doc weird-name!.md",
 			},
 			notExpectParts: []string{
-				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "DATASET",
+				"arch", "family", "format", "precision", "quantization", "dataset",
 			},
 		},
 	}
@@ -1063,12 +1183,12 @@ func TestContent(t *testing.T) {
 
 			// Check that all expected parts are present.
 			for _, part := range tc.expectedParts {
-				assert.Equal(content, part)
+				assert.Contains(content, part, "content: %s", content)
 			}
 
-			// Check that all non-expected parts are absent.
+			// Check that all non-expected parts are absent
 			for _, part := range tc.notExpectParts {
-				assert.NotContains(t, content, part, "Content should not contain: %s", part)
+				assert.NotContains(content, part, "content: %s", content)
 			}
 		})
 	}

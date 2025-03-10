@@ -25,6 +25,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/CloudNativeAI/modctl/pkg/archiver"
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -32,16 +34,11 @@ import (
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
+	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 // Pull pulls an artifact from a registry.
-func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error {
-	// apply options.
-	options := &Options{}
-	for _, opt := range opts {
-		opt(options)
-	}
-
+func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) error {
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -63,19 +60,19 @@ func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error
 	}
 
 	// create the http client.
-	httpClient := http.DefaultClient
-	if options.proxy != "" {
-		proxyURL, err := url.Parse(options.proxy)
+	httpClient := &http.Client{}
+	if cfg.Proxy != "" {
+		proxyURL, err := url.Parse(cfg.Proxy)
 		if err != nil {
 			return fmt.Errorf("failed to parse the proxy URL: %w", err)
 		}
 
-		httpClient.Transport = &http.Transport{
+		httpClient.Transport = retry.NewTransport(&http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: options.insecure,
+				InsecureSkipVerify: cfg.Insecure,
 			},
-		}
+		})
 	}
 
 	src.Client = &auth.Client{
@@ -84,7 +81,7 @@ func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error
 		Client:     httpClient,
 	}
 
-	if options.plainHTTP {
+	if cfg.PlainHTTP {
 		src.PlainHTTP = true
 	}
 
@@ -113,13 +110,31 @@ func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error
 	// copy the layers.
 	dst := b.store
 	g := &errgroup.Group{}
-	g.SetLimit(options.concurrency)
+	g.SetLimit(cfg.Concurrency)
+
+	var fn func(desc ocispec.Descriptor) error
+	if cfg.ExtractFromRemote {
+		fn = func(desc ocispec.Descriptor) error {
+			return pullAndExtractFromRemote(ctx, pb, promptCopyingBlob, src, cfg.ExtractDir, desc)
+		}
+	} else {
+		fn = func(desc ocispec.Descriptor) error {
+			return pullIfNotExist(ctx, pb, promptCopyingBlob, src, dst, desc, repo, tag)
+		}
+	}
+
 	for _, layer := range manifest.Layers {
-		g.Go(func() error { return pullIfNotExist(ctx, pb, promptCopyingBlob, src, dst, layer, repo, tag) })
+		g.Go(func() error { return fn(layer) })
 	}
 
 	if err := g.Wait(); err != nil {
 		return fmt.Errorf("failed to pull blob to local: %w", err)
+	}
+
+	// return earlier if extract from remote is enabled as config and manifest
+	// are not needed for this operation.
+	if cfg.ExtractFromRemote {
+		return nil
 	}
 
 	// copy the config.
@@ -133,8 +148,8 @@ func (b *backend) Pull(ctx context.Context, target string, opts ...Option) error
 	}
 
 	// export the target model artifact to the output directory if needed.
-	if options.output != "" {
-		if err := exportModelArtifact(ctx, dst, manifest, repo, options.output); err != nil {
+	if cfg.ExtractDir != "" {
+		if err := exportModelArtifact(ctx, dst, manifest, repo, cfg.ExtractDir); err != nil {
 			return fmt.Errorf("failed to export the artifact to the output directory: %w", err)
 		}
 	}
@@ -171,10 +186,29 @@ func pullIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src *re
 			return err
 		}
 	} else {
-		if _, _, err := dst.PushBlob(ctx, repo, pb.Add(prompt, desc, content)); err != nil {
+		if _, _, err := dst.PushBlob(ctx, repo, pb.Add(prompt, desc, content), desc); err != nil {
 			pb.Abort(desc)
 			return err
 		}
+	}
+
+	return nil
+}
+
+// pullAndExtractFromRemote pulls the layer and extract it to the target output path directly,
+// and will not store the layer to the local storage.
+func pullAndExtractFromRemote(ctx context.Context, pb *ProgressBar, prompt string, src *remote.Repository, output string, desc ocispec.Descriptor) error {
+	// fetch the content from the source storage.
+	content, err := src.Fetch(ctx, desc)
+	if err != nil {
+		return fmt.Errorf("failed to fetch the content from source: %w", err)
+	}
+
+	defer content.Close()
+
+	if err := archiver.Untar(pb.Add(prompt, desc, content), output); err != nil {
+		pb.Abort(desc)
+		return fmt.Errorf("failed to untar the layer: %w", err)
 	}
 
 	return nil

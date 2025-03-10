@@ -19,3 +19,11 @@ packages:
       Modelfile:
         config:
           dir: test/mocks/modelfile
+  github.com/CloudNativeAI/modctl/pkg/backend/build:
+    interfaces:
+      Builder:
+        config:
+          dir: test/mocks/backend/build
+      OutputStrategy:
+        config:
+          dir: test/mocks/backend/build

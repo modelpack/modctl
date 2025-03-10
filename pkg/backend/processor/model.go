@@ -19,15 +19,21 @@ package processor
 import (
 	"context"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+)
+
+const (
+	modelProcessorName = "model"
 )
 
 // NewModelProcessor creates a new model processor.
 func NewModelProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
 	return &modelProcessor{
 		base: &base{
+			name:      modelProcessorName,
 			store:     store,
 			mediaType: mediaType,
 			patterns:  patterns,
@@ -41,9 +47,9 @@ type modelProcessor struct {
 }
 
 func (p *modelProcessor) Name() string {
-	return "model"
+	return modelProcessorName
 }
 
-func (p *modelProcessor) Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error) {
-	return p.base.Process(ctx, workDir, repo)
+func (p *modelProcessor) Process(ctx context.Context, builder build.Builder, workDir string, opts ...Option) ([]ocispec.Descriptor, error) {
+	return p.base.Process(ctx, builder, workDir, opts...)
 }

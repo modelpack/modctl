@@ -55,6 +55,11 @@ type Modelfile interface {
 	// order in the modelfile.
 	GetDatasets() []string
 
+	// GetDocs returns the args of the doc command in the modelfile,
+	// and deduplicates the args. The order of the args is the same as the
+	// order in the modelfile.
+	GetDocs() []string
+
 	// GetName returns the value of the name command in the modelfile.
 	GetName() string
 
@@ -87,6 +92,7 @@ type modelfile struct {
 	model        *hashset.Set
 	code         *hashset.Set
 	dataset      *hashset.Set
+	doc          *hashset.Set
 	name         string
 	arch         string
 	family       string
@@ -104,6 +110,7 @@ func NewModelfile(path string) (Modelfile, error) {
 		model:   hashset.New(),
 		code:    hashset.New(),
 		dataset: hashset.New(),
+		doc:     hashset.New(),
 	}
 
 	if err := mf.parseFile(path); err != nil {
@@ -136,6 +143,8 @@ func (mf *modelfile) parseFile(path string) error {
 			mf.code.Add(child.GetNext().GetValue())
 		case modefilecommand.DATASET:
 			mf.dataset.Add(child.GetNext().GetValue())
+		case modefilecommand.DOC:
+			mf.doc.Add(child.GetNext().GetValue())
 		case modefilecommand.NAME:
 			if mf.name != "" {
 				return fmt.Errorf("duplicate name command on line %d", child.GetStartLine())
@@ -193,6 +202,7 @@ func NewModelfileByWorkspace(workspace string, config *configmodelfile.GenerateC
 		model:     hashset.New(),
 		code:      hashset.New(),
 		dataset:   hashset.New(),
+		doc:       hashset.New(),
 	}
 
 	if err := mf.generateByWorkspace(config.IgnoreUnrecognizedFileTypes); err != nil {
@@ -210,7 +220,7 @@ func NewModelfileByWorkspace(workspace string, config *configmodelfile.GenerateC
 // generateByWorkspace generates the modelfile by the workspace's files.
 func (mf *modelfile) generateByWorkspace(ignoreUnrecognizedFileTypes bool) error {
 	// Walk the path and get the files.
-	return filepath.Walk(mf.workspace, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(mf.workspace, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -243,6 +253,8 @@ func (mf *modelfile) generateByWorkspace(ignoreUnrecognizedFileTypes bool) error
 			mf.model.Add(relPath)
 		case isFileType(filename, codeFilePatterns):
 			mf.code.Add(relPath)
+		case isFileType(filename, docFilePatterns):
+			mf.doc.Add(relPath)
 		default:
 			// Skip unrecognized files if IgnoreUnrecognizedFileTypes is true.
 			if ignoreUnrecognizedFileTypes {
@@ -253,7 +265,15 @@ func (mf *modelfile) generateByWorkspace(ignoreUnrecognizedFileTypes bool) error
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	if mf.model.Size() == 0 {
+		return fmt.Errorf("no recognized model files found in directory - you may need to edit the Modelfile manually")
+	}
+
+	return nil
 }
 
 // generateByModelConfig generates the modelfile by the model config, such as config.json and generation_config.json.
@@ -398,6 +418,23 @@ func (mf *modelfile) GetDatasets() []string {
 	return datasets
 }
 
+// GetDocs returns the args of the doc command in the modelfile,
+// and deduplicates the args. The order of the args is the same as the
+// order in the modelfile.
+func (mf *modelfile) GetDocs() []string {
+	var docs []string
+	for _, rawDoc := range mf.doc.Values() {
+		doc, ok := rawDoc.(string)
+		if !ok {
+			continue
+		}
+
+		docs = append(docs, doc)
+	}
+
+	return docs
+}
+
 // GetName returns the value of the name command in the modelfile.
 func (mf *modelfile) GetName() string {
 	return mf.name
@@ -439,18 +476,19 @@ func (mf *modelfile) Content() []byte {
 	content += fmt.Sprintf("# Generated at %s\n", time.Now().Format(time.RFC3339))
 
 	// Add single-value commands.
-	mf.writeField("Model name", modefilecommand.NAME, mf.name)
-	mf.writeField("Model architecture (Generated from transformers_version in config.json)", modefilecommand.ARCH, mf.arch)
-	mf.writeField("Model family (Generated from model_type in config.json)", modefilecommand.FAMILY, mf.family)
-	mf.writeField("Model format", modefilecommand.FORMAT, mf.format)
-	mf.writeField("Model paramsize", modefilecommand.PARAMSIZE, mf.paramsize)
-	mf.writeField("Model precision (Generated from torch_dtype in config.json)", modefilecommand.PRECISION, mf.precision)
-	mf.writeField("Model quantization", modefilecommand.QUANTIZATION, mf.quantization)
+	content += mf.writeField("Model name", modefilecommand.NAME, mf.name)
+	content += mf.writeField("Model architecture (Generated from transformers_version in config.json)", modefilecommand.ARCH, mf.arch)
+	content += mf.writeField("Model family (Generated from model_type in config.json)", modefilecommand.FAMILY, mf.family)
+	content += mf.writeField("Model format", modefilecommand.FORMAT, mf.format)
+	content += mf.writeField("Model paramsize", modefilecommand.PARAMSIZE, mf.paramsize)
+	content += mf.writeField("Model precision (Generated from torch_dtype in config.json)", modefilecommand.PRECISION, mf.precision)
+	content += mf.writeField("Model quantization", modefilecommand.QUANTIZATION, mf.quantization)
 
 	// Add multi-value commands.
 	content += mf.writeMultiField("Config files (Generated from the files in the workspace directory)", modefilecommand.CONFIG, mf.GetConfigs(), configFilePatterns)
 	content += mf.writeMultiField("Code files (Generated from the files in the workspace directory)", modefilecommand.CODE, mf.GetCodes(), codeFilePatterns)
 	content += mf.writeMultiField("Model files (Generated from the files in the workspace directory)", modefilecommand.MODEL, mf.GetModels(), modelFilePatterns)
+	content += mf.writeMultiField("Documentation files (Generated from the files in the workspace directory)", modefilecommand.DOC, mf.GetDocs(), docFilePatterns)
 	return []byte(content)
 }
 

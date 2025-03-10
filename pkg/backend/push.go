@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	godigest "github.com/opencontainers/go-digest"
@@ -31,16 +32,11 @@ import (
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
+	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 // Push pushes the image to the registry.
-func (b *backend) Push(ctx context.Context, target string, opts ...Option) error {
-	// apply options.
-	options := &Options{}
-	for _, opt := range opts {
-		opt(options)
-	}
-
+func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) error {
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -66,9 +62,10 @@ func (b *backend) Push(ctx context.Context, target string, opts ...Option) error
 	dst.Client = &auth.Client{
 		Cache:      auth.NewCache(),
 		Credential: credentials.Credential(credStore),
+		Client:     retry.DefaultClient,
 	}
 
-	if options.plainHTTP {
+	if cfg.PlainHTTP {
 		dst.PlainHTTP = true
 	}
 
@@ -94,7 +91,7 @@ func (b *backend) Push(ctx context.Context, target string, opts ...Option) error
 
 	// copy the layers.
 	g := &errgroup.Group{}
-	g.SetLimit(options.concurrency)
+	g.SetLimit(cfg.Concurrency)
 	for _, layer := range manifest.Layers {
 		g.Go(func() error { return pushIfNotExist(ctx, pb, promptCopyingBlob, src, dst, layer, repo, tag) })
 	}
@@ -129,6 +126,18 @@ func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src sto
 	}
 
 	if exist {
+		// if the descriptor is the manifest, should check the tag existence as well.
+		if desc.MediaType == ocispec.MediaTypeImageManifest {
+			_, _, err := dst.FetchReference(ctx, tag)
+			if err != nil {
+				// try to push the tag if error occurred when fetch reference.
+				if err := dst.Tag(ctx, desc, tag); err != nil {
+					pb.Abort(desc)
+					return fmt.Errorf("failed to push tag to remote: %w", err)
+				}
+			}
+		}
+
 		pb.PrintMessage(prompt, desc, "skipped: already exists")
 		return nil
 	}

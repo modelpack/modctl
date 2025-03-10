@@ -18,19 +18,36 @@ package config
 
 import "fmt"
 
+const (
+	// defaultBuildConcurrency is the default number of concurrent builds.
+	defaultBuildConcurrency = 5
+)
+
 type Build struct {
-	Target    string
-	Modelfile string
+	Concurrency  int
+	Target       string
+	Modelfile    string
+	OutputRemote bool
+	PlainHTTP    bool
+	Insecure     bool
 }
 
 func NewBuild() *Build {
 	return &Build{
-		Target:    "",
-		Modelfile: "Modelfile",
+		Concurrency:  defaultBuildConcurrency,
+		Target:       "",
+		Modelfile:    "Modelfile",
+		OutputRemote: false,
+		PlainHTTP:    false,
+		Insecure:     false,
 	}
 }
 
 func (b *Build) Validate() error {
+	if b.Concurrency <= 0 {
+		return fmt.Errorf("concurrency must be greater than 0")
+	}
+
 	if len(b.Target) == 0 {
 		return fmt.Errorf("target model artifact name is required")
 	}

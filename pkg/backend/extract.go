@@ -17,16 +17,20 @@
 package backend
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 
 	"github.com/CloudNativeAI/modctl/pkg/archiver"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+)
+
+const (
+	// defaultBufferSize is the default buffer size for reading the blob, default is 4MB.
+	defaultBufferSize = 4 * 1024 * 1024
 )
 
 // Extract extracts the model artifact.
@@ -63,15 +67,9 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 
 		defer reader.Close()
 
-		targetDir := output
-		// get the original filepath in order to restore the original repo structure.
-		originalFilePath := layer.Annotations[modelspec.AnnotationFilepath]
-		if dir := filepath.Dir(originalFilePath); dir != "" {
-			targetDir = filepath.Join(targetDir, dir)
-		}
-
+		bufferedReader := bufio.NewReaderSize(reader, defaultBufferSize)
 		// untar the blob to the target directory.
-		if err := archiver.Untar(reader, targetDir); err != nil {
+		if err := archiver.Untar(bufferedReader, output); err != nil {
 			return fmt.Errorf("failed to untar the blob to output directory: %w", err)
 		}
 	}

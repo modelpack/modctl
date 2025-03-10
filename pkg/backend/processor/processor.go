@@ -19,6 +19,7 @@ package processor
 import (
 	"context"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -27,5 +28,5 @@ type Processor interface {
 	// Name returns the name of the processor.
 	Name() string
 	// Process processes the file.
-	Process(ctx context.Context, workDir, repo string) ([]ocispec.Descriptor, error)
+	Process(ctx context.Context, builder build.Builder, workDir string, opts ...Option) ([]ocispec.Descriptor, error)
 }

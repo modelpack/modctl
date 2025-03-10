@@ -33,6 +33,53 @@ func (_m *Modelfile) EXPECT() *Modelfile_Expecter {
 	return &Modelfile_Expecter{mock: &_m.Mock}
 }
 
+// Content provides a mock function with no fields
+func (_m *Modelfile) Content() []byte {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Content")
+	}
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func() []byte); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	return r0
+}
+
+// Modelfile_Content_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Content'
+type Modelfile_Content_Call struct {
+	*mock.Call
+}
+
+// Content is a helper method to define mock.On call
+func (_e *Modelfile_Expecter) Content() *Modelfile_Content_Call {
+	return &Modelfile_Content_Call{Call: _e.mock.On("Content")}
+}
+
+func (_c *Modelfile_Content_Call) Run(run func()) *Modelfile_Content_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Modelfile_Content_Call) Return(_a0 []byte) *Modelfile_Content_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Modelfile_Content_Call) RunAndReturn(run func() []byte) *Modelfile_Content_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetArch provides a mock function with no fields
 func (_m *Modelfile) GetArch() string {
 	ret := _m.Called()
@@ -215,6 +262,53 @@ func (_c *Modelfile_GetDatasets_Call) Return(_a0 []string) *Modelfile_GetDataset
 }
 
 func (_c *Modelfile_GetDatasets_Call) RunAndReturn(run func() []string) *Modelfile_GetDatasets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDocs provides a mock function with no fields
+func (_m *Modelfile) GetDocs() []string {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDocs")
+	}
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func() []string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	return r0
+}
+
+// Modelfile_GetDocs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDocs'
+type Modelfile_GetDocs_Call struct {
+	*mock.Call
+}
+
+// GetDocs is a helper method to define mock.On call
+func (_e *Modelfile_Expecter) GetDocs() *Modelfile_GetDocs_Call {
+	return &Modelfile_GetDocs_Call{Call: _e.mock.On("GetDocs")}
+}
+
+func (_c *Modelfile_GetDocs_Call) Run(run func()) *Modelfile_GetDocs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Modelfile_GetDocs_Call) Return(_a0 []string) *Modelfile_GetDocs_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Modelfile_GetDocs_Call) RunAndReturn(run func() []string) *Modelfile_GetDocs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -534,24 +628,6 @@ func (_c *Modelfile_GetQuantization_Call) Return(_a0 string) *Modelfile_GetQuant
 func (_c *Modelfile_GetQuantization_Call) RunAndReturn(run func() string) *Modelfile_GetQuantization_Call {
 	_c.Call.Return(run)
 	return _c
-}
-
-// SaveToFile provides a mock function with no fields
-func (_m *Modelfile) SaveToFile(path string) error {
-	ret := _m.Called(path)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SaveToFile")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(path)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }
 
 // NewModelfile creates a new instance of Modelfile. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

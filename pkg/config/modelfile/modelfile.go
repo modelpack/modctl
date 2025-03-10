@@ -79,10 +79,6 @@ func (g *GenerateConfig) Convert(workspace string) error {
 }
 
 func (g *GenerateConfig) Validate() error {
-	if len(g.Output) == 0 {
-		return fmt.Errorf("output path is required")
-	}
-
 	// Check if the output path exists modelfile, if so, check if we can overwrite it.
 	// If the output path does not exist, we can create the modelfile.
 	if _, err := os.Stat(g.Output); err == nil {

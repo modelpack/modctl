@@ -19,6 +19,8 @@ package storage
 import (
 	"context"
 	"io"
+
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Option is the option wrapper for modifying the storage options.
@@ -41,7 +43,9 @@ type Storage interface {
 	// PullBlob pulls the blob from the storage.
 	PullBlob(ctx context.Context, repo, digest string) (io.ReadCloser, error)
 	// PushBlob pushes the blob to the storage.
-	PushBlob(ctx context.Context, repo string, body io.Reader) (string, int64, error)
+	PushBlob(ctx context.Context, repo string, body io.Reader, desc ocispec.Descriptor) (string, int64, error)
+	// MountBlob mounts the blob to the storage.
+	MountBlob(ctx context.Context, fromRepo, toRepo string, desc ocispec.Descriptor) error
 	// StatBlob stats the blob in the storage.
 	StatBlob(ctx context.Context, repo, digest string) (bool, error)
 	// ListRepositories lists all the repositories in the storage.

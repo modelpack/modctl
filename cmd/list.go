@@ -63,7 +63,7 @@ func runList(ctx context.Context) error {
 		return err
 	}
 
-	tw := tabwriter.NewWriter(os.Stderr, 0, 0, 4, ' ', 0)
+	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 4, ' ', 0)
 	defer tw.Flush()
 	fmt.Fprintln(tw, "REPOSITORY\tTAG\tDIGEST\tCREATED\tSIZE")
 
