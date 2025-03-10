@@ -17,11 +17,15 @@
 package modelfile
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
+	configmodelfile "github.com/CloudNativeAI/modctl/pkg/config/modelfile"
+	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -246,4 +250,836 @@ name bar
 
 		os.Remove(tmpfile.Name())
 	}
+}
+
+func TestNewModelfileByWorkspace(t *testing.T) {
+	testcases := []struct {
+		name                       string
+		setupFiles                 map[string]string
+		setupDirs                  []string
+		configJson                 map[string]interface{}
+		genConfigJson              map[string]interface{}
+		config                     *configmodelfile.GenerateConfig
+		ignoreUnrecognizedFileType bool
+		expectError                bool
+		expectConfigs              []string
+		expectModels               []string
+		expectCodes                []string
+		expectName                 string
+		expectArch                 string
+		expectFamily               string
+		expectFormat               string
+		expectParamsize            string
+		expectPrecision            string
+		expectQuantization         string
+	}{
+		{
+			name: "basic case",
+			setupFiles: map[string]string{
+				"config.json":  "",
+				"model.bin":    "",
+				"model.py":     "",
+				"tokenizer.py": "",
+				"README.md":    "",
+				"LICENSE":      "",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "test-model",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs:              []string{"README.md", "LICENSE", "config.json"},
+			expectModels:               []string{"model.bin"},
+			expectCodes:                []string{"model.py", "tokenizer.py"},
+			expectName:                 "test-model",
+		},
+		{
+			name:       "empty workspace",
+			setupFiles: map[string]string{},
+			config: &configmodelfile.GenerateConfig{
+				Name: "empty-model",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs:              []string{},
+			expectModels:               []string{},
+			expectCodes:                []string{},
+			expectName:                 "empty-model",
+		},
+		{
+			name: "with config.json values",
+			setupFiles: map[string]string{
+				"config.json": "",
+			},
+			configJson: map[string]interface{}{
+				"model_type":           "llama",
+				"torch_dtype":          "float16",
+				"transformers_version": "4.28.0",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "config-model",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs:              []string{"config.json"},
+			expectModels:               []string{},
+			expectCodes:                []string{},
+			expectName:                 "config-model",
+			expectArch:                 "transformer",
+			expectFamily:               "llama",
+			expectPrecision:            "float16",
+		},
+		{
+			name: "nested directory structure",
+			setupFiles: map[string]string{
+				"config.json":                 "",
+				"weights/model.bin":           "",
+				"weights/model.safetensors":   "",
+				"src/utils.py":                "",
+				"src/models/model.py":         "",
+				"assets/README.md":            "",
+				"assets/images/preview.jpg":   "",
+				"docs/config/parameters.yaml": "",
+			},
+			setupDirs: []string{
+				"weights",
+				"src",
+				"src/models",
+				"assets",
+				"assets/images",
+				"docs/config",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "nested-model",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs: []string{
+				"assets/README.md",
+				"assets/images/preview.jpg",
+				"config.json",
+				"docs/config/parameters.yaml",
+			},
+			expectModels: []string{
+				"weights/model.bin",
+				"weights/model.safetensors",
+			},
+			expectCodes: []string{
+				"src/utils.py",
+				"src/models/model.py",
+			},
+			expectName: "nested-model",
+		},
+		{
+			name: "deep nested directories",
+			setupFiles: map[string]string{
+				"level1/level2/level3/model.bin":      "",
+				"level1/level2/level3/level4/code.py": "",
+				"level1/config.json":                  "",
+			},
+			setupDirs: []string{
+				"level1",
+				"level1/level2",
+				"level1/level2/level3",
+				"level1/level2/level3/level4",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "deep-nested",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs:              []string{"level1/config.json"},
+			expectModels:               []string{"level1/level2/level3/model.bin"},
+			expectCodes:                []string{"level1/level2/level3/level4/code.py"},
+			expectName:                 "deep-nested",
+		},
+		{
+			name: "hidden files and directories",
+			setupFiles: map[string]string{
+				"config.json":          "",
+				"model.bin":            "",
+				".hidden_file":         "",
+				".hidden_dir/file.txt": "",
+				"normal_dir/.hidden":   "",
+			},
+			setupDirs: []string{
+				".hidden_dir",
+				"normal_dir",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "hidden-test",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs:              []string{"config.json"},
+			expectModels:               []string{"model.bin"},
+			expectCodes:                []string{},
+			expectName:                 "hidden-test",
+		},
+		{
+			name: "multiple config files in directories",
+			setupFiles: map[string]string{
+				"models/config.json":     "",
+				"models/gen_config.json": "",
+			},
+			setupDirs: []string{"models"},
+			configJson: map[string]interface{}{
+				"model_type":           "gpt2",
+				"torch_dtype":          "float32",
+				"transformers_version": "4.30.0",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:   "multi-config",
+				Format: "pytorch",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs:              []string{"config.json", "models/config.json", "models/gen_config.json"},
+			expectModels:               []string{},
+			expectCodes:                []string{},
+			expectName:                 "multi-config",
+			expectArch:                 "transformer",
+			expectFamily:               "gpt2",
+			expectFormat:               "pytorch",
+			expectPrecision:            "float32",
+		},
+		{
+			name: "special filename characters",
+			setupFiles: map[string]string{
+				"config with spaces.json":      "",
+				"model-with-hyphens.bin":       "",
+				"file_with_underscore.py":      "",
+				"dir with spaces/model.bin":    "",
+				"dir-with-hyphens/config.json": "",
+				"dir_with_underscore/code.py":  "",
+			},
+			setupDirs: []string{
+				"dir with spaces",
+				"dir-with-hyphens",
+				"dir_with_underscore",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "special-chars",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs: []string{
+				"config with spaces.json",
+				"dir-with-hyphens/config.json",
+			},
+			expectModels: []string{
+				"model-with-hyphens.bin",
+				"dir with spaces/model.bin",
+			},
+			expectCodes: []string{
+				"file_with_underscore.py",
+				"dir_with_underscore/code.py",
+			},
+			expectName: "special-chars",
+		},
+		{
+			name: "mixed file types in nested dirs",
+			setupFiles: map[string]string{
+				"configs/main.json":     "",
+				"configs/params.yaml":   "",
+				"models/weights.bin":    "",
+				"models/data/extra.bin": "",
+				"src/main.py":           "",
+				"src/utils/helpers.py":  "",
+				"src/models/arch.py":    "",
+			},
+			setupDirs: []string{
+				"configs",
+				"models",
+				"models/data",
+				"src",
+				"src/utils",
+				"src/models",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "mixed-types",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs: []string{
+				"configs/main.json",
+				"configs/params.yaml",
+			},
+			expectModels: []string{
+				"models/weights.bin",
+				"models/data/extra.bin",
+			},
+			expectCodes: []string{
+				"src/main.py",
+				"src/utils/helpers.py",
+				"src/models/arch.py",
+			},
+			expectName: "mixed-types",
+		},
+		{
+			name: "same filenames across directories",
+			setupFiles: map[string]string{
+				"dir1/config.json": "",
+				"dir2/config.json": "",
+				"dir1/model.bin":   "",
+				"dir2/model.bin":   "",
+				"dir1/script.py":   "",
+				"dir2/script.py":   "",
+			},
+			setupDirs: []string{
+				"dir1",
+				"dir2",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "same-names",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs: []string{
+				"dir1/config.json",
+				"dir2/config.json",
+			},
+			expectModels: []string{
+				"dir1/model.bin",
+				"dir2/model.bin",
+			},
+			expectCodes: []string{
+				"dir1/script.py",
+				"dir2/script.py",
+			},
+			expectName: "same-names",
+		},
+		{
+			name: "realistic model structure",
+			setupFiles: map[string]string{
+				"README.md":                     "",
+				"config.json":                   "",
+				"generation_config.json":        "",
+				"tokenizer_config.json":         "",
+				"tokenizer.model":               "",
+				"tokenizer.json":                "",
+				"pytorch_model.bin":             "",
+				"model.safetensors":             "",
+				"special_tokens_map.json":       "",
+				"training_args.bin":             "",
+				"vocab.json":                    "",
+				"merges.txt":                    "",
+				"extra/usage_examples.ipynb":    "",
+				"scripts/convert_weights.py":    "",
+				"scripts/preprocessing/prep.py": "",
+			},
+			setupDirs: []string{
+				"extra",
+				"scripts",
+				"scripts/preprocessing",
+			},
+			configJson: map[string]interface{}{
+				"model_type":           "llama",
+				"torch_dtype":          "bfloat16",
+				"transformers_version": "4.32.0",
+				"architectures":        []string{"LlamaForCausalLM"},
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:      "llama-7b",
+				ParamSize: "7B",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs: []string{
+				"README.md",
+				"config.json",
+				"generation_config.json",
+				"tokenizer_config.json",
+				"tokenizer.model",
+				"tokenizer.json",
+				"special_tokens_map.json",
+				"vocab.json",
+				"merges.txt",
+			},
+			expectModels: []string{
+				"pytorch_model.bin",
+				"model.safetensors",
+				"training_args.bin",
+			},
+			expectCodes: []string{
+				"extra/usage_examples.ipynb",
+				"scripts/convert_weights.py",
+				"scripts/preprocessing/prep.py",
+			},
+			expectName:      "llama-7b",
+			expectArch:      "transformer",
+			expectFamily:    "llama",
+			expectPrecision: "bfloat16",
+			expectParamsize: "7B",
+		},
+		{
+			name: "config file conflicts",
+			setupFiles: map[string]string{
+				"config.json":            "",
+				"generation_config.json": "",
+			},
+			configJson: map[string]interface{}{
+				"model_type":  "gpt2",
+				"torch_dtype": "float16",
+			},
+			genConfigJson: map[string]interface{}{
+				"model_type":  "llama",
+				"torch_dtype": "float32",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "conflict-test",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs:              []string{"config.json", "generation_config.json"},
+			expectModels:               []string{},
+			expectCodes:                []string{},
+			expectName:                 "conflict-test",
+			expectFamily:               "llama",
+			expectPrecision:            "float32",
+		},
+		{
+			name: "skipping internal directories",
+			setupFiles: map[string]string{
+				"config.json":           "",
+				".git/config":           "",
+				"__pycache__/cache.pyc": "",
+				".hidden/model.bin":     "",
+				"normal/model.bin":      "",
+				"valid_dir/model.py":    "",
+			},
+			setupDirs: []string{
+				".git",
+				"__pycache__",
+				".hidden",
+				"normal",
+				"valid_dir",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "skip-test",
+			},
+			ignoreUnrecognizedFileType: false,
+			expectError:                false,
+			expectConfigs:              []string{"config.json"},
+			expectModels:               []string{"normal/model.bin"},
+			expectCodes:                []string{"valid_dir/model.py"},
+			expectName:                 "skip-test",
+		},
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create temporary workspace directory
+			tempDir, err := os.MkdirTemp("", "modelfile-test-*")
+			assert.NoError(err)
+			defer os.RemoveAll(tempDir)
+
+			// Create directories first
+			for _, dir := range tc.setupDirs {
+				err := os.MkdirAll(filepath.Join(tempDir, dir), 0755)
+				assert.NoError(err)
+			}
+
+			// Create files
+			for filename, content := range tc.setupFiles {
+				// Ensure parent directory exists
+				dir := filepath.Dir(filepath.Join(tempDir, filename))
+				if dir != tempDir {
+					err := os.MkdirAll(dir, 0755)
+					assert.NoError(err)
+				}
+
+				path := filepath.Join(tempDir, filename)
+				err := os.WriteFile(path, []byte(content), 0644)
+				assert.NoError(err)
+			}
+
+			// Create config.json if needed
+			if tc.configJson != nil {
+				configData, err := json.Marshal(tc.configJson)
+				assert.NoError(err)
+				err = os.WriteFile(filepath.Join(tempDir, "config.json"), configData, 0644)
+				assert.NoError(err)
+			}
+
+			// Create generation_config.json if needed
+			if tc.genConfigJson != nil {
+				configData, err := json.Marshal(tc.genConfigJson)
+				assert.NoError(err)
+				err = os.WriteFile(filepath.Join(tempDir, "generation_config.json"), configData, 0644)
+				assert.NoError(err)
+			}
+
+			// Set workspace in config
+			tc.config.Workspace = tempDir
+			tc.config.IgnoreUnrecognizedFileTypes = tc.ignoreUnrecognizedFileType
+
+			// Call the function being tested
+			mf, err := NewModelfileByWorkspace(tempDir, tc.config)
+
+			if tc.expectError {
+				assert.Error(err)
+				return
+			}
+
+			assert.NoError(err)
+			assert.NotNil(mf)
+			assert.Equal(tc.expectName, mf.GetName())
+			assert.Equal(tc.expectArch, mf.GetArch())
+			assert.Equal(tc.expectFamily, mf.GetFamily())
+			assert.Equal(tc.expectFormat, mf.GetFormat())
+			assert.Equal(tc.expectParamsize, mf.GetParamsize())
+			assert.Equal(tc.expectPrecision, mf.GetPrecision())
+			assert.Equal(tc.expectQuantization, mf.GetQuantization())
+			assert.ElementsMatch(tc.expectConfigs, mf.GetConfigs())
+			assert.ElementsMatch(tc.expectModels, mf.GetModels())
+			assert.ElementsMatch(tc.expectCodes, mf.GetCodes())
+		})
+	}
+}
+
+func TestContent(t *testing.T) {
+	testcases := []struct {
+		name           string
+		modelfile      *modelfile
+		expectedParts  []string
+		notExpectParts []string
+	}{
+		{
+			name: "full modelfile",
+			modelfile: &modelfile{
+				name:         "test-model",
+				arch:         "transformer",
+				family:       "llama",
+				format:       "safetensors",
+				paramsize:    "7B",
+				precision:    "float16",
+				quantization: "int8",
+				config:       createHashSet([]string{"config.json", "README.md"}),
+				model:        createHashSet([]string{"model.bin", "model.safetensors"}),
+				code:         createHashSet([]string{"convert.py", "inference.py"}),
+				dataset:      createHashSet([]string{}),
+			},
+			expectedParts: []string{
+				"# Generated at",
+				"# Model name\nNAME test-model",
+				"# Model architecture",
+				"ARCH transformer",
+				"# Model family",
+				"FAMILY llama",
+				"# Model format",
+				"FORMAT safetensors",
+				"# Model paramsize",
+				"PARAMSIZE 7B",
+				"# Model precision",
+				"PRECISION float16",
+				"# Model quantization",
+				"QUANTIZATION int8",
+				"# Config files",
+				"CONFIG config.json",
+				"CONFIG README.md",
+				"# Code files",
+				"CODE convert.py",
+				"CODE inference.py",
+				"# Model files",
+				"MODEL model.bin",
+				"MODEL model.safetensors",
+			},
+			notExpectParts: []string{
+				"DATASET",
+			},
+		},
+		{
+			name: "minimal modelfile",
+			modelfile: &modelfile{
+				name:    "minimal-model",
+				config:  createHashSet([]string{}),
+				model:   createHashSet([]string{}),
+				code:    createHashSet([]string{}),
+				dataset: createHashSet([]string{}),
+			},
+			expectedParts: []string{
+				"# Generated at",
+				"# Model name\nNAME minimal-model",
+			},
+			notExpectParts: []string{
+				"ARCH", "FAMILY", "FORMAT", "PARAMSIZE", "PRECISION", "QUANTIZATION",
+				"CONFIG", "CODE", "MODEL", "DATASET",
+			},
+		},
+
+		// 新增测试用例：不同的参数大小和配置
+		{
+			name: "tiny model",
+			modelfile: &modelfile{
+				name:         "tiny-gpt",
+				arch:         "transformer",
+				family:       "gpt2",
+				format:       "pytorch",
+				paramsize:    "125M",
+				precision:    "float32",
+				quantization: "",
+				config:       createHashSet([]string{"config.json"}),
+				model:        createHashSet([]string{"pytorch_model.bin"}),
+				code:         createHashSet([]string{}),
+				dataset:      createHashSet([]string{}),
+			},
+			expectedParts: []string{
+				"# Model name\nNAME tiny-gpt",
+				"ARCH transformer",
+				"FAMILY gpt2",
+				"FORMAT pytorch",
+				"PARAMSIZE 125M",
+				"PRECISION float32",
+				"CONFIG config.json",
+				"MODEL pytorch_model.bin",
+			},
+			notExpectParts: []string{
+				"QUANTIZATION", "CODE", "DATASET",
+			},
+		},
+		{
+			name: "billion parameter model",
+			modelfile: &modelfile{
+				name:         "llama-large",
+				arch:         "transformer",
+				family:       "llama",
+				format:       "safetensors",
+				paramsize:    "13B",
+				precision:    "bfloat16",
+				quantization: "",
+				config:       createHashSet([]string{"config.json"}),
+				model:        createHashSet([]string{"model-00001-of-00003.safetensors", "model-00002-of-00003.safetensors", "model-00003-of-00003.safetensors"}),
+				code:         createHashSet([]string{}),
+				dataset:      createHashSet([]string{}),
+			},
+			expectedParts: []string{
+				"# Model name\nNAME llama-large",
+				"PARAMSIZE 13B",
+				"PRECISION bfloat16",
+				"MODEL model-00001-of-00003.safetensors",
+				"MODEL model-00002-of-00003.safetensors",
+				"MODEL model-00003-of-00003.safetensors",
+			},
+			notExpectParts: []string{
+				"QUANTIZATION", "CODE", "DATASET",
+			},
+		},
+		{
+			name: "quantized model",
+			modelfile: &modelfile{
+				name:         "mistral-quantized",
+				arch:         "transformer",
+				family:       "mistral",
+				format:       "gguf",
+				paramsize:    "7B",
+				precision:    "",
+				quantization: "Q4_K_M",
+				config:       createHashSet([]string{"config.json"}),
+				model:        createHashSet([]string{"model.gguf"}),
+				code:         createHashSet([]string{}),
+			},
+			expectedParts: []string{
+				"# Model name\nNAME mistral-quantized",
+				"PARAMSIZE 7B",
+				"QUANTIZATION Q4_K_M",
+				"FORMAT gguf",
+				"MODEL model.gguf",
+			},
+			notExpectParts: []string{
+				"PRECISION", "CODE", "DATASET",
+			},
+		},
+		{
+			name: "trillion parameter model",
+			modelfile: &modelfile{
+				name:         "mega-model",
+				arch:         "moe",
+				family:       "mixtral",
+				format:       "pytorch",
+				paramsize:    "1.5T",
+				precision:    "float16",
+				quantization: "",
+				config:       createHashSet([]string{"config.json"}),
+				model:        createHashSet([]string{"shard-00001.bin", "shard-00002.bin"}),
+				code:         createHashSet([]string{}),
+			},
+			expectedParts: []string{
+				"# Model name\nNAME mega-model",
+				"# Model architecture",
+				"ARCH moe",
+				"FAMILY mixtral",
+				"FORMAT pytorch",
+				"PARAMSIZE 1.5T",
+				"MODEL shard-00001.bin",
+				"MODEL shard-00002.bin",
+			},
+			notExpectParts: []string{
+				"QUANTIZATION", "CODE", "DATASET",
+			},
+		},
+		{
+			name: "with nested paths",
+			modelfile: &modelfile{
+				name:      "nested-paths-model",
+				paramsize: "3B",
+				config:    createHashSet([]string{"configs/main.json", "configs/tokenizer/config.json"}),
+				model:     createHashSet([]string{"models/weights/pytorch_model.bin"}),
+				code:      createHashSet([]string{"src/utils.py", "src/models/model.py"}),
+			},
+			expectedParts: []string{
+				"# Model name\nNAME nested-paths-model",
+				"PARAMSIZE 3B",
+				"CONFIG configs/main.json",
+				"CONFIG configs/tokenizer/config.json",
+				"MODEL models/weights/pytorch_model.bin",
+				"CODE src/utils.py",
+				"CODE src/models/model.py",
+			},
+			notExpectParts: []string{
+				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "DATASET",
+			},
+		},
+		{
+			name: "fractional paramsize",
+			modelfile: &modelfile{
+				name:      "fractional-size",
+				paramsize: "2.7B",
+				config:    createHashSet([]string{"config.json"}),
+				model:     createHashSet([]string{"model.bin"}),
+			},
+			expectedParts: []string{
+				"# Model name\nNAME fractional-size",
+				"PARAMSIZE 2.7B",
+				"CONFIG config.json",
+				"MODEL model.bin",
+			},
+			notExpectParts: []string{
+				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "CODE", "DATASET",
+			},
+		},
+		{
+			name: "all metadata no files",
+			modelfile: &modelfile{
+				name:         "metadata-only",
+				arch:         "transformer",
+				family:       "gpt-neox",
+				format:       "pytorch",
+				paramsize:    "20B",
+				precision:    "bfloat16",
+				quantization: "int4",
+				config:       createHashSet([]string{}),
+				model:        createHashSet([]string{}),
+				code:         createHashSet([]string{}),
+			},
+			expectedParts: []string{
+				"# Model name\nNAME metadata-only",
+				"ARCH transformer",
+				"FAMILY gpt-neox",
+				"FORMAT pytorch",
+				"PARAMSIZE 20B",
+				"PRECISION bfloat16",
+				"QUANTIZATION int4",
+			},
+			notExpectParts: []string{
+				"CONFIG", "MODEL", "CODE", "DATASET",
+			},
+		},
+		{
+			name: "files only no metadata",
+			modelfile: &modelfile{
+				name:    "files-only",
+				config:  createHashSet([]string{"config.json", "README.md"}),
+				model:   createHashSet([]string{"model.bin"}),
+				code:    createHashSet([]string{"script.py"}),
+				dataset: createHashSet([]string{}),
+			},
+			expectedParts: []string{
+				"# Model name\nNAME files-only",
+				"CONFIG config.json",
+				"CONFIG README.md",
+				"MODEL model.bin",
+				"CODE script.py",
+			},
+			notExpectParts: []string{
+				"ARCH", "FAMILY", "FORMAT", "PARAMSIZE", "PRECISION", "QUANTIZATION", "DATASET",
+			},
+		},
+		{
+			name: "multiple files of same type",
+			modelfile: &modelfile{
+				name:      "multi-file",
+				paramsize: "7B",
+				config:    createHashSet([]string{"config1.json", "config2.json", "config3.json"}),
+				model:     createHashSet([]string{"model1.bin", "model2.bin", "model3.bin", "model4.bin"}),
+				code:      createHashSet([]string{"script1.py", "script2.py"}),
+			},
+			expectedParts: []string{
+				"# Model name\nNAME multi-file",
+				"PARAMSIZE 7B",
+				"CONFIG config1.json",
+				"CONFIG config2.json",
+				"CONFIG config3.json",
+				"MODEL model1.bin",
+				"MODEL model2.bin",
+				"MODEL model3.bin",
+				"MODEL model4.bin",
+				"CODE script1.py",
+				"CODE script2.py",
+			},
+			notExpectParts: []string{
+				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "DATASET",
+			},
+		},
+		{
+			name: "with special characters in paths",
+			modelfile: &modelfile{
+				name:      "special-chars",
+				paramsize: "1B",
+				config:    createHashSet([]string{"config with spaces.json", "weird-name!.yaml"}),
+				model:     createHashSet([]string{"model-v1.0_beta.bin"}),
+				code:      createHashSet([]string{"dir with spaces/script.py"}),
+			},
+			expectedParts: []string{
+				"# Model name\nNAME special-chars",
+				"PARAMSIZE 1B",
+				"CONFIG config with spaces.json",
+				"CONFIG weird-name!.yaml",
+				"MODEL model-v1.0_beta.bin",
+				"CODE dir with spaces/script.py",
+			},
+			notExpectParts: []string{
+				"ARCH", "FAMILY", "FORMAT", "PRECISION", "QUANTIZATION", "DATASET",
+			},
+		},
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Generate content.
+			content := string(tc.modelfile.Content())
+
+			// Check that all expected parts are present.
+			for _, part := range tc.expectedParts {
+				assert.Equal(content, part)
+			}
+
+			// Check that all non-expected parts are absent.
+			for _, part := range tc.notExpectParts {
+				assert.NotContains(t, content, part, "Content should not contain: %s", part)
+			}
+		})
+	}
+}
+
+// createHashSet creates a hashset from a string slice.
+func createHashSet(items []string) *hashset.Set {
+	set := hashset.New()
+	for _, item := range items {
+		set.Add(item)
+	}
+
+	return set
 }

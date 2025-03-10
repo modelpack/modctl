@@ -16,9 +16,18 @@
 
 package modelfile
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// DefaultModelfileName is the default name of the modelfile.
+const DefaultModelfileName = "Modelfile"
 
 type GenerateConfig struct {
+	Workspace                   string
 	Name                        string
 	Version                     string
 	Output                      string
@@ -34,6 +43,7 @@ type GenerateConfig struct {
 
 func NewGenerateConfig() *GenerateConfig {
 	return &GenerateConfig{
+		Workspace:                   ".",
 		Name:                        "",
 		Version:                     "",
 		Output:                      "",
@@ -48,9 +58,37 @@ func NewGenerateConfig() *GenerateConfig {
 	}
 }
 
+func (g *GenerateConfig) Convert(workspace string) error {
+	modelfilePath := filepath.Join(g.Output, DefaultModelfileName)
+	absModelfilePath, err := filepath.Abs(modelfilePath)
+	if err != nil {
+		return err
+	}
+	g.Output = absModelfilePath
+
+	if !strings.HasSuffix(workspace, "/") {
+		workspace += "/"
+	}
+
+	absWorkspace, err := filepath.Abs(workspace)
+	if err != nil {
+		return err
+	}
+	g.Workspace = absWorkspace
+	return nil
+}
+
 func (g *GenerateConfig) Validate() error {
 	if len(g.Output) == 0 {
 		return fmt.Errorf("output path is required")
+	}
+
+	// Check if the output path exists modelfile, if so, check if we can overwrite it.
+	// If the output path does not exist, we can create the modelfile.
+	if _, err := os.Stat(g.Output); err == nil {
+		if !g.Overwrite {
+			return fmt.Errorf("Modelfile already exists at %s - use --overwrite to overwrite", g.Output)
+		}
 	}
 
 	return nil

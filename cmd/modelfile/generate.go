@@ -19,7 +19,7 @@ package modelfile
 import (
 	"context"
 	"fmt"
-	"strings"
+	"os"
 
 	configmodelfile "github.com/CloudNativeAI/modctl/pkg/config/modelfile"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
@@ -33,13 +33,21 @@ var generateConfig = configmodelfile.NewGenerateConfig()
 // generateCmd represents the modelfile tools command for generating modelfile.
 var generateCmd = &cobra.Command{
 	Use:                "generate [flags] <path>",
-	Short:              "A command line tool for generating modelfile",
+	Short:              "A command line tool for generating modelfile in the workspace, the workspace must be a directory including model files and model configuration files",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runGenerate(context.Background(), args[0])
+		if err := generateConfig.Convert(args[0]); err != nil {
+			return err
+		}
+
+		if err := generateConfig.Validate(); err != nil {
+			return err
+		}
+
+		return runGenerate(context.Background())
 	},
 }
 
@@ -53,7 +61,7 @@ func init() {
 	flags.StringVar(&generateConfig.ParamSize, "param-size", "", "specify number of model parameters, such as 8b, 16b, 32b, etc")
 	flags.StringVar(&generateConfig.Precision, "precision", "", "specify model precision, such as bf16, fp16, int8, etc")
 	flags.StringVar(&generateConfig.Quantization, "quantization", "", "specify model quantization, such as awq, gptq, etc")
-	flags.StringVarP(&generateConfig.Output, "output", "O", ".", "specify the output path of modelfile")
+	flags.StringVarP(&generateConfig.Output, "output", "O", ".", "specify the output path of modelfilem, must be a directory")
 	flags.BoolVar(&generateConfig.IgnoreUnrecognizedFileTypes, "ignore-unrecognized-file-types", false, "ignore the unrecognized file types in the workspace")
 	flags.BoolVar(&generateConfig.Overwrite, "overwrite", false, "overwrite the existing modelfile")
 
@@ -62,10 +70,19 @@ func init() {
 	}
 }
 
-func runGenerate(ctx context.Context, modelPath string) error {
-	if !strings.HasSuffix(modelPath, "/") {
-		modelPath += "/"
+// runGenerate runs the generate modelfile.
+func runGenerate(_ context.Context) error {
+	fmt.Printf("Generating modelfile for %s\n", generateConfig.Workspace)
+	modelfile, err := modelfile.NewModelfileByWorkspace(generateConfig.Workspace, generateConfig)
+	if err != nil {
+		return fmt.Errorf("failed to generate modelfile: %w", err)
 	}
 
-	return modelfile.RunGenModelfile(ctx, modelPath, generateConfig)
+	content := modelfile.Content()
+	if err := os.WriteFile(generateConfig.Output, content, 0644); err != nil {
+		return fmt.Errorf("failed to write modelfile: %w", err)
+	}
+
+	fmt.Printf("Successfully generated modelfile:\n%s\n", string(content))
+	return nil
 }
