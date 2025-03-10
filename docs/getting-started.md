@@ -39,43 +39,40 @@ Example of Modelfile:
 
 ```shell
 # Model name (string), such as llama3-8b-instruct, gpt2-xl, qwen2-vl-72b-instruct, etc.
-name gemma-2b
+NAME gemma-2b
 
 # Model architecture (string), such as transformer, cnn, rnn, etc.
-arch transformer
+ARCH transformer
 
 # Model family (string), such as llama3, gpt2, qwen2, etc.
-family gemma
+FAMILY gemma
 
 # Model format (string), such as onnx, tensorflow, pytorch, etc.
-format safetensors
+FORMAT safetensors
 
 # Number of parameters in the model (integer).
-paramsize 16
+PARAMSIZE 16
 
 # Model precision (string), such as bf16, fp16, int8, etc.
-precision bf16
+PRECISION bf16
 
 # Model quantization (string), such as awq, gptq, etc.
-quantization awq
+QUANTIZATION awq
 
 # Specify model configuration file, support glob path pattern.
-config config.json
+CONFIG config.json
 
 # Specify model configuration file, support glob path pattern.
-config generation_config.json
+CONFIG generation_config.json
 
 # Model weight, support glob path pattern.
-model *.safetensors
+MODEL *.safetensors
 
 # Specify code, support glob path pattern.
-code *.py
+CODE *.py
 
 # Specify documentation, support glob path pattern.
-doc *.md
-
-# Specify dataset, support glob path pattern.
-dataset *.csv
+DOC *.md
 ```
 
 Then run the following command to build the model artifact:

@@ -33,22 +33,22 @@ func TestParse(t *testing.T) {
 		{
 			input: `
 # This is a comment
-model model1
+MODEL model1
 `,
 			expectErr: false,
 		},
 		{
 			input: `
 # This is a comment
-invalid command
+INVALID command
 `,
 			expectErr: true,
 		},
 		{
 			input: `
 # This is a comment
-model model1
-name foo
+MODEL model1
+NAME foo
 `,
 			expectErr: false,
 		},
@@ -60,14 +60,14 @@ name foo
 		},
 		{
 			input: `
-model model1
+MODEL model1
 `,
 			expectErr: false,
 		},
 		{
 			input: `
 
-model model1
+MODEL model1
 `,
 			expectErr: false,
 		},
@@ -108,9 +108,9 @@ func TestIsCommand(t *testing.T) {
 		line     string
 		expected bool
 	}{
-		{"model foo", true},
 		{"MODEL foo", true},
-		{"name bar", true},
+		{"MODEL foo", true},
+		{"NAME bar", true},
 		{"unknown command", false},
 		{"  unknown command", false},
 	}
@@ -146,18 +146,18 @@ func TestParseCommandLine(t *testing.T) {
 		cmd       string
 		args      []string
 	}{
-		{"config foo", 1, 2, false, "config", []string{"foo"}},
-		{"CONFIG foo", 1, 2, false, "config", []string{"foo"}},
-		{"model foo", 1, 2, false, "model", []string{"foo"}},
-		{"code foo", 1, 2, false, "code", []string{"foo"}},
-		{"dataset foo", 1, 2, false, "dataset", []string{"foo"}},
-		{"name bar", 3, 4, false, "name", []string{"bar"}},
-		{"arch transformer", 5, 6, false, "arch", []string{"transformer"}},
-		{"family llama3", 7, 8, false, "family", []string{"llama3"}},
-		{"format onnx", 9, 10, false, "format", []string{"onnx"}},
-		{"paramsize 100", 11, 12, false, "paramsize", []string{"100"}},
-		{"precision bf16", 13, 14, false, "precision", []string{"bf16"}},
-		{"quantization awq", 15, 16, false, "quantization", []string{"awq"}},
+		{"CONFIG foo", 1, 2, false, "CONFIG", []string{"foo"}},
+		{"CONFIG foo", 1, 2, false, "CONFIG", []string{"foo"}},
+		{"MODEL foo", 1, 2, false, "MODEL", []string{"foo"}},
+		{"CODE foo", 1, 2, false, "CODE", []string{"foo"}},
+		{"DATASET foo", 1, 2, false, "DATASET", []string{"foo"}},
+		{"NAME bar", 3, 4, false, "NAME", []string{"bar"}},
+		{"ARCH transformer", 5, 6, false, "ARCH", []string{"transformer"}},
+		{"FAMILY llama3", 7, 8, false, "FAMILY", []string{"llama3"}},
+		{"FORMAT onnx", 9, 10, false, "FORMAT", []string{"onnx"}},
+		{"PARAMSIZE 100", 11, 12, false, "PARAMSIZE", []string{"100"}},
+		{"PRECISION bf16", 13, 14, false, "PRECISION", []string{"bf16"}},
+		{"QUANTIZATION awq", 15, 16, false, "QUANTIZATION", []string{"awq"}},
 		{"unknown command", 5, 6, true, "", nil},
 	}
 
@@ -194,8 +194,8 @@ func TestSplitCommand(t *testing.T) {
 		cmd       string
 		args      []string
 	}{
-		{"model foo", false, "model", []string{"foo"}},
-		{"name bar", false, "name", []string{"bar"}},
+		{"MODEL foo", false, "MODEL", []string{"foo"}},
+		{"NAME bar", false, "NAME", []string{"bar"}},
 		{"invalid", true, "", nil},
 	}
 
