@@ -17,11 +17,13 @@
 package build
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
 	"testing"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 	storagemock "github.com/CloudNativeAI/modctl/test/mocks/storage"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
@@ -70,7 +72,7 @@ func (s *LocalOutputTestSuite) TestOutputLayer() {
 		s.mockStorage.On("PushBlob", s.ctx, "test-repo", mock.Anything, ocispec.Descriptor{}).
 			Return(expectedDigest, expectedSize, nil).Once()
 
-		desc, err := s.localOutput.OutputLayer(s.ctx, "test/mediatype", "/work", "test-file.txt", reader)
+		desc, err := s.localOutput.OutputLayer(s.ctx, "test/mediatype", "/work", "test-file.txt", expectedSize, reader, hooks.NewHooks())
 
 		s.NoError(err)
 		s.Equal("test/mediatype", desc.MediaType)
@@ -86,7 +88,7 @@ func (s *LocalOutputTestSuite) TestOutputLayer() {
 		s.mockStorage.On("PushBlob", s.ctx, "test-repo", mock.Anything, ocispec.Descriptor{}).
 			Return("", int64(0), errors.New("storage error")).Once()
 
-		_, err := s.localOutput.OutputLayer(s.ctx, "test/mediatype", "/work", "test-file.txt", reader)
+		_, err := s.localOutput.OutputLayer(s.ctx, "test/mediatype", "/work", "test-file.txt", int64(0), reader, hooks.NewHooks())
 
 		s.Error(err)
 		s.Contains(err.Error(), "failed to push blob to storage")
@@ -103,7 +105,7 @@ func (s *LocalOutputTestSuite) TestOutputConfig() {
 		s.mockStorage.On("PushBlob", s.ctx, "test-repo", mock.Anything, ocispec.Descriptor{}).
 			Return(expectedDigest, expectedSize, nil).Once()
 
-		desc, err := s.localOutput.OutputConfig(s.ctx, "test/configtype", configJSON)
+		desc, err := s.localOutput.OutputConfig(s.ctx, "test/configtype", expectedDigest, expectedSize, bytes.NewReader(configJSON), hooks.NewHooks())
 
 		s.NoError(err)
 		s.Equal("test/configtype", desc.MediaType)
@@ -118,7 +120,7 @@ func (s *LocalOutputTestSuite) TestOutputConfig() {
 		s.mockStorage.On("PushBlob", s.ctx, "test-repo", mock.Anything, ocispec.Descriptor{}).
 			Return("", int64(0), errors.New("config error")).Once()
 
-		_, err := s.localOutput.OutputConfig(s.ctx, "test/configtype", configJSON)
+		_, err := s.localOutput.OutputConfig(s.ctx, "test/configtype", "", int64(0), bytes.NewReader(configJSON), hooks.NewHooks())
 
 		s.Error(err)
 		s.Contains(err.Error(), "failed to push config to storage")
@@ -134,7 +136,7 @@ func (s *LocalOutputTestSuite) TestOutputManifest() {
 		s.mockStorage.On("PushManifest", s.ctx, "test-repo", "test-tag", manifestJSON).
 			Return(expectedDigest, nil).Once()
 
-		desc, err := s.localOutput.OutputManifest(s.ctx, "test/manifesttype", manifestJSON)
+		desc, err := s.localOutput.OutputManifest(s.ctx, "test/manifesttype", expectedDigest, int64(len(manifestJSON)), bytes.NewReader(manifestJSON), hooks.NewHooks())
 
 		s.NoError(err)
 		s.Equal("test/manifesttype", desc.MediaType)
@@ -149,7 +151,7 @@ func (s *LocalOutputTestSuite) TestOutputManifest() {
 		s.mockStorage.On("PushManifest", s.ctx, "test-repo", "test-tag", manifestJSON).
 			Return("", errors.New("manifest error")).Once()
 
-		_, err := s.localOutput.OutputManifest(s.ctx, "test/manifesttype", manifestJSON)
+		_, err := s.localOutput.OutputManifest(s.ctx, "test/manifesttype", "", int64(0), bytes.NewReader(manifestJSON), hooks.NewHooks())
 
 		s.Error(err)
 		s.Contains(err.Error(), "failed to push manifest to storage")

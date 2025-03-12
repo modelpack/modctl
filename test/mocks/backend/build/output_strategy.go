@@ -22,6 +22,8 @@ import (
 	context "context"
 	io "io"
 
+	hooks "github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
+
 	mock "github.com/stretchr/testify/mock"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -40,9 +42,9 @@ func (_m *OutputStrategy) EXPECT() *OutputStrategy_Expecter {
 	return &OutputStrategy_Expecter{mock: &_m.Mock}
 }
 
-// OutputConfig provides a mock function with given fields: ctx, mediaType, configJSON
-func (_m *OutputStrategy) OutputConfig(ctx context.Context, mediaType string, configJSON []byte) (v1.Descriptor, error) {
-	ret := _m.Called(ctx, mediaType, configJSON)
+// OutputConfig provides a mock function with given fields: ctx, mediaType, digest, size, reader, _a5
+func (_m *OutputStrategy) OutputConfig(ctx context.Context, mediaType string, digest string, size int64, reader io.Reader, _a5 hooks.Hooks) (v1.Descriptor, error) {
+	ret := _m.Called(ctx, mediaType, digest, size, reader, _a5)
 
 	if len(ret) == 0 {
 		panic("no return value specified for OutputConfig")
@@ -50,17 +52,17 @@ func (_m *OutputStrategy) OutputConfig(ctx context.Context, mediaType string, co
 
 	var r0 v1.Descriptor
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []byte) (v1.Descriptor, error)); ok {
-		return rf(ctx, mediaType, configJSON)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64, io.Reader, hooks.Hooks) (v1.Descriptor, error)); ok {
+		return rf(ctx, mediaType, digest, size, reader, _a5)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []byte) v1.Descriptor); ok {
-		r0 = rf(ctx, mediaType, configJSON)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64, io.Reader, hooks.Hooks) v1.Descriptor); ok {
+		r0 = rf(ctx, mediaType, digest, size, reader, _a5)
 	} else {
 		r0 = ret.Get(0).(v1.Descriptor)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, []byte) error); ok {
-		r1 = rf(ctx, mediaType, configJSON)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, int64, io.Reader, hooks.Hooks) error); ok {
+		r1 = rf(ctx, mediaType, digest, size, reader, _a5)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -76,14 +78,17 @@ type OutputStrategy_OutputConfig_Call struct {
 // OutputConfig is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mediaType string
-//   - configJSON []byte
-func (_e *OutputStrategy_Expecter) OutputConfig(ctx interface{}, mediaType interface{}, configJSON interface{}) *OutputStrategy_OutputConfig_Call {
-	return &OutputStrategy_OutputConfig_Call{Call: _e.mock.On("OutputConfig", ctx, mediaType, configJSON)}
+//   - digest string
+//   - size int64
+//   - reader io.Reader
+//   - _a5 hooks.Hooks
+func (_e *OutputStrategy_Expecter) OutputConfig(ctx interface{}, mediaType interface{}, digest interface{}, size interface{}, reader interface{}, _a5 interface{}) *OutputStrategy_OutputConfig_Call {
+	return &OutputStrategy_OutputConfig_Call{Call: _e.mock.On("OutputConfig", ctx, mediaType, digest, size, reader, _a5)}
 }
 
-func (_c *OutputStrategy_OutputConfig_Call) Run(run func(ctx context.Context, mediaType string, configJSON []byte)) *OutputStrategy_OutputConfig_Call {
+func (_c *OutputStrategy_OutputConfig_Call) Run(run func(ctx context.Context, mediaType string, digest string, size int64, reader io.Reader, _a5 hooks.Hooks)) *OutputStrategy_OutputConfig_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].([]byte))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(int64), args[4].(io.Reader), args[5].(hooks.Hooks))
 	})
 	return _c
 }
@@ -93,14 +98,14 @@ func (_c *OutputStrategy_OutputConfig_Call) Return(_a0 v1.Descriptor, _a1 error)
 	return _c
 }
 
-func (_c *OutputStrategy_OutputConfig_Call) RunAndReturn(run func(context.Context, string, []byte) (v1.Descriptor, error)) *OutputStrategy_OutputConfig_Call {
+func (_c *OutputStrategy_OutputConfig_Call) RunAndReturn(run func(context.Context, string, string, int64, io.Reader, hooks.Hooks) (v1.Descriptor, error)) *OutputStrategy_OutputConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// OutputLayer provides a mock function with given fields: ctx, mediaType, workDir, relPath, reader
-func (_m *OutputStrategy) OutputLayer(ctx context.Context, mediaType string, workDir string, relPath string, reader io.Reader) (v1.Descriptor, error) {
-	ret := _m.Called(ctx, mediaType, workDir, relPath, reader)
+// OutputLayer provides a mock function with given fields: ctx, mediaType, workDir, relPath, size, reader, _a6
+func (_m *OutputStrategy) OutputLayer(ctx context.Context, mediaType string, workDir string, relPath string, size int64, reader io.Reader, _a6 hooks.Hooks) (v1.Descriptor, error) {
+	ret := _m.Called(ctx, mediaType, workDir, relPath, size, reader, _a6)
 
 	if len(ret) == 0 {
 		panic("no return value specified for OutputLayer")
@@ -108,17 +113,17 @@ func (_m *OutputStrategy) OutputLayer(ctx context.Context, mediaType string, wor
 
 	var r0 v1.Descriptor
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, io.Reader) (v1.Descriptor, error)); ok {
-		return rf(ctx, mediaType, workDir, relPath, reader)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, int64, io.Reader, hooks.Hooks) (v1.Descriptor, error)); ok {
+		return rf(ctx, mediaType, workDir, relPath, size, reader, _a6)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, io.Reader) v1.Descriptor); ok {
-		r0 = rf(ctx, mediaType, workDir, relPath, reader)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, int64, io.Reader, hooks.Hooks) v1.Descriptor); ok {
+		r0 = rf(ctx, mediaType, workDir, relPath, size, reader, _a6)
 	} else {
 		r0 = ret.Get(0).(v1.Descriptor)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, io.Reader) error); ok {
-		r1 = rf(ctx, mediaType, workDir, relPath, reader)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, int64, io.Reader, hooks.Hooks) error); ok {
+		r1 = rf(ctx, mediaType, workDir, relPath, size, reader, _a6)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -136,14 +141,16 @@ type OutputStrategy_OutputLayer_Call struct {
 //   - mediaType string
 //   - workDir string
 //   - relPath string
+//   - size int64
 //   - reader io.Reader
-func (_e *OutputStrategy_Expecter) OutputLayer(ctx interface{}, mediaType interface{}, workDir interface{}, relPath interface{}, reader interface{}) *OutputStrategy_OutputLayer_Call {
-	return &OutputStrategy_OutputLayer_Call{Call: _e.mock.On("OutputLayer", ctx, mediaType, workDir, relPath, reader)}
+//   - _a6 hooks.Hooks
+func (_e *OutputStrategy_Expecter) OutputLayer(ctx interface{}, mediaType interface{}, workDir interface{}, relPath interface{}, size interface{}, reader interface{}, _a6 interface{}) *OutputStrategy_OutputLayer_Call {
+	return &OutputStrategy_OutputLayer_Call{Call: _e.mock.On("OutputLayer", ctx, mediaType, workDir, relPath, size, reader, _a6)}
 }
 
-func (_c *OutputStrategy_OutputLayer_Call) Run(run func(ctx context.Context, mediaType string, workDir string, relPath string, reader io.Reader)) *OutputStrategy_OutputLayer_Call {
+func (_c *OutputStrategy_OutputLayer_Call) Run(run func(ctx context.Context, mediaType string, workDir string, relPath string, size int64, reader io.Reader, _a6 hooks.Hooks)) *OutputStrategy_OutputLayer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(io.Reader))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(int64), args[5].(io.Reader), args[6].(hooks.Hooks))
 	})
 	return _c
 }
@@ -153,14 +160,14 @@ func (_c *OutputStrategy_OutputLayer_Call) Return(_a0 v1.Descriptor, _a1 error) 
 	return _c
 }
 
-func (_c *OutputStrategy_OutputLayer_Call) RunAndReturn(run func(context.Context, string, string, string, io.Reader) (v1.Descriptor, error)) *OutputStrategy_OutputLayer_Call {
+func (_c *OutputStrategy_OutputLayer_Call) RunAndReturn(run func(context.Context, string, string, string, int64, io.Reader, hooks.Hooks) (v1.Descriptor, error)) *OutputStrategy_OutputLayer_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// OutputManifest provides a mock function with given fields: ctx, mediaType, manifestJSON
-func (_m *OutputStrategy) OutputManifest(ctx context.Context, mediaType string, manifestJSON []byte) (v1.Descriptor, error) {
-	ret := _m.Called(ctx, mediaType, manifestJSON)
+// OutputManifest provides a mock function with given fields: ctx, mediaType, digest, size, reader, _a5
+func (_m *OutputStrategy) OutputManifest(ctx context.Context, mediaType string, digest string, size int64, reader io.Reader, _a5 hooks.Hooks) (v1.Descriptor, error) {
+	ret := _m.Called(ctx, mediaType, digest, size, reader, _a5)
 
 	if len(ret) == 0 {
 		panic("no return value specified for OutputManifest")
@@ -168,17 +175,17 @@ func (_m *OutputStrategy) OutputManifest(ctx context.Context, mediaType string, 
 
 	var r0 v1.Descriptor
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []byte) (v1.Descriptor, error)); ok {
-		return rf(ctx, mediaType, manifestJSON)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64, io.Reader, hooks.Hooks) (v1.Descriptor, error)); ok {
+		return rf(ctx, mediaType, digest, size, reader, _a5)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []byte) v1.Descriptor); ok {
-		r0 = rf(ctx, mediaType, manifestJSON)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64, io.Reader, hooks.Hooks) v1.Descriptor); ok {
+		r0 = rf(ctx, mediaType, digest, size, reader, _a5)
 	} else {
 		r0 = ret.Get(0).(v1.Descriptor)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, []byte) error); ok {
-		r1 = rf(ctx, mediaType, manifestJSON)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, int64, io.Reader, hooks.Hooks) error); ok {
+		r1 = rf(ctx, mediaType, digest, size, reader, _a5)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -194,14 +201,17 @@ type OutputStrategy_OutputManifest_Call struct {
 // OutputManifest is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mediaType string
-//   - manifestJSON []byte
-func (_e *OutputStrategy_Expecter) OutputManifest(ctx interface{}, mediaType interface{}, manifestJSON interface{}) *OutputStrategy_OutputManifest_Call {
-	return &OutputStrategy_OutputManifest_Call{Call: _e.mock.On("OutputManifest", ctx, mediaType, manifestJSON)}
+//   - digest string
+//   - size int64
+//   - reader io.Reader
+//   - _a5 hooks.Hooks
+func (_e *OutputStrategy_Expecter) OutputManifest(ctx interface{}, mediaType interface{}, digest interface{}, size interface{}, reader interface{}, _a5 interface{}) *OutputStrategy_OutputManifest_Call {
+	return &OutputStrategy_OutputManifest_Call{Call: _e.mock.On("OutputManifest", ctx, mediaType, digest, size, reader, _a5)}
 }
 
-func (_c *OutputStrategy_OutputManifest_Call) Run(run func(ctx context.Context, mediaType string, manifestJSON []byte)) *OutputStrategy_OutputManifest_Call {
+func (_c *OutputStrategy_OutputManifest_Call) Run(run func(ctx context.Context, mediaType string, digest string, size int64, reader io.Reader, _a5 hooks.Hooks)) *OutputStrategy_OutputManifest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].([]byte))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(int64), args[4].(io.Reader), args[5].(hooks.Hooks))
 	})
 	return _c
 }
@@ -211,7 +221,7 @@ func (_c *OutputStrategy_OutputManifest_Call) Return(_a0 v1.Descriptor, _a1 erro
 	return _c
 }
 
-func (_c *OutputStrategy_OutputManifest_Call) RunAndReturn(run func(context.Context, string, []byte) (v1.Descriptor, error)) *OutputStrategy_OutputManifest_Call {
+func (_c *OutputStrategy_OutputManifest_Call) RunAndReturn(run func(context.Context, string, string, int64, io.Reader, hooks.Hooks) (v1.Descriptor, error)) *OutputStrategy_OutputManifest_Call {
 	_c.Call.Return(run)
 	return _c
 }

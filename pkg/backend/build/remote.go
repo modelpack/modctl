@@ -17,7 +17,6 @@
 package build
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -26,6 +25,7 @@ import (
 	"path/filepath"
 
 	"github.com/CloudNativeAI/modctl/pkg/archiver"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	sha256 "github.com/minio/sha256-simd"
@@ -80,7 +80,7 @@ type remoteOutput struct {
 }
 
 // OutputLayer outputs the layer blob to the remote storage.
-func (ro *remoteOutput) OutputLayer(ctx context.Context, mediaType, workDir, relPath string, reader io.Reader) (ocispec.Descriptor, error) {
+func (ro *remoteOutput) OutputLayer(ctx context.Context, mediaType, workDir, relPath string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	hash := sha256.New()
 	size, err := io.Copy(hash, reader)
 	if err != nil {
@@ -101,71 +101,87 @@ func (ro *remoteOutput) OutputLayer(ctx context.Context, mediaType, workDir, rel
 		return ocispec.Descriptor{}, fmt.Errorf("failed to create tar archive: %w", err)
 	}
 
+	reader = hooks.OnStart(relPath, size, reader)
 	exist, err := ro.remote.Blobs().Exists(ctx, desc)
 	if err != nil {
+		hooks.OnError(relPath, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to check if blob exists: %w", err)
 	}
 
 	if exist {
+		hooks.OnComplete(relPath, desc)
 		return desc, nil
 	}
 
 	if err = ro.remote.Blobs().Push(ctx, desc, reader); err != nil {
+		hooks.OnError(relPath, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to push layer to storage: %w", err)
 	}
 
+	hooks.OnComplete(relPath, desc)
 	return desc, nil
 }
 
 // OutputConfig outputs the config blob to the remote storage.
-func (ro *remoteOutput) OutputConfig(ctx context.Context, mediaType string, configJSON []byte) (ocispec.Descriptor, error) {
+func (ro *remoteOutput) OutputConfig(ctx context.Context, mediaType, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	desc := ocispec.Descriptor{
 		MediaType: mediaType,
-		Digest:    godigest.Digest(fmt.Sprintf("sha256:%x", sha256.Sum256(configJSON))),
-		Size:      int64(len(configJSON)),
+		Digest:    godigest.Digest(digest),
+		Size:      size,
 	}
 
+	reader = hooks.OnStart(digest, size, reader)
 	exist, err := ro.remote.Blobs().Exists(ctx, desc)
 	if err != nil {
+		hooks.OnError(digest, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to check if blob exists: %w", err)
 	}
 
 	if exist {
+		hooks.OnComplete(digest, desc)
 		return desc, nil
 	}
 
-	if err = ro.remote.Blobs().Push(ctx, desc, bytes.NewReader(configJSON)); err != nil {
+	if err = ro.remote.Blobs().Push(ctx, desc, reader); err != nil {
+		hooks.OnError(digest, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to push config to storage: %w", err)
 	}
 
+	hooks.OnComplete(digest, desc)
 	return desc, nil
 }
 
 // OutputManifest outputs the manifest blob to the remote storage.
-func (ro *remoteOutput) OutputManifest(ctx context.Context, mediaType string, manifestJSON []byte) (ocispec.Descriptor, error) {
+func (ro *remoteOutput) OutputManifest(ctx context.Context, mediaType, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	desc := ocispec.Descriptor{
 		MediaType: mediaType,
-		Digest:    godigest.Digest(fmt.Sprintf("sha256:%x", sha256.Sum256(manifestJSON))),
-		Size:      int64(len(manifestJSON)),
+		Digest:    godigest.Digest(digest),
+		Size:      size,
 	}
 
+	reader = hooks.OnStart(digest, size, reader)
 	exist, err := ro.remote.Manifests().Exists(ctx, desc)
 	if err != nil {
+		hooks.OnError(digest, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to check if blob exists: %w", err)
 	}
 
 	if exist {
+		hooks.OnComplete(digest, desc)
 		return desc, nil
 	}
 
-	if err = ro.remote.Manifests().Push(ctx, desc, bytes.NewReader(manifestJSON)); err != nil {
+	if err = ro.remote.Manifests().Push(ctx, desc, reader); err != nil {
+		hooks.OnError(digest, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to push manifest to storage: %w", err)
 	}
 
 	// Tag the manifest.
 	if err = ro.remote.Tag(ctx, desc, ro.tag); err != nil {
+		hooks.OnError(digest, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to tag manifest: %w", err)
 	}
 
+	hooks.OnComplete(digest, desc)
 	return desc, nil
 }

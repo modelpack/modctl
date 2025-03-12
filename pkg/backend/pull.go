@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/url"
 
+	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/archiver"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
@@ -98,8 +99,9 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	// create the progress bar to track the progress of push.
-	pb := NewProgressBar()
-	defer pb.Wait()
+	pb := internalpb.NewProgressBar()
+	pb.Start()
+	defer pb.Stop()
 
 	// copy the image to the destination, there are three steps:
 	// 1. copy the layers.
@@ -115,11 +117,11 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	var fn func(desc ocispec.Descriptor) error
 	if cfg.ExtractFromRemote {
 		fn = func(desc ocispec.Descriptor) error {
-			return pullAndExtractFromRemote(ctx, pb, promptCopyingBlob, src, cfg.ExtractDir, desc)
+			return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, cfg.ExtractDir, desc)
 		}
 	} else {
 		fn = func(desc ocispec.Descriptor) error {
-			return pullIfNotExist(ctx, pb, promptCopyingBlob, src, dst, desc, repo, tag)
+			return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, dst, desc, repo, tag)
 		}
 	}
 
@@ -138,12 +140,12 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	// copy the config.
-	if err := pullIfNotExist(ctx, pb, promptCopyingConfig, src, dst, manifest.Config, repo, tag); err != nil {
+	if err := pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling config"), src, dst, manifest.Config, repo, tag); err != nil {
 		return fmt.Errorf("failed to pull config to local: %w", err)
 	}
 
 	// copy the manifest.
-	if err := pullIfNotExist(ctx, pb, promptCopyingManifest, src, dst, manifestDesc, repo, tag); err != nil {
+	if err := pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling manifest"), src, dst, manifestDesc, repo, tag); err != nil {
 		return fmt.Errorf("failed to pull manifest to local: %w", err)
 	}
 
@@ -158,36 +160,56 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 }
 
 // pullIfNotExist copies the content from the src storage to the dst storage if the content does not exist.
-func pullIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src *remote.Repository, dst storage.Storage, desc ocispec.Descriptor, repo, tag string) error {
-	// check whether the content exists in the destination storage.
-	exist, _ := dst.StatBlob(ctx, repo, desc.Digest.String())
-	if exist {
-		pb.PrintMessage(prompt, desc, "skipped: already exists")
-		return nil
-	}
-
+func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src *remote.Repository, dst storage.Storage, desc ocispec.Descriptor, repo, tag string) error {
 	// fetch the content from the source storage.
 	content, err := src.Fetch(ctx, desc)
 	if err != nil {
-		return fmt.Errorf("failed to fetch the content from source: %w", err)
+		return err
 	}
 
 	defer content.Close()
+
+	reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
+
 	// push the content to the destination, and wrap the content reader for progress bar,
 	// manifest should use dst.Manifests().Push, others should use dst.Blobs().Push.
 	if desc.MediaType == ocispec.MediaTypeImageManifest {
-		body, err := io.ReadAll(pb.Add(prompt, desc, content))
+		// check whether the content exists in the destination storage.
+		exist, err := dst.StatManifest(ctx, repo, desc.Digest.String())
 		if err != nil {
-			pb.Abort(desc)
-			return fmt.Errorf("failed to read the manifest: %w", err)
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to check manifest %s, err: %v", desc.Digest.String(), err))
+			return err
+		}
+
+		if exist {
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
+			return nil
+		}
+
+		body, err := io.ReadAll(reader)
+		if err != nil {
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to read manifest %s, err: %v", desc.Digest.String(), err))
+			return err
 		}
 
 		if _, err := dst.PushManifest(ctx, repo, tag, body); err != nil {
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to store manifest %s, err: %v", desc.Digest.String(), err))
 			return err
 		}
 	} else {
-		if _, _, err := dst.PushBlob(ctx, repo, pb.Add(prompt, desc, content), desc); err != nil {
-			pb.Abort(desc)
+		exist, err := dst.StatBlob(ctx, repo, desc.Digest.String())
+		if err != nil {
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to check blob %s, err: %v", desc.Digest.String(), err))
+			return err
+		}
+
+		if exist {
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
+			return nil
+		}
+
+		if _, _, err := dst.PushBlob(ctx, repo, reader, desc); err != nil {
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to store blob %s, err: %v", desc.Digest.String(), err))
 			return err
 		}
 	}
@@ -197,7 +219,7 @@ func pullIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src *re
 
 // pullAndExtractFromRemote pulls the layer and extract it to the target output path directly,
 // and will not store the layer to the local storage.
-func pullAndExtractFromRemote(ctx context.Context, pb *ProgressBar, prompt string, src *remote.Repository, output string, desc ocispec.Descriptor) error {
+func pullAndExtractFromRemote(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src *remote.Repository, output string, desc ocispec.Descriptor) error {
 	// fetch the content from the source storage.
 	content, err := src.Fetch(ctx, desc)
 	if err != nil {
@@ -206,9 +228,10 @@ func pullAndExtractFromRemote(ctx context.Context, pb *ProgressBar, prompt strin
 
 	defer content.Close()
 
-	if err := archiver.Untar(pb.Add(prompt, desc, content), output); err != nil {
-		pb.Abort(desc)
-		return fmt.Errorf("failed to untar the layer: %w", err)
+	reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
+	if err := archiver.Untar(reader, output); err != nil {
+		pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to pull and extract blob %s from remote, err: %v", desc.Digest.String(), err))
+		return fmt.Errorf("failed to untar the blob %s: %w", desc.Digest.String(), err)
 	}
 
 	return nil
