@@ -19,14 +19,17 @@ package backend
 import (
 	"context"
 	"fmt"
+	"io"
 
+	"github.com/CloudNativeAI/modctl/internal/pb"
+	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
-	humanize "github.com/dustin/go-humanize"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -63,29 +66,49 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		return fmt.Errorf("failed to create builder: %w", err)
 	}
 
+	pb := internalpb.NewProgressBar()
+	pb.Start()
+	defer pb.Stop()
+
 	layers := []ocispec.Descriptor{}
-	layerDescs, err := b.process(ctx, builder, workDir, cfg, b.getProcessors(modelfile)...)
+	layerDescs, err := b.process(ctx, builder, workDir, pb, cfg, b.getProcessors(modelfile)...)
 	if err != nil {
 		return fmt.Errorf("failed to process files: %w", err)
 	}
 
 	layers = append(layers, layerDescs...)
-
 	// build the image config.
-	configDesc, err := builder.BuildConfig(ctx)
+	configDesc, err := builder.BuildConfig(ctx, hooks.NewHooks(
+		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
+			return pb.Add(internalpb.NormalizePrompt("Building config"), name, size, reader)
+		}),
+		hooks.WithOnError(func(name string, err error) {
+			pb.Complete(name, fmt.Sprintf("Failed to build config: %v", err))
+		}),
+		hooks.WithOnComplete(func(name string, desc ocispec.Descriptor) {
+			pb.Complete(name, fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Built config"), desc.Digest))
+		}),
+	))
 	if err != nil {
 		return fmt.Errorf("failed to build image config: %w", err)
 	}
 
-	fmt.Printf("%s => %s (%s)\n", "Built config", configDesc.Digest, humanize.IBytes(uint64(configDesc.Size)))
-
 	// build the image manifest.
-	manifestDesc, err := builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation())
+	_, err = builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation(), hooks.NewHooks(
+		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
+			return pb.Add(internalpb.NormalizePrompt("Building manifest"), name, size, reader)
+		}),
+		hooks.WithOnError(func(name string, err error) {
+			pb.Complete(name, fmt.Sprintf("Failed to build manifest: %v", err))
+		}),
+		hooks.WithOnComplete(func(name string, desc ocispec.Descriptor) {
+			pb.Complete(name, fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Built manifest"), desc.Digest))
+		}),
+	))
 	if err != nil {
 		return fmt.Errorf("failed to build image manifest: %w", err)
 	}
 
-	fmt.Printf("%s => %s (%s)\n", "Built manifest", manifestDesc.Digest, humanize.IBytes(uint64(manifestDesc.Size)))
 	return nil
 }
 
@@ -112,10 +135,10 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile) []processor.Proce
 }
 
 // process walks the user work directory and process the identified files.
-func (b *backend) process(ctx context.Context, builder build.Builder, workDir string, cfg *config.Build, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
+func (b *backend) process(ctx context.Context, builder build.Builder, workDir string, pb *pb.ProgressBar, cfg *config.Build, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
 	descriptors := []ocispec.Descriptor{}
 	for _, p := range processors {
-		descs, err := p.Process(ctx, builder, workDir, processor.WithConcurrency(cfg.Concurrency))
+		descs, err := p.Process(ctx, builder, workDir, processor.WithConcurrency(cfg.Concurrency), processor.WithProgressTracker(pb))
 		if err != nil {
 			return nil, err
 		}

@@ -16,15 +16,25 @@
 
 package processor
 
-type Option func(*options)
+import "github.com/CloudNativeAI/modctl/internal/pb"
 
-type options struct {
+type ProcessOption func(*processOptions)
+
+type processOptions struct {
 	// concurrency is the number of concurrent workers to use for processing.
 	concurrency int
+	// progressTracker is the progress bar to use for tracking progress.
+	progressTracker *pb.ProgressBar
 }
 
-func WithConcurrency(concurrency int) Option {
-	return func(o *options) {
+func WithConcurrency(concurrency int) ProcessOption {
+	return func(o *processOptions) {
 		o.concurrency = concurrency
+	}
+}
+
+func WithProgressTracker(tracker *pb.ProgressBar) ProcessOption {
+	return func(o *processOptions) {
+		o.progressTracker = tracker
 	}
 }
