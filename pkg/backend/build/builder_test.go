@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 	buildmock "github.com/CloudNativeAI/modctl/test/mocks/backend/build"
 	modelfilemock "github.com/CloudNativeAI/modctl/test/mocks/modelfile"
 	storagemock "github.com/CloudNativeAI/modctl/test/mocks/storage"
@@ -119,21 +120,21 @@ func (s *BuilderTestSuite) TestBuildLayer() {
 			Size:      100,
 		}
 
-		s.mockOutputStrategy.On("OutputLayer", mock.Anything, "test/media-type", s.tempDir, "test-file.txt", mock.AnythingOfType("*io.PipeReader")).
+		s.mockOutputStrategy.On("OutputLayer", mock.Anything, "test/media-type", s.tempDir, "test-file.txt", mock.AnythingOfType("int64"), mock.AnythingOfType("*io.PipeReader"), mock.Anything).
 			Return(expectedDesc, nil)
 
-		desc, err := s.builder.BuildLayer(context.Background(), "test/media-type", s.tempDir, s.tempFile)
+		desc, err := s.builder.BuildLayer(context.Background(), "test/media-type", s.tempDir, s.tempFile, hooks.NewHooks())
 		s.NoError(err)
 		s.Equal(expectedDesc, desc)
 	})
 
 	s.Run("file not found", func() {
-		_, err := s.builder.BuildLayer(context.Background(), "test/media-type", s.tempDir, filepath.Join(s.tempDir, "non-existent.txt"))
+		_, err := s.builder.BuildLayer(context.Background(), "test/media-type", s.tempDir, filepath.Join(s.tempDir, "non-existent.txt"), hooks.NewHooks())
 		s.Error(err)
 	})
 
 	s.Run("directory not supported", func() {
-		_, err := s.builder.BuildLayer(context.Background(), "test/media-type", s.tempDir, s.tempDir)
+		_, err := s.builder.BuildLayer(context.Background(), "test/media-type", s.tempDir, s.tempDir, hooks.NewHooks())
 		s.Error(err)
 		s.True(strings.Contains(err.Error(), "is a directory and not supported yet"))
 	})
@@ -155,10 +156,10 @@ func (s *BuilderTestSuite) TestBuildConfig() {
 		s.mockModelfile.On("GetFamily").Return("llama")
 		s.mockModelfile.On("GetName").Return("llama-2")
 
-		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.AnythingOfType("[]uint8")).
+		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(expectedDesc, nil).Once()
 
-		desc, err := s.builder.BuildConfig(context.Background())
+		desc, err := s.builder.BuildConfig(context.Background(), hooks.NewHooks())
 		s.NoError(err)
 		s.Equal(expectedDesc, desc)
 
@@ -175,10 +176,10 @@ func (s *BuilderTestSuite) TestBuildConfig() {
 		s.mockModelfile.On("GetFamily").Return("llama")
 		s.mockModelfile.On("GetName").Return("llama-2")
 
-		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.AnythingOfType("[]uint8")).
+		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(ocispec.Descriptor{}, errors.New("output error")).Once()
 
-		_, err := s.builder.BuildConfig(context.Background())
+		_, err := s.builder.BuildConfig(context.Background(), hooks.NewHooks())
 		s.Error(err)
 		s.True(strings.Contains(err.Error(), "output error"))
 	})
@@ -206,10 +207,10 @@ func (s *BuilderTestSuite) TestBuildManifest() {
 			Size:      200,
 		}
 
-		s.mockOutputStrategy.On("OutputManifest", mock.Anything, ocispec.MediaTypeImageManifest, mock.AnythingOfType("[]uint8")).
+		s.mockOutputStrategy.On("OutputManifest", mock.Anything, ocispec.MediaTypeImageManifest, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(expectedDesc, nil).Once()
 
-		desc, err := s.builder.BuildManifest(context.Background(), layers, config, annotations)
+		desc, err := s.builder.BuildManifest(context.Background(), layers, config, annotations, hooks.NewHooks())
 		s.NoError(err)
 		s.Equal(expectedDesc, desc)
 	})
@@ -219,10 +220,10 @@ func (s *BuilderTestSuite) TestBuildManifest() {
 		config := ocispec.Descriptor{}
 		annotations := map[string]string{}
 
-		s.mockOutputStrategy.On("OutputManifest", mock.Anything, ocispec.MediaTypeImageManifest, mock.AnythingOfType("[]uint8")).
+		s.mockOutputStrategy.On("OutputManifest", mock.Anything, ocispec.MediaTypeImageManifest, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(ocispec.Descriptor{}, errors.New("manifest error")).Once()
 
-		_, err := s.builder.BuildManifest(context.Background(), layers, config, annotations)
+		_, err := s.builder.BuildManifest(context.Background(), layers, config, annotations, hooks.NewHooks())
 		s.Error(err)
 		s.True(strings.Contains(err.Error(), "manifest error"))
 	})

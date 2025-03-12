@@ -50,6 +50,6 @@ func (p *codeProcessor) Name() string {
 	return codeProcessorName
 }
 
-func (p *codeProcessor) Process(ctx context.Context, builder build.Builder, workDir string, opts ...Option) ([]ocispec.Descriptor, error) {
+func (p *codeProcessor) Process(ctx context.Context, builder build.Builder, workDir string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
 	return p.base.Process(ctx, builder, workDir, opts...)
 }

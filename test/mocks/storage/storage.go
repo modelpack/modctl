@@ -612,6 +612,64 @@ func (_c *Storage_StatBlob_Call) RunAndReturn(run func(context.Context, string, 
 	return _c
 }
 
+// StatManifest provides a mock function with given fields: ctx, repo, digest
+func (_m *Storage) StatManifest(ctx context.Context, repo string, digest string) (bool, error) {
+	ret := _m.Called(ctx, repo, digest)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StatManifest")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (bool, error)); ok {
+		return rf(ctx, repo, digest)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
+		r0 = rf(ctx, repo, digest)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, repo, digest)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Storage_StatManifest_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StatManifest'
+type Storage_StatManifest_Call struct {
+	*mock.Call
+}
+
+// StatManifest is a helper method to define mock.On call
+//   - ctx context.Context
+//   - repo string
+//   - digest string
+func (_e *Storage_Expecter) StatManifest(ctx interface{}, repo interface{}, digest interface{}) *Storage_StatManifest_Call {
+	return &Storage_StatManifest_Call{Call: _e.mock.On("StatManifest", ctx, repo, digest)}
+}
+
+func (_c *Storage_StatManifest_Call) Run(run func(ctx context.Context, repo string, digest string)) *Storage_StatManifest_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *Storage_StatManifest_Call) Return(_a0 bool, _a1 error) *Storage_StatManifest_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Storage_StatManifest_Call) RunAndReturn(run func(context.Context, string, string) (bool, error)) *Storage_StatManifest_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewStorage creates a new instance of Storage. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewStorage(t interface {

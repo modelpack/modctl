@@ -24,10 +24,10 @@ import (
 
 	buildmock "github.com/CloudNativeAI/modctl/test/mocks/backend/build"
 	"github.com/CloudNativeAI/modctl/test/mocks/storage"
-	godigest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	godigest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -58,7 +58,7 @@ func (s *docProcessorSuite) TestName() {
 
 func (s *docProcessorSuite) TestProcess() {
 	ctx := context.Background()
-	s.mockBuilder.On("BuildLayer", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ocispec.Descriptor{
+	s.mockBuilder.On("BuildLayer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ocispec.Descriptor{
 		Digest: godigest.Digest("sha256:1234567890abcdef"),
 		Size:   int64(1024),
 		Annotations: map[string]string{

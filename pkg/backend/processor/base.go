@@ -19,17 +19,17 @@ package processor
 import (
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"sort"
 	"sync"
-	"sync/atomic"
 
+	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
-	"github.com/chelnak/ysmrr"
-	humanize "github.com/dustin/go-humanize"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 )
@@ -46,10 +46,10 @@ type base struct {
 }
 
 // Process implements the Processor interface, which can be reused by other processors.
-func (b *base) Process(ctx context.Context, builder build.Builder, workDir string, opts ...Option) ([]ocispec.Descriptor, error) {
-	baseOpts := &options{}
+func (b *base) Process(ctx context.Context, builder build.Builder, workDir string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
+	processOpts := &processOptions{}
 	for _, opt := range opts {
-		opt(baseOpts)
+		opt(processOpts)
 	}
 
 	absWorkDir, err := filepath.Abs(workDir)
@@ -70,16 +70,10 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 	sort.Strings(matchedPaths)
 
 	var (
-		idx         atomic.Int64
 		mu          sync.Mutex
 		eg          *errgroup.Group
 		descriptors []ocispec.Descriptor
 	)
-
-	total := int64(len(matchedPaths))
-	sm := ysmrr.NewSpinnerManager()
-	sm.Start()
-	defer sm.Stop()
 
 	// Initialize errgroup with a context can be canceled.
 	ctx, cancel := context.WithCancel(ctx)
@@ -87,10 +81,18 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 	eg, ctx = errgroup.WithContext(ctx)
 
 	// Set default concurrency limit to 1 if not specified.
-	if baseOpts.concurrency > 0 {
-		eg.SetLimit(baseOpts.concurrency)
+	if processOpts.concurrency > 0 {
+		eg.SetLimit(processOpts.concurrency)
 	} else {
 		eg.SetLimit(1)
+	}
+
+	// Initialize progress tracker if not provided.
+	tracker := processOpts.progressTracker
+	if tracker == nil {
+		tracker = internalpb.NewProgressBar()
+		tracker.Start()
+		defer tracker.Stop()
 	}
 
 	for _, path := range matchedPaths {
@@ -99,23 +101,21 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		}
 
 		eg.Go(func() error {
-			relPath, err := filepath.Rel(absWorkDir, path)
+			desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, hooks.NewHooks(
+				hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
+					return tracker.Add(internalpb.NormalizePrompt("Building layer"), name, size, reader)
+				}),
+				hooks.WithOnError(func(name string, err error) {
+					tracker.Complete(name, fmt.Sprintf("Failed to build layer: %v", err))
+				}),
+				hooks.WithOnComplete(func(name string, desc ocispec.Descriptor) {
+					tracker.Complete(name, fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Built layer"), desc.Digest))
+				}),
+			))
 			if err != nil {
 				cancel()
 				return err
 			}
-
-			blobMsg := fmt.Sprintf("blob [%s %d/%d]", b.name, idx.Add(1), total)
-			sp := sm.AddSpinner(fmt.Sprintf("Building %s => %s", blobMsg, relPath))
-
-			desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path)
-			if err != nil {
-				sp.ErrorWithMessagef("Failed to build blob %s: %v", relPath, err)
-				cancel()
-				return err
-			}
-
-			sp.CompleteWithMessagef("%s => %s (%s)", fmt.Sprintf("Built %s", blobMsg), desc.Digest, humanize.IBytes(uint64(desc.Size)))
 
 			mu.Lock()
 			descriptors = append(descriptors, desc)

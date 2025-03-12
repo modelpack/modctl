@@ -21,8 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 
+	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
@@ -80,8 +80,9 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	}
 
 	// create the progress bar to track the progress of push.
-	pb := NewProgressBar()
-	defer pb.Wait()
+	pb := internalpb.NewProgressBar()
+	pb.Start()
+	defer pb.Stop()
 
 	// copy the image to the destination, there are three steps:
 	// 1. copy the layers.
@@ -93,7 +94,9 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	g := &errgroup.Group{}
 	g.SetLimit(cfg.Concurrency)
 	for _, layer := range manifest.Layers {
-		g.Go(func() error { return pushIfNotExist(ctx, pb, promptCopyingBlob, src, dst, layer, repo, tag) })
+		g.Go(func() error {
+			return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag)
+		})
 	}
 
 	if err := g.Wait(); err != nil {
@@ -101,15 +104,16 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	}
 
 	// copy the config.
-	if err := pushIfNotExist(ctx, pb, promptCopyingConfig, src, dst, manifest.Config, repo, tag); err != nil {
+	if err := pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag); err != nil {
 		return fmt.Errorf("failed to push config to remote: %w", err)
 	}
 
 	// copy the manifest.
-	if err := pushIfNotExist(ctx, pb, promptCopyingManifest, src, dst, ocispec.Descriptor{
+	if err := pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, ocispec.Descriptor{
 		MediaType: manifest.MediaType,
 		Size:      int64(len(manifestRaw)),
 		Digest:    godigest.FromBytes(manifestRaw),
+		Data:      manifestRaw,
 	}, repo, tag); err != nil {
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
@@ -118,61 +122,55 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 }
 
 // pushIfNotExist copies the content from the src storage to the dst storage if the content does not exist.
-func pushIfNotExist(ctx context.Context, pb *ProgressBar, prompt string, src storage.Storage, dst *remote.Repository, desc ocispec.Descriptor, repo, tag string) error {
+func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src storage.Storage, dst *remote.Repository, desc ocispec.Descriptor, repo, tag string) error {
 	// check whether the content exists in the destination storage.
 	exist, err := dst.Exists(ctx, desc)
 	if err != nil {
-		return fmt.Errorf("failed to check existence to remote: %w", err)
+		return err
 	}
 
 	if exist {
+		pb.Add(prompt, desc.Digest.String(), desc.Size, bytes.NewReader([]byte{}))
 		// if the descriptor is the manifest, should check the tag existence as well.
 		if desc.MediaType == ocispec.MediaTypeImageManifest {
 			_, _, err := dst.FetchReference(ctx, tag)
 			if err != nil {
 				// try to push the tag if error occurred when fetch reference.
 				if err := dst.Tag(ctx, desc, tag); err != nil {
-					pb.Abort(desc)
-					return fmt.Errorf("failed to push tag to remote: %w", err)
+					pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to push tag %s, err: %v", tag, err))
+					return err
 				}
 			}
 		}
 
-		pb.PrintMessage(prompt, desc, "skipped: already exists")
+		pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
 		return nil
 	}
 
 	// push the content to the destination, and wrap the content reader for progress bar,
 	// manifest should use dst.Manifests().Push, others should use dst.Blobs().Push.
 	if desc.MediaType == ocispec.MediaTypeImageManifest {
-		// fetch the manifest from the source storage.
-		manifestRaw, _, err := src.PullManifest(ctx, repo, tag)
-		if err != nil {
-			return fmt.Errorf("failed to fetch the manifest from source: %w", err)
-		}
-
-		if err := dst.Manifests().Push(ctx, desc, pb.Add(prompt, desc, bytes.NewReader(manifestRaw))); err != nil {
-			pb.Abort(desc)
+		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, bytes.NewReader(desc.Data))
+		if err := dst.Manifests().Push(ctx, desc, reader); err != nil {
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to push manifest %s, err: %v", desc.Digest.String(), err))
 			return err
 		}
 
 		// push tag
 		if err := dst.Tag(ctx, desc, tag); err != nil {
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to push tag %s, err: %v", tag, err))
 			return err
 		}
 	} else {
 		// fetch the content from the source storage.
 		content, err := src.PullBlob(ctx, repo, desc.Digest.String())
 		if err != nil {
-			return fmt.Errorf("failed to fetch the content from source: %w", err)
+			return err
 		}
 
-		// resolve issue: https://github.com/CloudNativeAI/modctl/issues/50
-		// wrap the content to the NopCloser, because the implementation of the distribution will
-		// always return the error when Close() is called.
-		// refer: https://github.com/distribution/distribution/blob/63d3892315c817c931b88779399a8e9142899a8e/registry/storage/filereader.go#L105
-		if err := dst.Blobs().Push(ctx, desc, pb.Add(prompt, desc, io.NopCloser(content))); err != nil {
-			pb.Abort(desc)
+		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
+		if err := dst.Blobs().Push(ctx, desc, reader); err != nil {
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to push blob %s, err: %v", desc.Digest.String(), err))
 			return err
 		}
 	}

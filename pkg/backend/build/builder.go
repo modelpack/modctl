@@ -17,6 +17,7 @@
 package build
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,12 +27,20 @@ import (
 	"time"
 
 	"github.com/CloudNativeAI/modctl/pkg/archiver"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
+
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	sha256 "github.com/minio/sha256-simd"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+// tarHeaderSize is the size of a tar header.
+// TODO: the real size should be calculated based on the actual stream,
+// now we use a fixed size in order to avoid extra read costs.
+const tarHeaderSize = 512
 
 // OutputType defines the type of output to generate.
 type OutputType string
@@ -46,24 +55,24 @@ const (
 // Builder is an interface for building artifacts.
 type Builder interface {
 	// BuildLayer builds the layer blob from the given file path.
-	BuildLayer(ctx context.Context, mediaType, workDir, path string) (ocispec.Descriptor, error)
+	BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// BuildConfig builds the config blob of the artifact.
-	BuildConfig(ctx context.Context) (ocispec.Descriptor, error)
+	BuildConfig(ctx context.Context, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// BuildManifest builds the manifest blob of the artifact.
-	BuildManifest(ctx context.Context, layers []ocispec.Descriptor, config ocispec.Descriptor, annotations map[string]string) (ocispec.Descriptor, error)
+	BuildManifest(ctx context.Context, layers []ocispec.Descriptor, config ocispec.Descriptor, annotations map[string]string, hooks hooks.Hooks) (ocispec.Descriptor, error)
 }
 
 type OutputStrategy interface {
 	// OutputLayer outputs the layer blob to the storage (local or remote).
-	OutputLayer(ctx context.Context, mediaType, workDir, relPath string, reader io.Reader) (ocispec.Descriptor, error)
+	OutputLayer(ctx context.Context, mediaType, workDir, relPath string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// OutputConfig outputs the config blob to the storage (local or remote).
-	OutputConfig(ctx context.Context, mediaType string, configJSON []byte) (ocispec.Descriptor, error)
+	OutputConfig(ctx context.Context, mediaType, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// OutputManifest outputs the manifest blob to the storage (local or remote).
-	OutputManifest(ctx context.Context, mediaType string, manifestJSON []byte) (ocispec.Descriptor, error)
+	OutputManifest(ctx context.Context, mediaType, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error)
 }
 
 // NewBuilder creates a new builder instance.
@@ -109,7 +118,7 @@ type abstractBuilder struct {
 	strategy OutputStrategy
 }
 
-func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, path string) (ocispec.Descriptor, error) {
+func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to get file info: %w", err)
@@ -136,10 +145,10 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		return ocispec.Descriptor{}, fmt.Errorf("failed to tar file: %w", err)
 	}
 
-	return ab.strategy.OutputLayer(ctx, mediaType, workDir, relPath, reader)
+	return ab.strategy.OutputLayer(ctx, mediaType, workDir, relPath, info.Size()+tarHeaderSize, reader, hooks)
 }
 
-func (ab *abstractBuilder) BuildConfig(ctx context.Context) (ocispec.Descriptor, error) {
+func (ab *abstractBuilder) BuildConfig(ctx context.Context, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	config, err := buildModelConfig(ab.modelfile)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to build model config: %w", err)
@@ -150,10 +159,11 @@ func (ab *abstractBuilder) BuildConfig(ctx context.Context) (ocispec.Descriptor,
 		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	return ab.strategy.OutputConfig(ctx, modelspec.MediaTypeModelConfig, configJSON)
+	digest := fmt.Sprintf("sha256:%x", sha256.Sum256(configJSON))
+	return ab.strategy.OutputConfig(ctx, modelspec.MediaTypeModelConfig, digest, int64(len(configJSON)), bytes.NewReader(configJSON), hooks)
 }
 
-func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.Descriptor, config ocispec.Descriptor, annotations map[string]string) (ocispec.Descriptor, error) {
+func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.Descriptor, config ocispec.Descriptor, annotations map[string]string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	manifest := &ocispec.Manifest{
 		Versioned: spec.Versioned{
 			SchemaVersion: 2,
@@ -174,7 +184,8 @@ func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.D
 		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal manifest: %w", err)
 	}
 
-	return ab.strategy.OutputManifest(ctx, manifest.MediaType, manifestJSON)
+	digest := fmt.Sprintf("sha256:%x", sha256.Sum256(manifestJSON))
+	return ab.strategy.OutputManifest(ctx, manifest.MediaType, digest, int64(len(manifestJSON)), bytes.NewReader(manifestJSON), hooks)
 }
 
 // buildModelConfig builds the model config.

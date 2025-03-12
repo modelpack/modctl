@@ -264,6 +264,21 @@ func (s *storage) StatBlob(ctx context.Context, repo, digest string) (bool, erro
 	return true, nil
 }
 
+// StatManifest stats the manifest in the storage.
+func (s *storage) StatManifest(ctx context.Context, repo, digest string) (bool, error) {
+	repository, err := s.repository(ctx, repo)
+	if err != nil {
+		return false, err
+	}
+
+	manifest, err := repository.Manifests(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	return manifest.Exists(ctx, godigest.Digest(digest))
+}
+
 // ListRepositories lists all the repositories in the storage.
 func (s *storage) ListRepositories(ctx context.Context) ([]string, error) {
 	var repos []string

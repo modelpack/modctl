@@ -17,11 +17,11 @@
 package build
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
@@ -46,46 +46,67 @@ type localOutput struct {
 }
 
 // OutputLayer outputs the layer blob to the local storage.
-func (lo *localOutput) OutputLayer(ctx context.Context, mediaType, workDir, relPath string, reader io.Reader) (ocispec.Descriptor, error) {
+func (lo *localOutput) OutputLayer(ctx context.Context, mediaType, workDir, relPath string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+	reader = hooks.OnStart(relPath, size, reader)
 	digest, size, err := lo.store.PushBlob(ctx, lo.repo, reader, ocispec.Descriptor{})
 	if err != nil {
+		hooks.OnError(relPath, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to push blob to storage: %w", err)
 	}
 
-	return ocispec.Descriptor{
+	desc := ocispec.Descriptor{
 		MediaType: mediaType,
 		Digest:    godigest.Digest(digest),
 		Size:      size,
 		Annotations: map[string]string{
 			modelspec.AnnotationFilepath: relPath,
 		},
-	}, nil
+	}
+
+	hooks.OnComplete(relPath, desc)
+	return desc, nil
 }
 
 // OutputConfig outputs the config blob to the storage.
-func (lo *localOutput) OutputConfig(ctx context.Context, mediaType string, configJSON []byte) (ocispec.Descriptor, error) {
-	digest, size, err := lo.store.PushBlob(ctx, lo.repo, bytes.NewReader(configJSON), ocispec.Descriptor{})
+func (lo *localOutput) OutputConfig(ctx context.Context, mediaType, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+	reader = hooks.OnStart(digest, size, reader)
+	digest, size, err := lo.store.PushBlob(ctx, lo.repo, reader, ocispec.Descriptor{})
 	if err != nil {
+		hooks.OnError(digest, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to push config to storage: %w", err)
 	}
 
-	return ocispec.Descriptor{
+	desc := ocispec.Descriptor{
 		MediaType: mediaType,
 		Size:      size,
 		Digest:    godigest.Digest(digest),
-	}, nil
+	}
+
+	hooks.OnComplete(digest, desc)
+	return desc, nil
 }
 
 // OutputManifest outputs the manifest blob to the local storage.
-func (lo *localOutput) OutputManifest(ctx context.Context, mediaType string, manifestJSON []byte) (ocispec.Descriptor, error) {
-	digest, err := lo.store.PushManifest(ctx, lo.repo, lo.tag, manifestJSON)
+func (lo *localOutput) OutputManifest(ctx context.Context, mediaType, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+	reader = hooks.OnStart(digest, size, reader)
+	manifestJSON, err := io.ReadAll(reader)
 	if err != nil {
+		hooks.OnError(digest, err)
+		return ocispec.Descriptor{}, fmt.Errorf("failed to read manifest JSON: %w", err)
+	}
+
+	digest, err = lo.store.PushManifest(ctx, lo.repo, lo.tag, manifestJSON)
+	if err != nil {
+		hooks.OnError(digest, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to push manifest to storage: %w", err)
 	}
 
-	return ocispec.Descriptor{
+	desc := ocispec.Descriptor{
 		MediaType: mediaType,
 		Digest:    godigest.Digest(digest),
 		Size:      int64(len(manifestJSON)),
-	}, nil
+	}
+
+	hooks.OnComplete(digest, desc)
+	return desc, nil
 }

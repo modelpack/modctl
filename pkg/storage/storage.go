@@ -38,6 +38,8 @@ type Storage interface {
 	PullManifest(ctx context.Context, repo, reference string) ([]byte, string, error)
 	// PushManifest pushes the manifest to the storage.
 	PushManifest(ctx context.Context, repo, reference string, body []byte) (string, error)
+	// StatManifest stats the manifest in the storage.
+	StatManifest(ctx context.Context, repo, digest string) (bool, error)
 	// DeleteManifest deletes the manifest from the storage.
 	DeleteManifest(ctx context.Context, repo, reference string) error
 	// PullBlob pulls the blob from the storage.
