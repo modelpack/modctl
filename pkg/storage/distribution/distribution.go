@@ -18,6 +18,7 @@ package distribution
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -258,6 +259,11 @@ func (s *storage) StatBlob(ctx context.Context, repo, digest string) (bool, erro
 
 	_, err = repository.Blobs(ctx).Stat(ctx, godigest.Digest(digest))
 	if err != nil {
+		// If the blob not found, distribution will return ErrBlobUnknown.
+		if errors.Is(err, distribution.ErrBlobUnknown) {
+			return false, nil
+		}
+
 		return false, err
 	}
 
