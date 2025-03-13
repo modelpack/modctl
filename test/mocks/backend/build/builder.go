@@ -40,9 +40,9 @@ func (_m *Builder) EXPECT() *Builder_Expecter {
 	return &Builder_Expecter{mock: &_m.Mock}
 }
 
-// BuildConfig provides a mock function with given fields: ctx, _a1
-func (_m *Builder) BuildConfig(ctx context.Context, _a1 hooks.Hooks) (v1.Descriptor, error) {
-	ret := _m.Called(ctx, _a1)
+// BuildConfig provides a mock function with given fields: ctx, layers, _a2
+func (_m *Builder) BuildConfig(ctx context.Context, layers []v1.Descriptor, _a2 hooks.Hooks) (v1.Descriptor, error) {
+	ret := _m.Called(ctx, layers, _a2)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BuildConfig")
@@ -50,17 +50,17 @@ func (_m *Builder) BuildConfig(ctx context.Context, _a1 hooks.Hooks) (v1.Descrip
 
 	var r0 v1.Descriptor
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, hooks.Hooks) (v1.Descriptor, error)); ok {
-		return rf(ctx, _a1)
+	if rf, ok := ret.Get(0).(func(context.Context, []v1.Descriptor, hooks.Hooks) (v1.Descriptor, error)); ok {
+		return rf(ctx, layers, _a2)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, hooks.Hooks) v1.Descriptor); ok {
-		r0 = rf(ctx, _a1)
+	if rf, ok := ret.Get(0).(func(context.Context, []v1.Descriptor, hooks.Hooks) v1.Descriptor); ok {
+		r0 = rf(ctx, layers, _a2)
 	} else {
 		r0 = ret.Get(0).(v1.Descriptor)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, hooks.Hooks) error); ok {
-		r1 = rf(ctx, _a1)
+	if rf, ok := ret.Get(1).(func(context.Context, []v1.Descriptor, hooks.Hooks) error); ok {
+		r1 = rf(ctx, layers, _a2)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -75,14 +75,15 @@ type Builder_BuildConfig_Call struct {
 
 // BuildConfig is a helper method to define mock.On call
 //   - ctx context.Context
-//   - _a1 hooks.Hooks
-func (_e *Builder_Expecter) BuildConfig(ctx interface{}, _a1 interface{}) *Builder_BuildConfig_Call {
-	return &Builder_BuildConfig_Call{Call: _e.mock.On("BuildConfig", ctx, _a1)}
+//   - layers []v1.Descriptor
+//   - _a2 hooks.Hooks
+func (_e *Builder_Expecter) BuildConfig(ctx interface{}, layers interface{}, _a2 interface{}) *Builder_BuildConfig_Call {
+	return &Builder_BuildConfig_Call{Call: _e.mock.On("BuildConfig", ctx, layers, _a2)}
 }
 
-func (_c *Builder_BuildConfig_Call) Run(run func(ctx context.Context, _a1 hooks.Hooks)) *Builder_BuildConfig_Call {
+func (_c *Builder_BuildConfig_Call) Run(run func(ctx context.Context, layers []v1.Descriptor, _a2 hooks.Hooks)) *Builder_BuildConfig_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(hooks.Hooks))
+		run(args[0].(context.Context), args[1].([]v1.Descriptor), args[2].(hooks.Hooks))
 	})
 	return _c
 }
@@ -92,7 +93,7 @@ func (_c *Builder_BuildConfig_Call) Return(_a0 v1.Descriptor, _a1 error) *Builde
 	return _c
 }
 
-func (_c *Builder_BuildConfig_Call) RunAndReturn(run func(context.Context, hooks.Hooks) (v1.Descriptor, error)) *Builder_BuildConfig_Call {
+func (_c *Builder_BuildConfig_Call) RunAndReturn(run func(context.Context, []v1.Descriptor, hooks.Hooks) (v1.Descriptor, error)) *Builder_BuildConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }
