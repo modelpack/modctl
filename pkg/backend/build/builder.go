@@ -33,6 +33,7 @@ import (
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	sha256 "github.com/minio/sha256-simd"
+	godigest "github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -58,7 +59,7 @@ type Builder interface {
 	BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// BuildConfig builds the config blob of the artifact.
-	BuildConfig(ctx context.Context, hooks hooks.Hooks) (ocispec.Descriptor, error)
+	BuildConfig(ctx context.Context, layers []ocispec.Descriptor, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// BuildManifest builds the manifest blob of the artifact.
 	BuildManifest(ctx context.Context, layers []ocispec.Descriptor, config ocispec.Descriptor, annotations map[string]string, hooks hooks.Hooks) (ocispec.Descriptor, error)
@@ -148,8 +149,8 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 	return ab.strategy.OutputLayer(ctx, mediaType, workDir, relPath, info.Size()+tarHeaderSize, reader, hooks)
 }
 
-func (ab *abstractBuilder) BuildConfig(ctx context.Context, hooks hooks.Hooks) (ocispec.Descriptor, error) {
-	config, err := buildModelConfig(ab.modelfile)
+func (ab *abstractBuilder) BuildConfig(ctx context.Context, layers []ocispec.Descriptor, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+	config, err := buildModelConfig(ab.modelfile, layers)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to build model config: %w", err)
 	}
@@ -189,7 +190,7 @@ func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.D
 }
 
 // buildModelConfig builds the model config.
-func buildModelConfig(modelfile modelfile.Modelfile) (*modelspec.Model, error) {
+func buildModelConfig(modelfile modelfile.Modelfile, layers []ocispec.Descriptor) (*modelspec.Model, error) {
 	config := modelspec.ModelConfig{
 		Architecture: modelfile.GetArch(),
 		Format:       modelfile.GetFormat(),
@@ -205,8 +206,14 @@ func buildModelConfig(modelfile modelfile.Modelfile) (*modelspec.Model, error) {
 		Name:      modelfile.GetName(),
 	}
 
+	diffIDs := make([]godigest.Digest, 0, len(layers))
+	for _, layer := range layers {
+		diffIDs = append(diffIDs, layer.Digest)
+	}
+
 	fs := modelspec.ModelFS{
-		Type: "layers",
+		Type:    "layers",
+		DiffIDs: diffIDs,
 	}
 
 	return &modelspec.Model{

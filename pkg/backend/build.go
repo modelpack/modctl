@@ -78,7 +78,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 
 	layers = append(layers, layerDescs...)
 	// build the image config.
-	configDesc, err := builder.BuildConfig(ctx, hooks.NewHooks(
+	configDesc, err := builder.BuildConfig(ctx, layers, hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 			return pb.Add(internalpb.NormalizePrompt("Building config"), name, size, reader)
 		}),

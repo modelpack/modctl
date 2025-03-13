@@ -31,6 +31,7 @@ import (
 	storagemock "github.com/CloudNativeAI/modctl/test/mocks/storage"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -159,7 +160,7 @@ func (s *BuilderTestSuite) TestBuildConfig() {
 		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(expectedDesc, nil).Once()
 
-		desc, err := s.builder.BuildConfig(context.Background(), hooks.NewHooks())
+		desc, err := s.builder.BuildConfig(context.Background(), []ocispec.Descriptor{}, hooks.NewHooks())
 		s.NoError(err)
 		s.Equal(expectedDesc, desc)
 
@@ -179,7 +180,7 @@ func (s *BuilderTestSuite) TestBuildConfig() {
 		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(ocispec.Descriptor{}, errors.New("output error")).Once()
 
-		_, err := s.builder.BuildConfig(context.Background(), hooks.NewHooks())
+		_, err := s.builder.BuildConfig(context.Background(), []ocispec.Descriptor{}, hooks.NewHooks())
 		s.Error(err)
 		s.True(strings.Contains(err.Error(), "output error"))
 	})
@@ -239,7 +240,10 @@ func (s *BuilderTestSuite) TestBuildModelConfig() {
 	mockModelfile.On("GetFamily").Return("llama")
 	mockModelfile.On("GetName").Return("llama-2")
 
-	model, err := buildModelConfig(mockModelfile)
+	model, err := buildModelConfig(mockModelfile, []ocispec.Descriptor{
+		{Digest: godigest.Digest("sha256:layer-1")},
+		{Digest: godigest.Digest("sha256:layer-2")},
+	})
 	s.NoError(err)
 	s.NotNil(model)
 
@@ -255,6 +259,9 @@ func (s *BuilderTestSuite) TestBuildModelConfig() {
 	s.WithinDuration(time.Now(), *model.Descriptor.CreatedAt, 5*time.Second)
 
 	s.Equal("layers", model.ModelFS.Type)
+	s.Len(model.ModelFS.DiffIDs, 2)
+	s.Equal("sha256:layer-1", model.ModelFS.DiffIDs[0].String())
+	s.Equal("sha256:layer-2", model.ModelFS.DiffIDs[1].String())
 }
 
 func TestBuilderSuite(t *testing.T) {
