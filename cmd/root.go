@@ -34,13 +34,10 @@ var rootConfig *config.Root
 var rootCmd = &cobra.Command{
 	Use:                "modctl",
 	Short:              "A command line tool for managing artifact bundled based on the Model Format Specification",
-	Args:               cobra.ExactArgs(1),
+	Args:               cobra.MaximumNArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return nil
-	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
