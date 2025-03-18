@@ -51,6 +51,8 @@ func init() {
 	flags := pushCmd.Flags()
 	flags.IntVar(&pushConfig.Concurrency, "concurrency", pushConfig.Concurrency, "specify the number of concurrent push operations")
 	flags.BoolVar(&pushConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
+	flags.BoolVar(&pushConfig.Nydusify, "nydusify", false, "[EXPERIMENTAL] nydusify the model artifact")
+	flags.MarkHidden("nydusify")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache push flags to viper: %w", err))
@@ -69,5 +71,16 @@ func runPush(ctx context.Context, target string) error {
 	}
 
 	fmt.Printf("Successfully pushed model artifact: %s\n", target)
+
+	// nydusify the model artifact if needed.
+	if pushConfig.Nydusify {
+		nydusName, err := b.Nydusify(ctx, target)
+		if err != nil {
+			return fmt.Errorf("failed to nydusify %s: %w", target, err)
+		}
+
+		fmt.Printf("Successfully nydusify model artifact: %s\n", nydusName)
+	}
+
 	return nil
 }
