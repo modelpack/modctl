@@ -22,13 +22,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"path/filepath"
 
-	"github.com/CloudNativeAI/modctl/pkg/archiver"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
-	sha256 "github.com/minio/sha256-simd"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/registry/remote"
@@ -80,25 +77,14 @@ type remoteOutput struct {
 }
 
 // OutputLayer outputs the layer blob to the remote storage.
-func (ro *remoteOutput) OutputLayer(ctx context.Context, mediaType, workDir, relPath string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
-	hash := sha256.New()
-	size, err := io.Copy(hash, reader)
-	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to copy layer to hash: %w", err)
-	}
-
+func (ro *remoteOutput) OutputLayer(ctx context.Context, mediaType, relPath, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	desc := ocispec.Descriptor{
 		MediaType: mediaType,
-		Digest:    godigest.Digest(fmt.Sprintf("sha256:%x", hash.Sum(nil))),
+		Digest:    godigest.Digest(digest),
 		Size:      size,
 		Annotations: map[string]string{
 			modelspec.AnnotationFilepath: relPath,
 		},
-	}
-
-	reader, err = archiver.Tar(filepath.Join(workDir, relPath), workDir)
-	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to create tar archive: %w", err)
 	}
 
 	reader = hooks.OnStart(relPath, size, reader)

@@ -72,7 +72,7 @@ func (s *LocalOutputTestSuite) TestOutputLayer() {
 		s.mockStorage.On("PushBlob", s.ctx, "test-repo", mock.Anything, ocispec.Descriptor{}).
 			Return(expectedDigest, expectedSize, nil).Once()
 
-		desc, err := s.localOutput.OutputLayer(s.ctx, "test/mediatype", "/work", "test-file.txt", expectedSize, reader, hooks.NewHooks())
+		desc, err := s.localOutput.OutputLayer(s.ctx, "test/mediatype", "test-file.txt", expectedDigest, expectedSize, reader, hooks.NewHooks())
 
 		s.NoError(err)
 		s.Equal("test/mediatype", desc.MediaType)
