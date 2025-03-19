@@ -26,6 +26,7 @@ const (
 type Push struct {
 	Concurrency int
 	PlainHTTP   bool
+	Insecure    bool
 	Nydusify    bool
 }
 

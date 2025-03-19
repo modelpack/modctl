@@ -19,8 +19,10 @@ package backend
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/config"
@@ -59,10 +61,17 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		return fmt.Errorf("failed to create credential store: %w", err)
 	}
 
+	httpClient := &http.Client{
+		Transport: retry.NewTransport(&http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: cfg.Insecure,
+			},
+		}),
+	}
 	dst.Client = &auth.Client{
 		Cache:      auth.NewCache(),
 		Credential: credentials.Credential(credStore),
-		Client:     retry.DefaultClient,
+		Client:     httpClient,
 	}
 
 	if cfg.PlainHTTP {
