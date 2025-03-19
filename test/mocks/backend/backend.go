@@ -352,6 +352,63 @@ func (_c *Backend_Logout_Call) RunAndReturn(run func(context.Context, string) er
 	return _c
 }
 
+// Nydusify provides a mock function with given fields: ctx, target
+func (_m *Backend) Nydusify(ctx context.Context, target string) (string, error) {
+	ret := _m.Called(ctx, target)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Nydusify")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return rf(ctx, target)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = rf(ctx, target)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, target)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Backend_Nydusify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Nydusify'
+type Backend_Nydusify_Call struct {
+	*mock.Call
+}
+
+// Nydusify is a helper method to define mock.On call
+//   - ctx context.Context
+//   - target string
+func (_e *Backend_Expecter) Nydusify(ctx interface{}, target interface{}) *Backend_Nydusify_Call {
+	return &Backend_Nydusify_Call{Call: _e.mock.On("Nydusify", ctx, target)}
+}
+
+func (_c *Backend_Nydusify_Call) Run(run func(ctx context.Context, target string)) *Backend_Nydusify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *Backend_Nydusify_Call) Return(_a0 string, _a1 error) *Backend_Nydusify_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Backend_Nydusify_Call) RunAndReturn(run func(context.Context, string) (string, error)) *Backend_Nydusify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Prune provides a mock function with given fields: ctx, dryRun, removeUntagged
 func (_m *Backend) Prune(ctx context.Context, dryRun bool, removeUntagged bool) error {
 	ret := _m.Called(ctx, dryRun, removeUntagged)
