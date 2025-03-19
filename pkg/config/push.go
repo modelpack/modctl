@@ -26,12 +26,14 @@ const (
 type Push struct {
 	Concurrency int
 	PlainHTTP   bool
+	Nydusify    bool
 }
 
 func NewPush() *Push {
 	return &Push{
 		Concurrency: defaultPushConcurrency,
 		PlainHTTP:   false,
+		Nydusify:    false,
 	}
 }
 

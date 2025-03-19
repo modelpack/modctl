@@ -55,6 +55,8 @@ func init() {
 	flags.BoolVarP(&buildConfig.OutputRemote, "output-remote", "", false, "turning on this flag will output model artifact to remote registry directly")
 	flags.BoolVarP(&buildConfig.PlainHTTP, "plain-http", "", false, "turning on this flag will use plain HTTP instead of HTTPS")
 	flags.BoolVarP(&buildConfig.Insecure, "insecure", "", false, "turning on this flag will disable TLS verification")
+	flags.BoolVar(&buildConfig.Nydusify, "nydusify", false, "[EXPERIMENTAL] nydusify the model artifact")
+	flags.MarkHidden("nydusify")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
@@ -73,5 +75,16 @@ func runBuild(ctx context.Context, workDir string) error {
 	}
 
 	fmt.Printf("Successfully built model artifact: %s\n", buildConfig.Target)
+
+	// nydusify the model artifact if needed.
+	if buildConfig.Nydusify {
+		nydusName, err := b.Nydusify(ctx, buildConfig.Target)
+		if err != nil {
+			return fmt.Errorf("failed to nydusify %s: %w", buildConfig.Target, err)
+		}
+
+		fmt.Printf("Successfully nydusify model artifact: %s\n", nydusName)
+	}
+
 	return nil
 }

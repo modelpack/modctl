@@ -57,6 +57,9 @@ type Backend interface {
 
 	// Tag creates a new tag that refers to the source model artifact.
 	Tag(ctx context.Context, source, target string) error
+
+	// Nydusify converts the model artifact to nydus format.
+	Nydusify(ctx context.Context, target string) (string, error)
 }
 
 // backend is the implementation of Backend.

@@ -30,6 +30,7 @@ type Build struct {
 	OutputRemote bool
 	PlainHTTP    bool
 	Insecure     bool
+	Nydusify     bool
 }
 
 func NewBuild() *Build {
@@ -40,6 +41,7 @@ func NewBuild() *Build {
 		OutputRemote: false,
 		PlainHTTP:    false,
 		Insecure:     false,
+		Nydusify:     false,
 	}
 }
 
@@ -54,6 +56,12 @@ func (b *Build) Validate() error {
 
 	if len(b.Modelfile) == 0 {
 		return fmt.Errorf("model file path is required")
+	}
+
+	if b.Nydusify {
+		if !b.OutputRemote {
+			return fmt.Errorf("nydusify only works with output remote")
+		}
 	}
 
 	return nil
