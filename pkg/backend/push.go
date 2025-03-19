@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
@@ -178,7 +179,11 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		}
 
 		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
-		if err := dst.Blobs().Push(ctx, desc, reader); err != nil {
+		// resolve issue: https://github.com/CloudNativeAI/modctl/issues/50
+		// wrap the content to the NopCloser, because the implementation of the distribution will
+		// always return the error when Close() is called.
+		// refer: https://github.com/distribution/distribution/blob/63d3892315c817c931b88779399a8e9142899a8e/registry/storage/filereader.go#L105
+		if err := dst.Blobs().Push(ctx, desc, io.NopCloser(reader)); err != nil {
 			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to push blob %s, err: %v", desc.Digest.String(), err))
 			return err
 		}
