@@ -116,26 +116,26 @@ func (s *BuilderTestSuite) TestNewBuilder() {
 func (s *BuilderTestSuite) TestBuildLayer() {
 	s.Run("successful build layer", func() {
 		expectedDesc := ocispec.Descriptor{
-			MediaType: "test/media-type",
+			MediaType: "test/media-type.tar",
 			Digest:    "sha256:test",
 			Size:      100,
 		}
 
-		s.mockOutputStrategy.On("OutputLayer", mock.Anything, "test/media-type", s.tempDir, "test-file.txt", mock.AnythingOfType("int64"), mock.AnythingOfType("*io.PipeReader"), mock.Anything).
+		s.mockOutputStrategy.On("OutputLayer", mock.Anything, "test/media-type.tar", "test-file.txt", mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("*io.PipeReader"), mock.Anything).
 			Return(expectedDesc, nil)
 
-		desc, err := s.builder.BuildLayer(context.Background(), "test/media-type", s.tempDir, s.tempFile, hooks.NewHooks())
+		desc, err := s.builder.BuildLayer(context.Background(), "test/media-type.tar", s.tempDir, s.tempFile, hooks.NewHooks())
 		s.NoError(err)
 		s.Equal(expectedDesc, desc)
 	})
 
 	s.Run("file not found", func() {
-		_, err := s.builder.BuildLayer(context.Background(), "test/media-type", s.tempDir, filepath.Join(s.tempDir, "non-existent.txt"), hooks.NewHooks())
+		_, err := s.builder.BuildLayer(context.Background(), "test/media-type.tar", s.tempDir, filepath.Join(s.tempDir, "non-existent.txt"), hooks.NewHooks())
 		s.Error(err)
 	})
 
 	s.Run("directory not supported", func() {
-		_, err := s.builder.BuildLayer(context.Background(), "test/media-type", s.tempDir, s.tempDir, hooks.NewHooks())
+		_, err := s.builder.BuildLayer(context.Background(), "test/media-type.tar", s.tempDir, s.tempDir, hooks.NewHooks())
 		s.Error(err)
 		s.True(strings.Contains(err.Error(), "is a directory and not supported yet"))
 	})

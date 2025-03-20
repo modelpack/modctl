@@ -26,7 +26,6 @@ import (
 	"net/url"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
-	"github.com/CloudNativeAI/modctl/pkg/archiver"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
@@ -219,19 +218,18 @@ func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 
 // pullAndExtractFromRemote pulls the layer and extract it to the target output path directly,
 // and will not store the layer to the local storage.
-func pullAndExtractFromRemote(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src *remote.Repository, output string, desc ocispec.Descriptor) error {
+func pullAndExtractFromRemote(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src *remote.Repository, outputDir string, desc ocispec.Descriptor) error {
 	// fetch the content from the source storage.
 	content, err := src.Fetch(ctx, desc)
 	if err != nil {
 		return fmt.Errorf("failed to fetch the content from source: %w", err)
 	}
-
 	defer content.Close()
 
 	reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
-	if err := archiver.Untar(reader, output); err != nil {
+	if err := extractLayer(desc, outputDir, reader); err != nil {
 		pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to pull and extract blob %s from remote, err: %v", desc.Digest.String(), err))
-		return fmt.Errorf("failed to untar the blob %s: %w", desc.Digest.String(), err)
+		return fmt.Errorf("failed to extract the blob %s to output directory: %w", desc.Digest.String(), err)
 	}
 
 	return nil

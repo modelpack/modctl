@@ -26,8 +26,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/CloudNativeAI/modctl/pkg/archiver"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
+	"github.com/CloudNativeAI/modctl/pkg/codec"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
@@ -37,11 +37,6 @@ import (
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
-
-// tarHeaderSize is the size of a tar header.
-// TODO: the real size should be calculated based on the actual stream,
-// now we use a fixed size in order to avoid extra read costs.
-const tarHeaderSize = 512
 
 // OutputType defines the type of output to generate.
 type OutputType string
@@ -67,7 +62,7 @@ type Builder interface {
 
 type OutputStrategy interface {
 	// OutputLayer outputs the layer blob to the storage (local or remote).
-	OutputLayer(ctx context.Context, mediaType, workDir, relPath string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error)
+	OutputLayer(ctx context.Context, mediaType, relPath, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// OutputConfig outputs the config blob to the storage (local or remote).
 	OutputConfig(ctx context.Context, mediaType, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error)
@@ -141,12 +136,40 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		return ocispec.Descriptor{}, fmt.Errorf("failed to get relative path: %w", err)
 	}
 
-	reader, err := archiver.Tar(path, workDirPath)
+	codec, err := codec.New(codec.TypeFromMediaType(mediaType))
 	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to tar file: %w", err)
+		return ocispec.Descriptor{}, fmt.Errorf("failed to create codec: %w", err)
 	}
 
-	return ab.strategy.OutputLayer(ctx, mediaType, workDir, relPath, info.Size()+tarHeaderSize, reader, hooks)
+	// Encode the content by codec depends on the media type.
+	reader, err := codec.Encode(path, workDirPath)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
+	}
+
+	// Calculate the digest of the encoded content.
+	hash := sha256.New()
+	size, err := io.Copy(hash, reader)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to copy content to hash: %w", err)
+	}
+
+	digest := fmt.Sprintf("sha256:%x", hash.Sum(nil))
+
+	// Seek the reader to the beginning if supported,
+	// otherwise we needs to re-encode the content again.
+	if seeker, ok := reader.(io.ReadSeeker); ok {
+		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+			return ocispec.Descriptor{}, fmt.Errorf("failed to seek reader: %w", err)
+		}
+	} else {
+		reader, err = codec.Encode(path, workDirPath)
+		if err != nil {
+			return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
+		}
+	}
+
+	return ab.strategy.OutputLayer(ctx, mediaType, relPath, digest, size, reader, hooks)
 }
 
 func (ab *abstractBuilder) BuildConfig(ctx context.Context, layers []ocispec.Descriptor, hooks hooks.Hooks) (ocispec.Descriptor, error) {

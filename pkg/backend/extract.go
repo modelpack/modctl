@@ -21,9 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 
-	"github.com/CloudNativeAI/modctl/pkg/archiver"
+	"github.com/CloudNativeAI/modctl/pkg/codec"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -57,21 +59,38 @@ func (b *backend) Extract(ctx context.Context, target string, output string) err
 }
 
 // exportModelArtifact exports the target model artifact to the output directory, which will open the artifact and extract to restore the original repo structure.
-func exportModelArtifact(ctx context.Context, store storage.Storage, manifest ocispec.Manifest, repo, output string) error {
+func exportModelArtifact(ctx context.Context, store storage.Storage, manifest ocispec.Manifest, repo, outputDir string) error {
 	for _, layer := range manifest.Layers {
 		// pull the blob from the storage.
 		reader, err := store.PullBlob(ctx, repo, layer.Digest.String())
 		if err != nil {
 			return fmt.Errorf("failed to pull the blob from storage: %w", err)
 		}
-
 		defer reader.Close()
 
 		bufferedReader := bufio.NewReaderSize(reader, defaultBufferSize)
-		// untar the blob to the target directory.
-		if err := archiver.Untar(bufferedReader, output); err != nil {
-			return fmt.Errorf("failed to untar the blob to output directory: %w", err)
+		if err := extractLayer(layer, outputDir, bufferedReader); err != nil {
+			return fmt.Errorf("failed to extract layer %s: %w", layer.Digest.String(), err)
 		}
+	}
+
+	return nil
+}
+
+// extractLayer extracts the layer to the output directory.
+func extractLayer(desc ocispec.Descriptor, outputDir string, reader io.Reader) error {
+	var filepath string
+	if desc.Annotations != nil && desc.Annotations[modelspec.AnnotationFilepath] != "" {
+		filepath = desc.Annotations[modelspec.AnnotationFilepath]
+	}
+
+	codec, err := codec.New(codec.TypeFromMediaType(desc.MediaType))
+	if err != nil {
+		return fmt.Errorf("failed to create codec for media type %s: %w", desc.MediaType, err)
+	}
+
+	if err := codec.Decode(reader, outputDir, filepath); err != nil {
+		return fmt.Errorf("failed to decode the layer %s to output directory: %w", desc.Digest.String(), err)
 	}
 
 	return nil
