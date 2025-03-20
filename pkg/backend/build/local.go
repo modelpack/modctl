@@ -46,7 +46,7 @@ type localOutput struct {
 }
 
 // OutputLayer outputs the layer blob to the local storage.
-func (lo *localOutput) OutputLayer(ctx context.Context, mediaType, workDir, relPath string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+func (lo *localOutput) OutputLayer(ctx context.Context, mediaType, relPath, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	reader = hooks.OnStart(relPath, size, reader)
 	digest, size, err := lo.store.PushBlob(ctx, lo.repo, reader, ocispec.Descriptor{})
 	if err != nil {
