@@ -51,7 +51,7 @@ nfpms:
     description: A command line tool for managing artifact bundled based on the Model Format Specification
     license: "Apache 2.0"
     bindir: /usr/bin
-    builds:
+    ids:
       - modctl
     formats:
       - rpm
