@@ -1,7 +1,6 @@
 module github.com/CloudNativeAI/modctl
 
-go 1.23.3
-toolchain go1.24.1
+go 1.24.1
 
 require (
 	github.com/CloudNativeAI/model-spec v0.0.3
