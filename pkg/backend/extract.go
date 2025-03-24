@@ -24,8 +24,10 @@ import (
 	"io"
 
 	"github.com/CloudNativeAI/modctl/pkg/codec"
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	"golang.org/x/sync/errgroup"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -36,7 +38,7 @@ const (
 )
 
 // Extract extracts the model artifact.
-func (b *backend) Extract(ctx context.Context, target string, output string) error {
+func (b *backend) Extract(ctx context.Context, target string, cfg *config.Extract) error {
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -55,26 +57,33 @@ func (b *backend) Extract(ctx context.Context, target string, output string) err
 		return fmt.Errorf("failed to unmarshal the manifest: %w", err)
 	}
 
-	return exportModelArtifact(ctx, b.store, manifest, repo, output)
+	return exportModelArtifact(ctx, b.store, manifest, repo, cfg)
 }
 
 // exportModelArtifact exports the target model artifact to the output directory, which will open the artifact and extract to restore the original repo structure.
-func exportModelArtifact(ctx context.Context, store storage.Storage, manifest ocispec.Manifest, repo, outputDir string) error {
-	for _, layer := range manifest.Layers {
-		// pull the blob from the storage.
-		reader, err := store.PullBlob(ctx, repo, layer.Digest.String())
-		if err != nil {
-			return fmt.Errorf("failed to pull the blob from storage: %w", err)
-		}
-		defer reader.Close()
+func exportModelArtifact(ctx context.Context, store storage.Storage, manifest ocispec.Manifest, repo string, cfg *config.Extract) error {
+	g := &errgroup.Group{}
+	g.SetLimit(cfg.Concurrency)
 
-		bufferedReader := bufio.NewReaderSize(reader, defaultBufferSize)
-		if err := extractLayer(layer, outputDir, bufferedReader); err != nil {
-			return fmt.Errorf("failed to extract layer %s: %w", layer.Digest.String(), err)
-		}
+	for _, layer := range manifest.Layers {
+		g.Go(func() error {
+			// pull the blob from the storage.
+			reader, err := store.PullBlob(ctx, repo, layer.Digest.String())
+			if err != nil {
+				return fmt.Errorf("failed to pull the blob from storage: %w", err)
+			}
+			defer reader.Close()
+
+			bufferedReader := bufio.NewReaderSize(reader, defaultBufferSize)
+			if err := extractLayer(layer, cfg.Output, bufferedReader); err != nil {
+				return fmt.Errorf("failed to extract layer %s: %w", layer.Digest.String(), err)
+			}
+
+			return nil
+		})
 	}
 
-	return nil
+	return g.Wait()
 }
 
 // extractLayer extracts the layer to the output directory.
