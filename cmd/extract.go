@@ -38,6 +38,10 @@ var extractCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := extractConfig.Validate(); err != nil {
+			return err
+		}
+
 		return runExtract(context.Background(), args[0])
 	},
 }
@@ -46,6 +50,7 @@ var extractCmd = &cobra.Command{
 func init() {
 	flags := extractCmd.Flags()
 	flags.StringVar(&extractConfig.Output, "output", "", "specify the output for extracting the model artifact")
+	flags.IntVar(&extractConfig.Concurrency, "concurrency", extractConfig.Concurrency, "specify the concurrency for extracting the model artifact")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache extract flags to viper: %w", err))
@@ -63,11 +68,7 @@ func runExtract(ctx context.Context, target string) error {
 		return fmt.Errorf("target is required")
 	}
 
-	if extractConfig.Output == "" {
-		return fmt.Errorf("output is required")
-	}
-
-	if err := b.Extract(ctx, target, extractConfig.Output); err != nil {
+	if err := b.Extract(ctx, target, extractConfig); err != nil {
 		return err
 	}
 

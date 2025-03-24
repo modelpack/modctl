@@ -98,7 +98,7 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
-MOCKERY_VERSION=v2.52.1
+MOCKERY_VERSION=v2.53.3
 
 .PHONY: gen
 gen: gen-mockery## Generate all we need!

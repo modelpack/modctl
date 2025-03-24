@@ -150,7 +150,9 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 
 	// export the target model artifact to the output directory if needed.
 	if cfg.ExtractDir != "" {
-		if err := exportModelArtifact(ctx, dst, manifest, repo, cfg.ExtractDir); err != nil {
+		// set the concurrency to 1 because the pull already has concurrency control.
+		extractCfg := &config.Extract{Concurrency: 1, Output: cfg.ExtractDir}
+		if err := exportModelArtifact(ctx, dst, manifest, repo, extractCfg); err != nil {
 			return fmt.Errorf("failed to export the artifact to the output directory: %w", err)
 		}
 	}

@@ -16,12 +16,33 @@
 
 package config
 
+import "fmt"
+
+const (
+	// defaultExtractConcurrency is the default number of concurrent extracts.
+	defaultExtractConcurrency = 5
+)
+
 type Extract struct {
-	Output string
+	Output      string
+	Concurrency int
 }
 
 func NewExtract() *Extract {
 	return &Extract{
-		Output: "",
+		Output:      "",
+		Concurrency: defaultExtractConcurrency,
 	}
+}
+
+func (e *Extract) Validate() error {
+	if e.Concurrency <= 0 {
+		return fmt.Errorf("concurrency must be greater than 0")
+	}
+
+	if e.Output == "" {
+		return fmt.Errorf("output is required")
+	}
+
+	return nil
 }
