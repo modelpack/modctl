@@ -1,8 +1,6 @@
 run:
-  deadline: 3m
+  timeout: 3m
   modules-download-mode: readonly
-  skip-dirs:
-    - test/mocks
 
 linters-settings:
   gocyclo:
@@ -11,6 +9,7 @@ linters-settings:
     sections:
       - standard
       - default
+      - prefix(github.com/CloudNativeAI/modctl)
 
 issues:
   new: true
@@ -18,6 +17,8 @@ issues:
     - linters:
         - staticcheck
       text: "SA1019:"
+  exclude-dirs:
+    - test/mocks
 
 linters:
   disable-all: true
@@ -34,6 +35,7 @@ linters:
     - errcheck
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true

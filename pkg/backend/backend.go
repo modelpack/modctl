@@ -37,6 +37,9 @@ type Backend interface {
 	// Pull pulls an artifact from a registry.
 	Pull(ctx context.Context, target string, cfg *config.Pull) error
 
+	// Fetch fetches partial files to the output.
+	Fetch(ctx context.Context, target string, cfg *config.Fetch) error
+
 	// Push pushes the image to the registry.
 	Push(ctx context.Context, target string, cfg *config.Push) error
 
