@@ -56,6 +56,8 @@ type Storage interface {
 	ListTags(ctx context.Context, repo string) ([]string, error)
 	// PerformGC performs the garbage collection in the storage to free up the space.
 	PerformGC(ctx context.Context, dryRun, removeUntagged bool) error
+	// PerformPurgeUploads performs the purge uploads in the storage to free up the space.
+	PerformPurgeUploads(ctx context.Context, dryRun bool) error
 }
 
 // WithRootDir sets the root directory of the storage.

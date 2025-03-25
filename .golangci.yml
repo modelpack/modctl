@@ -1,6 +1,8 @@
 run:
   timeout: 3m
   modules-download-mode: readonly
+  skip-dirs:
+    - test/mocks
 
 linters-settings:
   gocyclo:
@@ -17,8 +19,6 @@ issues:
     - linters:
         - staticcheck
       text: "SA1019:"
-  exclude-dirs:
-    - test/mocks
 
 linters:
   disable-all: true

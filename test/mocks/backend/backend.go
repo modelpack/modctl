@@ -138,6 +138,54 @@ func (_c *Backend_Extract_Call) RunAndReturn(run func(context.Context, string, *
 	return _c
 }
 
+// Fetch provides a mock function with given fields: ctx, target, cfg
+func (_m *Backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) error {
+	ret := _m.Called(ctx, target, cfg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Fetch")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Fetch) error); ok {
+		r0 = rf(ctx, target, cfg)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Backend_Fetch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Fetch'
+type Backend_Fetch_Call struct {
+	*mock.Call
+}
+
+// Fetch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - target string
+//   - cfg *config.Fetch
+func (_e *Backend_Expecter) Fetch(ctx interface{}, target interface{}, cfg interface{}) *Backend_Fetch_Call {
+	return &Backend_Fetch_Call{Call: _e.mock.On("Fetch", ctx, target, cfg)}
+}
+
+func (_c *Backend_Fetch_Call) Run(run func(ctx context.Context, target string, cfg *config.Fetch)) *Backend_Fetch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(*config.Fetch))
+	})
+	return _c
+}
+
+func (_c *Backend_Fetch_Call) Return(_a0 error) *Backend_Fetch_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Backend_Fetch_Call) RunAndReturn(run func(context.Context, string, *config.Fetch) error) *Backend_Fetch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Inspect provides a mock function with given fields: ctx, target
 func (_m *Backend) Inspect(ctx context.Context, target string) (*backend.InspectedModelArtifact, error) {
 	ret := _m.Called(ctx, target)

@@ -302,6 +302,53 @@ func (_c *Storage_PerformGC_Call) RunAndReturn(run func(context.Context, bool, b
 	return _c
 }
 
+// PerformPurgeUploads provides a mock function with given fields: ctx, dryRun
+func (_m *Storage) PerformPurgeUploads(ctx context.Context, dryRun bool) error {
+	ret := _m.Called(ctx, dryRun)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PerformPurgeUploads")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, bool) error); ok {
+		r0 = rf(ctx, dryRun)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Storage_PerformPurgeUploads_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PerformPurgeUploads'
+type Storage_PerformPurgeUploads_Call struct {
+	*mock.Call
+}
+
+// PerformPurgeUploads is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dryRun bool
+func (_e *Storage_Expecter) PerformPurgeUploads(ctx interface{}, dryRun interface{}) *Storage_PerformPurgeUploads_Call {
+	return &Storage_PerformPurgeUploads_Call{Call: _e.mock.On("PerformPurgeUploads", ctx, dryRun)}
+}
+
+func (_c *Storage_PerformPurgeUploads_Call) Run(run func(ctx context.Context, dryRun bool)) *Storage_PerformPurgeUploads_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(bool))
+	})
+	return _c
+}
+
+func (_c *Storage_PerformPurgeUploads_Call) Return(_a0 error) *Storage_PerformPurgeUploads_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Storage_PerformPurgeUploads_Call) RunAndReturn(run func(context.Context, bool) error) *Storage_PerformPurgeUploads_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // PullBlob provides a mock function with given fields: ctx, repo, digest
 func (_m *Storage) PullBlob(ctx context.Context, repo string, digest string) (io.ReadCloser, error) {
 	ret := _m.Called(ctx, repo, digest)
