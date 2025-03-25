@@ -85,5 +85,6 @@ func init() {
 	rootCmd.AddCommand(inspectCmd)
 	rootCmd.AddCommand(extractCmd)
 	rootCmd.AddCommand(tagCmd)
+	rootCmd.AddCommand(fetchCmd)
 	rootCmd.AddCommand(modelfile.RootCmd)
 }
