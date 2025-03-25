@@ -63,6 +63,7 @@ func init() {
 	flags.StringVarP(&loginConfig.Password, "password", "p", "", "Password for login")
 	flags.BoolVar(&loginConfig.PasswordStdin, "password-stdin", true, "Take the password from stdin by default")
 	flags.BoolVar(&loginConfig.PlainHTTP, "plain-http", false, "Allow http connections to registry")
+	flags.BoolVar(&loginConfig.Insecure, "insecure", false, "Allow insecure connections to registry")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache login flags to viper: %w", err))
