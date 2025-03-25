@@ -18,9 +18,18 @@ package backend
 
 import (
 	"context"
+	"fmt"
 )
 
 // Prune prunes the unused blobs and clean up the storage.
 func (b *backend) Prune(ctx context.Context, dryRun, removeUntagged bool) error {
-	return b.store.PerformGC(ctx, dryRun, removeUntagged)
+	if err := b.store.PerformGC(ctx, dryRun, removeUntagged); err != nil {
+		return fmt.Errorf("faile to perform gc: %w", err)
+	}
+
+	if err := b.store.PerformPurgeUploads(ctx, dryRun); err != nil {
+		return fmt.Errorf("failed to perform purge uploads: %w", err)
+	}
+
+	return nil
 }
