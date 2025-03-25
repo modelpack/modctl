@@ -23,6 +23,7 @@ type Login struct {
 	Password      string
 	PasswordStdin bool
 	PlainHTTP     bool
+	Insecure      bool
 }
 
 func NewLogin() *Login {
@@ -31,6 +32,7 @@ func NewLogin() *Login {
 		Password:      "",
 		PasswordStdin: true,
 		PlainHTTP:     false,
+		Insecure:      false,
 	}
 }
 

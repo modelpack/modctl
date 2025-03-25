@@ -18,11 +18,15 @@ package backend
 
 import (
 	"context"
+	"crypto/tls"
+	"net/http"
 
-	"github.com/CloudNativeAI/modctl/pkg/config"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
+	"oras.land/oras-go/v2/registry/remote/retry"
+
+	"github.com/CloudNativeAI/modctl/pkg/config"
 )
 
 // Login logs into a registry.
@@ -36,6 +40,19 @@ func (b *backend) Login(ctx context.Context, registry, username, password string
 	reg, err := remote.NewRegistry(registry)
 	if err != nil {
 		return err
+	}
+
+	httpClient := &http.Client{
+		Transport: retry.NewTransport(&http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: cfg.Insecure,
+			},
+		}),
+	}
+	reg.Client = &auth.Client{
+		Cache:      auth.NewCache(),
+		Credential: credentials.Credential(store),
+		Client:     httpClient,
 	}
 
 	if cfg.PlainHTTP {
