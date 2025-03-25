@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"time"
 
 	distribution "github.com/distribution/distribution/v3"
 	registry "github.com/distribution/distribution/v3/registry/storage"
@@ -314,4 +315,10 @@ func (s *storage) PerformGC(ctx context.Context, dryRun, removeUntagged bool) er
 		DryRun:         dryRun,
 		RemoveUntagged: removeUntagged,
 	})
+}
+
+// PerformPurgeUploads performs the purge uploads in the storage to free up the space.
+func (s *storage) PerformPurgeUploads(ctx context.Context, dryRun bool) error {
+	_, errs := registry.PurgeUploads(ctx, s.driver, time.Now(), !dryRun)
+	return errors.Join(errs...)
 }
