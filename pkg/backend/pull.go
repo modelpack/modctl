@@ -60,19 +60,22 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	// create the http client.
-	httpClient := &http.Client{}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: cfg.Insecure,
+		},
+	}
 	if cfg.Proxy != "" {
 		proxyURL, err := url.Parse(cfg.Proxy)
 		if err != nil {
 			return fmt.Errorf("failed to parse the proxy URL: %w", err)
 		}
 
-		httpClient.Transport = retry.NewTransport(&http.Transport{
-			Proxy: http.ProxyURL(proxyURL),
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: cfg.Insecure,
-			},
-		})
+		transport.Proxy = http.ProxyURL(proxyURL)
+	}
+
+	httpClient := &http.Client{
+		Transport: retry.NewTransport(transport),
 	}
 
 	src.Client = &auth.Client{
