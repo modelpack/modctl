@@ -19,9 +19,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend"
 	"github.com/CloudNativeAI/modctl/pkg/config"
+	"github.com/briandowns/spinner"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -78,12 +80,18 @@ func runBuild(ctx context.Context, workDir string) error {
 
 	// nydusify the model artifact if needed.
 	if buildConfig.Nydusify {
+		sp := spinner.New(spinner.CharSets[39], 100*time.Millisecond, spinner.WithSuffix("Nydusifying..."))
+		sp.Start()
+		defer sp.Stop()
+
 		nydusName, err := b.Nydusify(ctx, buildConfig.Target)
 		if err != nil {
-			return fmt.Errorf("failed to nydusify %s: %w", buildConfig.Target, err)
+			err = fmt.Errorf("failed to nydusify %s: %w", buildConfig.Target, err)
+			sp.FinalMSG = err.Error()
+			return err
 		}
 
-		fmt.Printf("Successfully nydusify model artifact: %s\n", nydusName)
+		sp.FinalMSG = fmt.Sprintf("Successfully nydusify model artifact: %s", nydusName)
 	}
 
 	return nil

@@ -18,48 +18,22 @@ package build
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
-	"net/http"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
+	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"oras.land/oras-go/v2/registry/remote"
-	"oras.land/oras-go/v2/registry/remote/auth"
-	"oras.land/oras-go/v2/registry/remote/credentials"
-	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 func NewRemoteOutput(cfg *config, repo, tag string) (OutputStrategy, error) {
-	remote, err := remote.NewRepository(repo)
+	remote, err := remote.New(repo, remote.WithPlainHTTP(cfg.plainHTTP), remote.WithInsecure(cfg.insecure))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create remote repository: %w", err)
 	}
-
-	// gets the credentials store.
-	credStore, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create credential store: %w", err)
-	}
-
-	httpClient := &http.Client{
-		Transport: retry.NewTransport(&http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: cfg.insecure,
-			},
-		}),
-	}
-	remote.Client = &auth.Client{
-		Cache:      auth.NewCache(),
-		Credential: credentials.Credential(credStore),
-		Client:     httpClient,
-	}
-
-	remote.PlainHTTP = cfg.plainHTTP
 
 	return &remoteOutput{
 		cfg:    cfg,
