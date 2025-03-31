@@ -23,7 +23,7 @@ import (
 
 var (
 	// Config file patterns - supported configuration file extensions.
-	configFilePatterns = []string{
+	ConfigFilePatterns = []string{
 		"*.json",      // JSON configuration files
 		"*.jsonl",     // JSON Lines format
 		"*.yaml",      // YAML configuration files
@@ -40,7 +40,7 @@ var (
 	}
 
 	// Model file patterns - supported model file extensions.
-	modelFilePatterns = []string{
+	ModelFilePatterns = []string{
 		// Huggingface formats.
 		"*.safetensors", // Safe and efficient tensor serialization format
 
@@ -66,7 +66,7 @@ var (
 	}
 
 	// Code file patterns - supported script and notebook files.
-	codeFilePatterns = []string{
+	CodeFilePatterns = []string{
 		"*.py",    // Python source files
 		"*.sh",    // Shell scripts
 		"*.ipynb", // Jupyter notebooks
@@ -74,7 +74,7 @@ var (
 	}
 
 	// Doc file patterns - supported documentation files
-	docFilePatterns = []string{
+	DocFilePatterns = []string{
 		// Documentation files.
 		"*.txt",          // Text files
 		"*.md",           // Markdown documentation
@@ -105,8 +105,8 @@ var (
 	}
 )
 
-// isFileType checks if the filename matches any of the given patterns
-func isFileType(filename string, patterns []string) bool {
+// IsFileType checks if the filename matches any of the given patterns
+func IsFileType(filename string, patterns []string) bool {
 	// Convert filename to lowercase for case-insensitive comparison
 	lowerFilename := strings.ToLower(filename)
 	for _, pattern := range patterns {

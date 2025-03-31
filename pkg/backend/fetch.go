@@ -18,22 +18,16 @@ package backend
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
 	"path/filepath"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
-	"oras.land/oras-go/v2/registry/remote"
-	"oras.land/oras-go/v2/registry/remote/auth"
-	"oras.land/oras-go/v2/registry/remote/credentials"
-	"oras.land/oras-go/v2/registry/remote/retry"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
+	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 )
 
@@ -45,47 +39,13 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 		return fmt.Errorf("failed to parse the target: %w", err)
 	}
 
-	_, tag := ref.Repository(), ref.Tag()
-
-	// create the src storage from the remote repository.
-	src, err := remote.NewRepository(target)
+	repo, tag := ref.Repository(), ref.Tag()
+	client, err := remote.New(repo, remote.WithPlainHTTP(cfg.PlainHTTP), remote.WithInsecure(cfg.Insecure))
 	if err != nil {
-		return fmt.Errorf("failed to create remote repository: %w", err)
+		return fmt.Errorf("failed to create remote client: %w", err)
 	}
 
-	// gets the credentials store.
-	credStore, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
-	if err != nil {
-		return fmt.Errorf("failed to create credential store: %w", err)
-	}
-
-	// create the http client.
-	httpClient := &http.Client{}
-	if cfg.Proxy != "" {
-		proxyURL, err := url.Parse(cfg.Proxy)
-		if err != nil {
-			return fmt.Errorf("failed to parse the proxy URL: %w", err)
-		}
-
-		httpClient.Transport = retry.NewTransport(&http.Transport{
-			Proxy: http.ProxyURL(proxyURL),
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: cfg.Insecure,
-			},
-		})
-	}
-
-	src.Client = &auth.Client{
-		Cache:      auth.NewCache(),
-		Credential: credentials.Credential(credStore),
-		Client:     httpClient,
-	}
-
-	if cfg.PlainHTTP {
-		src.PlainHTTP = true
-	}
-
-	_, manifestReader, err := src.Manifests().FetchReference(ctx, tag)
+	_, manifestReader, err := client.Manifests().FetchReference(ctx, tag)
 	if err != nil {
 		return fmt.Errorf("failed to fetch the manifest: %w", err)
 	}
@@ -127,7 +87,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 
 	for _, layer := range layers {
 		g.Go(func() error {
-			return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), src, cfg.Output, layer)
+			return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer)
 		})
 	}
 

@@ -19,23 +19,18 @@ package backend
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
+	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
-	"oras.land/oras-go/v2/registry/remote"
-	"oras.land/oras-go/v2/registry/remote/auth"
-	"oras.land/oras-go/v2/registry/remote/credentials"
-	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 // Push pushes the image to the registry.
@@ -50,33 +45,9 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 
 	// create the src storage from the image storage path.
 	src := b.store
-	// create the dst storage from the remote repository.
-	dst, err := remote.NewRepository(target)
+	dst, err := remote.New(repo, remote.WithPlainHTTP(cfg.PlainHTTP), remote.WithInsecure(cfg.Insecure))
 	if err != nil {
-		return fmt.Errorf("failed to create remote repository: %w", err)
-	}
-
-	// gets the credentials store.
-	credStore, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
-	if err != nil {
-		return fmt.Errorf("failed to create credential store: %w", err)
-	}
-
-	httpClient := &http.Client{
-		Transport: retry.NewTransport(&http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: cfg.Insecure,
-			},
-		}),
-	}
-	dst.Client = &auth.Client{
-		Cache:      auth.NewCache(),
-		Credential: credentials.Credential(credStore),
-		Client:     httpClient,
-	}
-
-	if cfg.PlainHTTP {
-		dst.PlainHTTP = true
+		return fmt.Errorf("failed to create the destination: %w", err)
 	}
 
 	manifestRaw, _, err := src.PullManifest(ctx, repo, tag)

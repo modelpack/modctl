@@ -25,22 +25,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
-	buildmock "github.com/CloudNativeAI/modctl/test/mocks/backend/build"
-	modelfilemock "github.com/CloudNativeAI/modctl/test/mocks/modelfile"
-	storagemock "github.com/CloudNativeAI/modctl/test/mocks/storage"
-
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+
+	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
+	buildmock "github.com/CloudNativeAI/modctl/test/mocks/backend/build"
+	storagemock "github.com/CloudNativeAI/modctl/test/mocks/storage"
 )
 
 type BuilderTestSuite struct {
 	suite.Suite
 	mockStorage        *storagemock.Storage
-	mockModelfile      *modelfilemock.Modelfile
 	mockOutputStrategy *buildmock.OutputStrategy
 	builder            *abstractBuilder
 	tempDir            string
@@ -49,15 +48,13 @@ type BuilderTestSuite struct {
 
 func (s *BuilderTestSuite) SetupTest() {
 	s.mockStorage = new(storagemock.Storage)
-	s.mockModelfile = new(modelfilemock.Modelfile)
 	s.mockOutputStrategy = new(buildmock.OutputStrategy)
 
 	s.builder = &abstractBuilder{
-		store:     s.mockStorage,
-		modelfile: s.mockModelfile,
-		repo:      "test-repo",
-		tag:       "test-tag",
-		strategy:  s.mockOutputStrategy,
+		store:    s.mockStorage,
+		repo:     "test-repo",
+		tag:      "test-tag",
+		strategy: s.mockOutputStrategy,
 	}
 
 	// Create a temporary directory and file for testing.
@@ -100,7 +97,7 @@ func (s *BuilderTestSuite) TestNewBuilder() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			// We're not fully testing the output strategies here, just ensuring the right type is selected.
-			builder, err := NewBuilder(tc.outputType, s.mockStorage, s.mockModelfile, "localhost/test-repo", "test-tag")
+			builder, err := NewBuilder(tc.outputType, s.mockStorage, "localhost/test-repo", "test-tag")
 
 			if tc.expectErr {
 				s.Error(err)
@@ -149,38 +146,41 @@ func (s *BuilderTestSuite) TestBuildConfig() {
 			Size:      100,
 		}
 
-		s.mockModelfile.On("GetArch").Return("transformer")
-		s.mockModelfile.On("GetFormat").Return("safetensors")
-		s.mockModelfile.On("GetPrecision").Return("fp16")
-		s.mockModelfile.On("GetQuantization").Return("q4_0")
-		s.mockModelfile.On("GetParamsize").Return("7B")
-		s.mockModelfile.On("GetFamily").Return("llama")
-		s.mockModelfile.On("GetName").Return("llama-2")
+		modelConfig := &buildconfig.Model{
+			Architecture: "transformer",
+			Format:       "safetensors",
+			Precision:    "fp16",
+			Quantization: "q4_0",
+			ParamSize:    "7B",
+			Family:       "llama",
+			Name:         "llama-2",
+		}
 
 		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(expectedDesc, nil).Once()
 
-		desc, err := s.builder.BuildConfig(context.Background(), []ocispec.Descriptor{}, hooks.NewHooks())
+		desc, err := s.builder.BuildConfig(context.Background(), []ocispec.Descriptor{}, modelConfig, hooks.NewHooks())
 		s.NoError(err)
 		s.Equal(expectedDesc, desc)
 
-		s.mockModelfile.AssertExpectations(s.T())
 		s.mockOutputStrategy.AssertExpectations(s.T())
 	})
 
 	s.Run("output strategy error", func() {
-		s.mockModelfile.On("GetArch").Return("transformer")
-		s.mockModelfile.On("GetFormat").Return("safetensors")
-		s.mockModelfile.On("GetPrecision").Return("fp16")
-		s.mockModelfile.On("GetQuantization").Return("q4_0")
-		s.mockModelfile.On("GetParamsize").Return("7B")
-		s.mockModelfile.On("GetFamily").Return("llama")
-		s.mockModelfile.On("GetName").Return("llama-2")
+		modelConfig := &buildconfig.Model{
+			Architecture: "transformer",
+			Format:       "safetensors",
+			Precision:    "fp16",
+			Quantization: "q4_0",
+			ParamSize:    "7B",
+			Family:       "llama",
+			Name:         "llama-2",
+		}
 
 		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(ocispec.Descriptor{}, errors.New("output error")).Once()
 
-		_, err := s.builder.BuildConfig(context.Background(), []ocispec.Descriptor{}, hooks.NewHooks())
+		_, err := s.builder.BuildConfig(context.Background(), []ocispec.Descriptor{}, modelConfig, hooks.NewHooks())
 		s.Error(err)
 		s.True(strings.Contains(err.Error(), "output error"))
 	})
@@ -231,16 +231,17 @@ func (s *BuilderTestSuite) TestBuildManifest() {
 }
 
 func (s *BuilderTestSuite) TestBuildModelConfig() {
-	mockModelfile := new(modelfilemock.Modelfile)
-	mockModelfile.On("GetArch").Return("transformer")
-	mockModelfile.On("GetFormat").Return("gguf")
-	mockModelfile.On("GetPrecision").Return("fp16")
-	mockModelfile.On("GetQuantization").Return("q4_0")
-	mockModelfile.On("GetParamsize").Return("7B")
-	mockModelfile.On("GetFamily").Return("llama")
-	mockModelfile.On("GetName").Return("llama-2")
+	modelConfig := &buildconfig.Model{
+		Architecture: "transformer",
+		Format:       "gguf",
+		Precision:    "fp16",
+		Quantization: "q4_0",
+		ParamSize:    "7B",
+		Family:       "llama",
+		Name:         "llama-2",
+	}
 
-	model, err := buildModelConfig(mockModelfile, []ocispec.Descriptor{
+	model, err := buildModelConfig(modelConfig, []ocispec.Descriptor{
 		{Digest: godigest.Digest("sha256:layer-1")},
 		{Digest: godigest.Digest("sha256:layer-2")},
 	})

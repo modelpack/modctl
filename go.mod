@@ -4,6 +4,7 @@ go 1.24.1
 
 require (
 	github.com/CloudNativeAI/model-spec v0.0.3
+	github.com/briandowns/spinner v1.23.2
 	github.com/distribution/distribution/v3 v3.0.0-rc.3
 	github.com/distribution/reference v0.6.0
 	github.com/dustin/go-humanize v1.0.1
@@ -29,6 +30,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
+	github.com/fatih/color v1.7.0 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -40,6 +42,8 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.3 // indirect
+	github.com/mattn/go-colorable v0.1.2 // indirect
+	github.com/mattn/go-isatty v0.0.8 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect

@@ -24,6 +24,7 @@ import (
 	"github.com/CloudNativeAI/modctl/internal/pb"
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
+	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
 	"github.com/CloudNativeAI/modctl/pkg/config"
@@ -33,7 +34,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// Build builds the user materials into the OCI image which follows the Model Spec.
+// Build builds the user materials into the model artifact which follows the Model Spec.
 func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string, cfg *config.Build) error {
 	// parse the repo name and tag name from target.
 	ref, err := ParseReference(target)
@@ -61,7 +62,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		build.WithPlainHTTP(cfg.PlainHTTP),
 		build.WithInsecure(cfg.Insecure),
 	}
-	builder, err := build.NewBuilder(outputType, b.store, modelfile, repo, tag, opts...)
+	builder, err := build.NewBuilder(outputType, b.store, repo, tag, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create builder: %w", err)
 	}
@@ -77,8 +78,18 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	}
 
 	layers = append(layers, layerDescs...)
-	// build the image config.
-	configDesc, err := builder.BuildConfig(ctx, layers, hooks.NewHooks(
+
+	// Build the model config.
+	modelConfig := &buildconfig.Model{
+		Architecture: modelfile.GetArch(),
+		Format:       modelfile.GetFormat(),
+		Precision:    modelfile.GetPrecision(),
+		Quantization: modelfile.GetQuantization(),
+		ParamSize:    modelfile.GetParamsize(),
+		Family:       modelfile.GetFamily(),
+		Name:         modelfile.GetName(),
+	}
+	configDesc, err := builder.BuildConfig(ctx, layers, modelConfig, hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 			return pb.Add(internalpb.NormalizePrompt("Building config"), name, size, reader)
 		}),
@@ -90,10 +101,10 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		}),
 	))
 	if err != nil {
-		return fmt.Errorf("failed to build image config: %w", err)
+		return fmt.Errorf("failed to build model config: %w", err)
 	}
 
-	// build the image manifest.
+	// Build the model manifest.
 	_, err = builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation(), hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 			return pb.Add(internalpb.NormalizePrompt("Building manifest"), name, size, reader)
@@ -106,7 +117,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		}),
 	))
 	if err != nil {
-		return fmt.Errorf("failed to build image manifest: %w", err)
+		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
 
 	return nil

@@ -26,16 +26,16 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
-	"github.com/CloudNativeAI/modctl/pkg/codec"
-	"github.com/CloudNativeAI/modctl/pkg/modelfile"
-	"github.com/CloudNativeAI/modctl/pkg/storage"
-
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	sha256 "github.com/minio/sha256-simd"
 	godigest "github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
+	"github.com/CloudNativeAI/modctl/pkg/codec"
+	"github.com/CloudNativeAI/modctl/pkg/storage"
 )
 
 // OutputType defines the type of output to generate.
@@ -54,7 +54,7 @@ type Builder interface {
 	BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// BuildConfig builds the config blob of the artifact.
-	BuildConfig(ctx context.Context, layers []ocispec.Descriptor, hooks hooks.Hooks) (ocispec.Descriptor, error)
+	BuildConfig(ctx context.Context, layers []ocispec.Descriptor, modelConfig *buildconfig.Model, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// BuildManifest builds the manifest blob of the artifact.
 	BuildManifest(ctx context.Context, layers []ocispec.Descriptor, config ocispec.Descriptor, annotations map[string]string, hooks hooks.Hooks) (ocispec.Descriptor, error)
@@ -72,7 +72,7 @@ type OutputStrategy interface {
 }
 
 // NewBuilder creates a new builder instance.
-func NewBuilder(outputType OutputType, store storage.Storage, modelfile modelfile.Modelfile, repo, tag string, opts ...Option) (Builder, error) {
+func NewBuilder(outputType OutputType, store storage.Storage, repo, tag string, opts ...Option) (Builder, error) {
 	cfg := &config{}
 	for _, opt := range opts {
 		opt(cfg)
@@ -96,20 +96,18 @@ func NewBuilder(outputType OutputType, store storage.Storage, modelfile modelfil
 	}
 
 	return &abstractBuilder{
-		store:     store,
-		modelfile: modelfile,
-		repo:      repo,
-		tag:       tag,
-		strategy:  strategy,
+		store:    store,
+		repo:     repo,
+		tag:      tag,
+		strategy: strategy,
 	}, nil
 }
 
 // abstractBuilder is an abstract implementation of the Builder interface.
 type abstractBuilder struct {
-	store     storage.Storage
-	modelfile modelfile.Modelfile
-	repo      string
-	tag       string
+	store storage.Storage
+	repo  string
+	tag   string
 	// strategy is the output strategy used to output the blob.
 	strategy OutputStrategy
 }
@@ -172,8 +170,8 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 	return ab.strategy.OutputLayer(ctx, mediaType, relPath, digest, size, reader, hooks)
 }
 
-func (ab *abstractBuilder) BuildConfig(ctx context.Context, layers []ocispec.Descriptor, hooks hooks.Hooks) (ocispec.Descriptor, error) {
-	config, err := buildModelConfig(ab.modelfile, layers)
+func (ab *abstractBuilder) BuildConfig(ctx context.Context, layers []ocispec.Descriptor, modelConfig *buildconfig.Model, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+	config, err := buildModelConfig(modelConfig, layers)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to build model config: %w", err)
 	}
@@ -213,20 +211,24 @@ func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.D
 }
 
 // buildModelConfig builds the model config.
-func buildModelConfig(modelfile modelfile.Modelfile, layers []ocispec.Descriptor) (*modelspec.Model, error) {
+func buildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descriptor) (*modelspec.Model, error) {
+	if modelConfig == nil {
+		return nil, fmt.Errorf("model config is nil")
+	}
+
 	config := modelspec.ModelConfig{
-		Architecture: modelfile.GetArch(),
-		Format:       modelfile.GetFormat(),
-		Precision:    modelfile.GetPrecision(),
-		Quantization: modelfile.GetQuantization(),
-		ParamSize:    modelfile.GetParamsize(),
+		Architecture: modelConfig.Architecture,
+		Format:       modelConfig.Format,
+		Precision:    modelConfig.Precision,
+		Quantization: modelConfig.Quantization,
+		ParamSize:    modelConfig.ParamSize,
 	}
 
 	createdAt := time.Now()
 	descriptor := modelspec.ModelDescriptor{
 		CreatedAt: &createdAt,
-		Family:    modelfile.GetFamily(),
-		Name:      modelfile.GetName(),
+		Family:    modelConfig.Family,
+		Name:      modelConfig.Name,
 	}
 
 	diffIDs := make([]godigest.Digest, 0, len(layers))
