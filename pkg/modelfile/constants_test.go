@@ -24,7 +24,7 @@ func TestIsFileType(t *testing.T) {
 
 	assert := assert.New(t)
 	for _, tc := range testCases {
-		assert.Equal(tc.expected, isFileType(tc.filename, tc.patterns))
+		assert.Equal(tc.expected, IsFileType(tc.filename, tc.patterns))
 	}
 }
 

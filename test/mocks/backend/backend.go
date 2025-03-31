@@ -40,6 +40,54 @@ func (_m *Backend) EXPECT() *Backend_Expecter {
 	return &Backend_Expecter{mock: &_m.Mock}
 }
 
+// Attach provides a mock function with given fields: ctx, filepath, cfg
+func (_m *Backend) Attach(ctx context.Context, filepath string, cfg *config.Attach) error {
+	ret := _m.Called(ctx, filepath, cfg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Attach")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Attach) error); ok {
+		r0 = rf(ctx, filepath, cfg)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Backend_Attach_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Attach'
+type Backend_Attach_Call struct {
+	*mock.Call
+}
+
+// Attach is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filepath string
+//   - cfg *config.Attach
+func (_e *Backend_Expecter) Attach(ctx interface{}, filepath interface{}, cfg interface{}) *Backend_Attach_Call {
+	return &Backend_Attach_Call{Call: _e.mock.On("Attach", ctx, filepath, cfg)}
+}
+
+func (_c *Backend_Attach_Call) Run(run func(ctx context.Context, filepath string, cfg *config.Attach)) *Backend_Attach_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(*config.Attach))
+	})
+	return _c
+}
+
+func (_c *Backend_Attach_Call) Return(_a0 error) *Backend_Attach_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Backend_Attach_Call) RunAndReturn(run func(context.Context, string, *config.Attach) error) *Backend_Attach_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Build provides a mock function with given fields: ctx, modelfilePath, workDir, target, cfg
 func (_m *Backend) Build(ctx context.Context, modelfilePath string, workDir string, target string, cfg *config.Build) error {
 	ret := _m.Called(ctx, modelfilePath, workDir, target, cfg)

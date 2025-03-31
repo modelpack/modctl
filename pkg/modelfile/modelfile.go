@@ -247,13 +247,13 @@ func (mf *modelfile) generateByWorkspace(ignoreUnrecognizedFileTypes bool) error
 		}
 
 		switch {
-		case isFileType(filename, configFilePatterns):
+		case IsFileType(filename, ConfigFilePatterns):
 			mf.config.Add(relPath)
-		case isFileType(filename, modelFilePatterns):
+		case IsFileType(filename, ModelFilePatterns):
 			mf.model.Add(relPath)
-		case isFileType(filename, codeFilePatterns):
+		case IsFileType(filename, CodeFilePatterns):
 			mf.code.Add(relPath)
-		case isFileType(filename, docFilePatterns):
+		case IsFileType(filename, DocFilePatterns):
 			mf.doc.Add(relPath)
 		default:
 			// Skip unrecognized files if IgnoreUnrecognizedFileTypes is true.
@@ -485,10 +485,10 @@ func (mf *modelfile) Content() []byte {
 	content += mf.writeField("Model quantization", modefilecommand.QUANTIZATION, mf.quantization)
 
 	// Add multi-value commands.
-	content += mf.writeMultiField("Config files (Generated from the files in the workspace directory)", modefilecommand.CONFIG, mf.GetConfigs(), configFilePatterns)
-	content += mf.writeMultiField("Code files (Generated from the files in the workspace directory)", modefilecommand.CODE, mf.GetCodes(), codeFilePatterns)
-	content += mf.writeMultiField("Model files (Generated from the files in the workspace directory)", modefilecommand.MODEL, mf.GetModels(), modelFilePatterns)
-	content += mf.writeMultiField("Documentation files (Generated from the files in the workspace directory)", modefilecommand.DOC, mf.GetDocs(), docFilePatterns)
+	content += mf.writeMultiField("Config files (Generated from the files in the workspace directory)", modefilecommand.CONFIG, mf.GetConfigs(), ConfigFilePatterns)
+	content += mf.writeMultiField("Code files (Generated from the files in the workspace directory)", modefilecommand.CODE, mf.GetCodes(), CodeFilePatterns)
+	content += mf.writeMultiField("Model files (Generated from the files in the workspace directory)", modefilecommand.MODEL, mf.GetModels(), ModelFilePatterns)
+	content += mf.writeMultiField("Documentation files (Generated from the files in the workspace directory)", modefilecommand.DOC, mf.GetDocs(), DocFilePatterns)
 	return []byte(content)
 }
 

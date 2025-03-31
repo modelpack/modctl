@@ -18,23 +18,17 @@ package backend
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
+	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
-	"oras.land/oras-go/v2/registry/remote"
-	"oras.land/oras-go/v2/registry/remote/auth"
-	"oras.land/oras-go/v2/registry/remote/credentials"
-	"oras.land/oras-go/v2/registry/remote/retry"
 )
 
 // Pull pulls an artifact from a registry.
@@ -46,46 +40,9 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	repo, tag := ref.Repository(), ref.Tag()
-
-	// create the src storage from the remote repository.
-	src, err := remote.NewRepository(target)
+	src, err := remote.New(repo, remote.WithPlainHTTP(cfg.PlainHTTP), remote.WithInsecure(cfg.Insecure), remote.WithProxy(cfg.Proxy))
 	if err != nil {
-		return fmt.Errorf("failed to create remote repository: %w", err)
-	}
-
-	// gets the credentials store.
-	credStore, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
-	if err != nil {
-		return fmt.Errorf("failed to create credential store: %w", err)
-	}
-
-	// create the http client.
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: cfg.Insecure,
-		},
-	}
-	if cfg.Proxy != "" {
-		proxyURL, err := url.Parse(cfg.Proxy)
-		if err != nil {
-			return fmt.Errorf("failed to parse the proxy URL: %w", err)
-		}
-
-		transport.Proxy = http.ProxyURL(proxyURL)
-	}
-
-	httpClient := &http.Client{
-		Transport: retry.NewTransport(transport),
-	}
-
-	src.Client = &auth.Client{
-		Cache:      auth.NewCache(),
-		Credential: credentials.Credential(credStore),
-		Client:     httpClient,
-	}
-
-	if cfg.PlainHTTP {
-		src.PlainHTTP = true
+		return fmt.Errorf("failed to create the remote client: %w", err)
 	}
 
 	manifestDesc, manifestReader, err := src.Manifests().FetchReference(ctx, tag)
