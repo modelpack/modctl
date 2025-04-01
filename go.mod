@@ -1,7 +1,6 @@
 module github.com/CloudNativeAI/modctl
 
 go 1.24.1
-
 require (
 	github.com/CloudNativeAI/model-spec v0.0.3
 	github.com/briandowns/spinner v1.23.2
@@ -14,7 +13,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/viper v1.20.0
+	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	github.com/vbauerster/mpb/v8 v8.9.3
 	golang.org/x/crypto v0.36.0
