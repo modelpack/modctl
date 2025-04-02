@@ -34,6 +34,11 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+const (
+	// annotationModelfile is the annotation key for the Modelfile.
+	annotationModelfile = "org.cnai.modctl.modelfile"
+)
+
 // Build builds the user materials into the model artifact which follows the Model Spec.
 func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string, cfg *config.Build) error {
 	// parse the repo name and tag name from target.
@@ -105,7 +110,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	}
 
 	// Build the model manifest.
-	_, err = builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation(), hooks.NewHooks(
+	_, err = builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation(modelfile), hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 			return pb.Add(internalpb.NormalizePrompt("Building manifest"), name, size, reader)
 		}),
@@ -161,8 +166,9 @@ func (b *backend) process(ctx context.Context, builder build.Builder, workDir st
 }
 
 // manifestAnnotation returns the annotations for the manifest.
-func manifestAnnotation() map[string]string {
-	// placeholder for future expansion of annotations.
-	anno := map[string]string{}
+func manifestAnnotation(modelfile modelfile.Modelfile) map[string]string {
+	anno := map[string]string{
+		annotationModelfile: string(modelfile.Content()),
+	}
 	return anno
 }
