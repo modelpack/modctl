@@ -150,7 +150,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 	}
 
 	// Build the model manifest.
-	_, err = builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation(), hooks.NewHooks(
+	_, err = builder.BuildManifest(ctx, layers, configDesc, srcManifest.Annotations, hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 			return pb.Add(internalpb.NormalizePrompt("Building manifest"), name, size, reader)
 		}),
