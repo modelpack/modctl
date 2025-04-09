@@ -26,6 +26,7 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/interceptor"
 	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
@@ -67,6 +68,10 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		build.WithPlainHTTP(cfg.PlainHTTP),
 		build.WithInsecure(cfg.Insecure),
 	}
+	if cfg.Nydusify {
+		opts = append(opts, build.WithInterceptor(interceptor.NewNydus()))
+	}
+
 	builder, err := build.NewBuilder(outputType, b.store, repo, tag, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create builder: %w", err)

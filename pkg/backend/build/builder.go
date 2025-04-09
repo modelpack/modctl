@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
@@ -34,6 +35,7 @@ import (
 
 	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
+	"github.com/CloudNativeAI/modctl/pkg/backend/build/interceptor"
 	"github.com/CloudNativeAI/modctl/pkg/codec"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 )
@@ -96,10 +98,11 @@ func NewBuilder(outputType OutputType, store storage.Storage, repo, tag string, 
 	}
 
 	return &abstractBuilder{
-		store:    store,
-		repo:     repo,
-		tag:      tag,
-		strategy: strategy,
+		store:       store,
+		repo:        repo,
+		tag:         tag,
+		strategy:    strategy,
+		interceptor: cfg.interceptor,
 	}, nil
 }
 
@@ -110,6 +113,8 @@ type abstractBuilder struct {
 	tag   string
 	// strategy is the output strategy used to output the blob.
 	strategy OutputStrategy
+	// interceptor is the interceptor used to intercept the build process.
+	interceptor interceptor.Interceptor
 }
 
 func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
@@ -167,7 +172,39 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		}
 	}
 
-	return ab.strategy.OutputLayer(ctx, mediaType, relPath, digest, size, reader, hooks)
+	var (
+		wg        sync.WaitGroup
+		itErr     error
+		applyDesc interceptor.ApplyDescriptorFn
+	)
+	// Intercept the reader if needed.
+	if ab.interceptor != nil {
+		var itReader io.Reader
+		reader, itReader = splitReader(reader)
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			applyDesc, itErr = ab.interceptor.Intercept(ctx, mediaType, relPath, codec.Type(), itReader)
+		}()
+	}
+
+	desc, err := ab.strategy.OutputLayer(ctx, mediaType, relPath, digest, size, reader, hooks)
+	if err != nil {
+		return desc, err
+	}
+
+	// Wait for the interceptor to finish.
+	wg.Wait()
+	if itErr != nil {
+		return desc, itErr
+	}
+
+	if applyDesc != nil {
+		applyDesc(&desc)
+	}
+
+	return desc, nil
 }
 
 func (ab *abstractBuilder) BuildConfig(ctx context.Context, layers []ocispec.Descriptor, modelConfig *buildconfig.Model, hooks hooks.Hooks) (ocispec.Descriptor, error) {
@@ -246,4 +283,24 @@ func buildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descripto
 		Descriptor: descriptor,
 		ModelFS:    fs,
 	}, nil
+}
+
+// splitReader splits the original reader into two readers.
+func splitReader(original io.Reader) (io.Reader, io.Reader) {
+	r1, w1 := io.Pipe()
+	r2, w2 := io.Pipe()
+	multiWriter := io.MultiWriter(w1, w2)
+
+	go func() {
+		defer w1.Close()
+		defer w2.Close()
+
+		_, err := io.Copy(multiWriter, original)
+		if err != nil {
+			w1.CloseWithError(err)
+			w2.CloseWithError(err)
+		}
+	}()
+
+	return r1, r2
 }

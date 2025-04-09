@@ -34,6 +34,9 @@ const (
 
 // Codec is an interface for encoding and decoding the data.
 type Codec interface {
+	// Type returns the type of the codec.
+	Type() Type
+
 	// Encode encodes the target file into a reader.
 	Encode(targetFilePath, workDirPath string) (io.Reader, error)
 

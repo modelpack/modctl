@@ -14,35 +14,20 @@
  * limitations under the License.
  */
 
-package build
+package interceptor
 
 import (
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/interceptor"
+	"context"
+	"io"
 )
 
-type Option func(*config)
+type nydus struct{}
 
-// config is the configuration for the building.
-type config struct {
-	plainHTTP   bool
-	insecure    bool
-	interceptor interceptor.Interceptor
+func NewNydus() *nydus {
+	return &nydus{}
 }
 
-func WithPlainHTTP(plainHTTP bool) Option {
-	return func(c *config) {
-		c.plainHTTP = plainHTTP
-	}
-}
-
-func WithInsecure(insecure bool) Option {
-	return func(c *config) {
-		c.insecure = insecure
-	}
-}
-
-func WithInterceptor(interceptor interceptor.Interceptor) Option {
-	return func(c *config) {
-		c.interceptor = interceptor
-	}
+func (n *nydus) Intercept(ctx context.Context, mediaType string, filepath string, readerType string, reader io.Reader) (ApplyDescriptorFn, error) {
+	// TODO: Implement nydus interceptor
+	return nil, nil
 }
