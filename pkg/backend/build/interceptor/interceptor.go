@@ -14,35 +14,20 @@
  * limitations under the License.
  */
 
-package build
+package interceptor
 
 import (
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/interceptor"
+	"context"
+	"io"
+
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-type Option func(*config)
+// ApplyDescriptorFn is a function that applies changes to the descriptor.
+type ApplyDescriptorFn func(desc *ocispec.Descriptor)
 
-// config is the configuration for the building.
-type config struct {
-	plainHTTP   bool
-	insecure    bool
-	interceptor interceptor.Interceptor
-}
-
-func WithPlainHTTP(plainHTTP bool) Option {
-	return func(c *config) {
-		c.plainHTTP = plainHTTP
-	}
-}
-
-func WithInsecure(insecure bool) Option {
-	return func(c *config) {
-		c.insecure = insecure
-	}
-}
-
-func WithInterceptor(interceptor interceptor.Interceptor) Option {
-	return func(c *config) {
-		c.interceptor = interceptor
-	}
+// Interceptor is an interface that defines the interceptor for the building stream.
+type Interceptor interface {
+	// Intercept intercepts the building stream for some customized logic, readerType is the original stream type, such as raw or tar.
+	Intercept(ctx context.Context, mediaType string, filepath string, readerType string, reader io.Reader) (ApplyDescriptorFn, error)
 }
