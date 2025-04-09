@@ -30,6 +30,11 @@ func newRaw() *raw {
 	return &raw{}
 }
 
+// Type returns the type of the codec.
+func (r *raw) Type() string {
+	return Raw
+}
+
 // Encode reads the target file into a reader.
 func (r *raw) Encode(targetFilePath, workDirPath string) (io.Reader, error) {
 	return os.Open(targetFilePath)

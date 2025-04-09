@@ -30,6 +30,11 @@ func newTar() *tar {
 	return &tar{}
 }
 
+// Type returns the type of the codec.
+func (t *tar) Type() string {
+	return Tar
+}
+
 // Encode tars the target file into a reader.
 func (t *tar) Encode(targetFilePath, workDirPath string) (io.Reader, error) {
 	return archiver.Tar(targetFilePath, workDirPath)
