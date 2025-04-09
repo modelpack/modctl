@@ -81,6 +81,13 @@ Then run the following command to build the model artifact:
 $ modctl build -t registry.com/models/llama3:v1.0.0 -f Modelfile .
 ```
 
+The build command requires additional local storage for the built blobs. Since model files are often large, storing both the original and built versions locally can strain disk space. To avoid this, you can use the following command to build the blob and push it directly to a remote registry.
+
+
+```shell
+$ modctl build -t registry.com/models/llama3:v1.0.0 -f Modelfile . --output-remote
+```
+
 ### Pull & Push
 
 Before the `pull` or `push` command, you need to login the registry:
@@ -93,6 +100,12 @@ Pull the model artifact from the registry:
 
 ```shell
 $ modctl pull registry.com/models/llama3:v1.0.0
+```
+
+Similar to the build above, the above command requires pulling the model image to the local machine before extracting it, which wastes extra storage space. Therefore, you can use the following command to directly extract the model from the remote repository into a specific output directory.
+
+```shell
+$ modctl pull registry.com/models/llama3:v1.0.0 --extract-dir /path/to/extract --extract-from-remote
 ```
 
 Push the model artifact to the registry:
@@ -109,6 +122,7 @@ Extract the model artifact to the specified directory:
 $ modctl extract registry.com/models/llama3:v1.0.0 --output /path/to/extract
 ```
 
+
 ### List
 
 List the model artifacts in the local storage:
@@ -116,6 +130,27 @@ List the model artifacts in the local storage:
 ```shell
 $ modctl ls
 ```
+
+### Fetch
+
+Fetch the partial files by specifying the file path glob pattern:
+
+```shell
+$ modctl fetch registry.com/models/llama3:v1.0.0 --output /path/to/extract --patterns '*.json'
+```
+
+### Attach
+
+The `attach` command allows you to add a file to an existing model artifact. This is useful for avoiding a complete rebuild of the artifact when only a single file has been modified:
+
+```shell
+# attach the local model artifact.
+$ modctl attach foo.txt -s registry.com/models/llama3:v1.0.0 -t registry.com/models/llama3:v1.0.1
+
+# attach the remote model artifact.
+$ modctl attach foo.txt -s registry.com/models/llama3:v1.0.0 -t registry.com/models/llama3:v1.0.1 --output-remote
+```
+
 
 ### Cleanup
 
