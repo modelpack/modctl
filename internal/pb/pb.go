@@ -97,10 +97,10 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 
 // Complete completes the progress bar.
 func (p *ProgressBar) Complete(name string, msg string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
+	p.mu.RLock()
 	bar, ok := p.bars[name]
+	p.mu.RUnlock()
+
 	if ok {
 		bar.msg = msg
 		bar.Bar.SetCurrent(bar.size)
