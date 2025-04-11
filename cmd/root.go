@@ -17,6 +17,9 @@
 package cmd
 
 import (
+	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -38,6 +41,18 @@ var rootCmd = &cobra.Command{
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Start pprof server if enabled.
+		if rootConfig.Pprof {
+			go func() {
+				err := http.ListenAndServe(rootConfig.PprofAddr, nil)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}()
+		}
+		return nil
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -66,6 +81,8 @@ func init() {
 	// Bind more cache specific persistent flags.
 	flags := rootCmd.PersistentFlags()
 	flags.StringVar(&rootConfig.StoargeDir, "storage-dir", rootConfig.StoargeDir, "specify the storage directory for modctl")
+	flags.BoolVar(&rootConfig.Pprof, "pprof", rootConfig.Pprof, "enable pprof")
+	flags.StringVar(&rootConfig.PprofAddr, "pprof-addr", rootConfig.PprofAddr, "specify the address for pprof")
 
 	// Bind common flags.
 	if err := viper.BindPFlags(flags); err != nil {

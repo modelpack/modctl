@@ -23,6 +23,8 @@ import (
 
 type Root struct {
 	StoargeDir string
+	Pprof      bool
+	PprofAddr  string
 }
 
 func NewRoot() (*Root, error) {
@@ -33,5 +35,7 @@ func NewRoot() (*Root, error) {
 
 	return &Root{
 		StoargeDir: filepath.Join(user.HomeDir, ".modctl"),
+		Pprof:      false,
+		PprofAddr:  "localhost:6060",
 	}, nil
 }
