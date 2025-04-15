@@ -18,6 +18,7 @@ package backend
 
 import (
 	"context"
+	"os"
 	"os/exec"
 )
 
@@ -44,7 +45,8 @@ func (b *backend) Nydusify(ctx context.Context, source string) (string, error) {
 		"--target",
 		target,
 	)
-
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
