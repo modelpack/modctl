@@ -19,15 +19,18 @@ package build
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
@@ -267,4 +270,19 @@ func (s *BuilderTestSuite) TestBuildModelConfig() {
 
 func TestBuilderSuite(t *testing.T) {
 	suite.Run(t, new(BuilderTestSuite))
+}
+
+func TestPipeReader(t *testing.T) {
+	r := strings.NewReader("some io.Reader stream to be read\n")
+	r1, r2 := splitReader(r)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := io.Copy(os.Stdout, r2)
+		assert.NoError(t, err)
+	}()
+	_, err := io.Copy(os.Stdout, r1)
+	assert.NoError(t, err)
+	wg.Wait()
 }

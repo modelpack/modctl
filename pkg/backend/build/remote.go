@@ -69,6 +69,8 @@ func (ro *remoteOutput) OutputLayer(ctx context.Context, mediaType, relPath, dig
 	}
 
 	if exist {
+		// In case the reader is from PipeReader, we need to read the whole reader to avoid the pipe being blocked.
+		io.Copy(io.Discard, reader)
 		hooks.OnComplete(relPath, desc)
 		return desc, nil
 	}
