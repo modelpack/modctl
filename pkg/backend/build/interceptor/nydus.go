@@ -152,6 +152,10 @@ func calcCrc32(ctx context.Context, r io.Reader, chunkSize int64) ([]uint32, err
 			hash := crc32.New(table)
 			n, err := io.Copy(hash, limitedReader)
 			if n == 0 || err == io.EOF {
+				// if no data read, return 0 as the crc32 value.
+				if len(crc32Results) == 0 {
+					return []uint32{0}, nil
+				}
 				return crc32Results, nil
 			}
 
