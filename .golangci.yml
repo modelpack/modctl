@@ -1,41 +1,55 @@
+version: "2"
 run:
-  timeout: 3m
   modules-download-mode: readonly
-  skip-dirs:
-    - test/mocks
-
-linters-settings:
-  gocyclo:
-    min-complexity: 100
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(github.com/CloudNativeAI/modctl)
-
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
+linters:
+  default: none
+  enable:
+    - errcheck
+    - goconst
+    - gocyclo
+    - govet
+    - misspell
+    - staticcheck
+  settings:
+    gocyclo:
+      min-complexity: 100
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        text: 'SA1019:'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      - test/mocks
 issues:
   new: true
-  exclude-rules:
-    - linters:
-        - staticcheck
-      text: "SA1019:"
-
-linters:
-  disable-all: true
+formatters:
   enable:
     - gci
     - gofmt
-    - golint
-    - misspell
-    - govet
-    - goconst
-    - deadcode
-    - gocyclo
-    - staticcheck
-    - errcheck
-
-output:
-  formats:
-    - format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/CloudNativeAI/modctl)
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
