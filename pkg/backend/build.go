@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/CloudNativeAI/modctl/internal/pb"
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
@@ -30,6 +32,7 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
+	"github.com/CloudNativeAI/modctl/pkg/source"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -56,6 +59,11 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	repo, tag := ref.Repository(), ref.Tag()
 	if tag == "" {
 		return fmt.Errorf("tag is required")
+	}
+
+	sourceInfo, err := getSourceInfo(workDir, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to get source info: %w", err)
 	}
 
 	// using the local output by default.
@@ -89,15 +97,21 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 
 	layers = append(layers, layerDescs...)
 
+	revision := sourceInfo.Commit
+	if revision != "" && sourceInfo.Dirty {
+		revision += "-dirty"
+	}
 	// Build the model config.
 	modelConfig := &buildconfig.Model{
-		Architecture: modelfile.GetArch(),
-		Format:       modelfile.GetFormat(),
-		Precision:    modelfile.GetPrecision(),
-		Quantization: modelfile.GetQuantization(),
-		ParamSize:    modelfile.GetParamsize(),
-		Family:       modelfile.GetFamily(),
-		Name:         modelfile.GetName(),
+		Architecture:   modelfile.GetArch(),
+		Format:         modelfile.GetFormat(),
+		Precision:      modelfile.GetPrecision(),
+		Quantization:   modelfile.GetQuantization(),
+		ParamSize:      modelfile.GetParamsize(),
+		Family:         modelfile.GetFamily(),
+		Name:           modelfile.GetName(),
+		SourceURL:      sourceInfo.URL,
+		SourceRevision: revision,
 	}
 	configDesc, err := builder.BuildConfig(ctx, layers, modelConfig, hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
@@ -176,4 +190,36 @@ func manifestAnnotation(modelfile modelfile.Modelfile) map[string]string {
 		annotationModelfile: string(modelfile.Content()),
 	}
 	return anno
+}
+
+// getSourceInfo returns the source information for the build.
+func getSourceInfo(workspace string, buildConfig *config.Build) (*source.Info, error) {
+	info := &source.Info{
+		URL:    buildConfig.SourceURL,
+		Commit: buildConfig.SourceRevision,
+	}
+
+	// Try to parse the source information if user not specified.
+	if info.URL == "" {
+		var parser source.Parser
+		gitPath := filepath.Join(workspace, ".git")
+		if _, err := os.Stat(gitPath); err == nil {
+			parser, err = source.NewParser(source.ParserTypeGit)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Parse the source information if available.
+		if parser != nil {
+			parsedInfo, err := parser.Parse(workspace)
+			if err != nil {
+				return nil, err
+			}
+
+			return parsedInfo, nil
+		}
+	}
+
+	return info, nil
 }
