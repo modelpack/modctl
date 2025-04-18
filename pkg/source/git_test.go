@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-package config
+package source
 
-// Model is the configuration for building the Model.
-type Model struct {
-	Architecture   string
-	Format         string
-	Precision      string
-	Quantization   string
-	ParamSize      string
-	Family         string
-	Name           string
-	SourceURL      string
-	SourceRevision string
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestGit(t *testing.T) {
+	parser := &git{}
+	info, err := parser.Parse("testdata/git-repo")
+	assert.NoError(t, err)
+	assert.Equal(t, "https://github.com/octocat/Hello-World.git", info.URL, "source url should be equal to expected")
+	assert.Equal(t, "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d", info.Commit, "commit should be equal to expected")
+	assert.Equal(t, false, info.Dirty, "dirty should be equal to expected")
 }

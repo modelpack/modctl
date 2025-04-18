@@ -59,6 +59,8 @@ func init() {
 	flags.BoolVarP(&buildConfig.Insecure, "insecure", "", false, "turning on this flag will disable TLS verification")
 	flags.BoolVar(&buildConfig.Nydusify, "nydusify", false, "[EXPERIMENTAL] nydusify the model artifact")
 	flags.MarkHidden("nydusify")
+	flags.StringVar(&buildConfig.SourceURL, "source-url", "", "source URL")
+	flags.StringVar(&buildConfig.SourceRevision, "source-revision", "", "source revision")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
