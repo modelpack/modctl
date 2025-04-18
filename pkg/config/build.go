@@ -24,13 +24,15 @@ const (
 )
 
 type Build struct {
-	Concurrency  int
-	Target       string
-	Modelfile    string
-	OutputRemote bool
-	PlainHTTP    bool
-	Insecure     bool
-	Nydusify     bool
+	Concurrency    int
+	Target         string
+	Modelfile      string
+	OutputRemote   bool
+	PlainHTTP      bool
+	Insecure       bool
+	Nydusify       bool
+	SourceURL      string
+	SourceRevision string
 }
 
 func NewBuild() *Build {

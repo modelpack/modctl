@@ -266,6 +266,8 @@ func buildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descripto
 		CreatedAt: &createdAt,
 		Family:    modelConfig.Family,
 		Name:      modelConfig.Name,
+		SourceURL: modelConfig.SourceURL,
+		Revision:  modelConfig.SourceRevision,
 	}
 
 	diffIDs := make([]godigest.Digest, 0, len(layers))
