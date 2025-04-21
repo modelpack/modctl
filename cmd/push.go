@@ -81,7 +81,7 @@ func runPush(ctx context.Context, target string) error {
 		sp.Start()
 		defer sp.Stop()
 
-		nydusName, err := b.Nydusify(ctx, target)
+		nydusName, err := b.Nydusify(ctx, target, rootConfig)
 		if err != nil {
 			err = fmt.Errorf("failed to nydusify %s: %w", target, err)
 			sp.FinalMSG = err.Error()

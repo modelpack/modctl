@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend"
-	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/briandowns/spinner"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/CloudNativeAI/modctl/pkg/backend"
+	"github.com/CloudNativeAI/modctl/pkg/config"
 )
 
 var buildConfig = config.NewBuild()
@@ -86,7 +86,7 @@ func runBuild(ctx context.Context, workDir string) error {
 		sp.Start()
 		defer sp.Stop()
 
-		nydusName, err := b.Nydusify(ctx, buildConfig.Target)
+		nydusName, err := b.Nydusify(ctx, buildConfig.Target, rootConfig)
 		if err != nil {
 			err = fmt.Errorf("failed to nydusify %s: %w", buildConfig.Target, err)
 			sp.FinalMSG = err.Error()

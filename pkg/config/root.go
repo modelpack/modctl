@@ -17,6 +17,7 @@
 package config
 
 import (
+	"os"
 	"os/user"
 	"path/filepath"
 )
@@ -25,6 +26,8 @@ type Root struct {
 	StoargeDir string
 	Pprof      bool
 	PprofAddr  string
+	LogLevel   string
+	LogFile    string
 }
 
 func NewRoot() (*Root, error) {
@@ -37,5 +40,7 @@ func NewRoot() (*Root, error) {
 		StoargeDir: filepath.Join(user.HomeDir, ".modctl"),
 		Pprof:      false,
 		PprofAddr:  "localhost:6060",
+		LogLevel:   "info",
+		LogFile:    filepath.Join(os.TempDir(), "modctl.log"),
 	}, nil
 }

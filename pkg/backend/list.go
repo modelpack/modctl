@@ -24,8 +24,8 @@ import (
 	"time"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
-
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 // ModelArtifact is the data model to represent the model artifact.
@@ -44,11 +44,14 @@ type ModelArtifact struct {
 
 // List lists all the model artifacts.
 func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
+	logrus.Info("Listing model artifacts")
+
 	modelArtifacts := []*ModelArtifact{}
 
 	// list all the repositories.
 	repos, err := b.store.ListRepositories(ctx)
 	if err != nil {
+		logrus.Errorf("failed to list repositories: %v", err)
 		return nil, fmt.Errorf("failed to list repositories: %w", err)
 	}
 
@@ -56,6 +59,7 @@ func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
 	for _, repo := range repos {
 		tags, err := b.store.ListTags(ctx, repo)
 		if err != nil {
+			logrus.Errorf("failed to list tags in repository %s: %v", repo, err)
 			return nil, fmt.Errorf("failed to list tags in repository %s: %w", repo, err)
 		}
 
@@ -63,6 +67,7 @@ func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
 		for _, tag := range tags {
 			modelArtifact, err := b.assembleModelArtifact(ctx, repo, tag)
 			if err != nil {
+				logrus.Errorf("failed to assemble model artifact: %v", err)
 				return nil, fmt.Errorf("failed to assemble model artifact: %w", err)
 			}
 
@@ -74,6 +79,7 @@ func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
 		return modelArtifacts[i].CreatedAt.After(modelArtifacts[j].CreatedAt)
 	})
 
+	logrus.Infof("Listed model artifacts successfully, %#v", modelArtifacts)
 	return modelArtifacts, nil
 }
 

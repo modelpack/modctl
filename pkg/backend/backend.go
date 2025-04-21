@@ -65,7 +65,7 @@ type Backend interface {
 	Tag(ctx context.Context, source, target string) error
 
 	// Nydusify converts the model artifact to nydus format.
-	Nydusify(ctx context.Context, target string) (string, error)
+	Nydusify(ctx context.Context, target string, cfg *config.Root) (string, error)
 }
 
 // backend is the implementation of Backend.

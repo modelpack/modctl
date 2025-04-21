@@ -23,12 +23,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Tar creates a tar archive of the specified path (file or directory)
 // and returns the content as a stream. For individual files, it preserves
 // the directory structure relative to the working directory.
 func Tar(srcPath string, workDir string) (io.Reader, error) {
+	logrus.Infof("Taring %s, work dir: %s", srcPath, workDir)
 	pr, pw := io.Pipe()
 
 	go func() {
@@ -38,6 +41,7 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 
 		info, err := os.Stat(srcPath)
 		if err != nil {
+			logrus.Errorf("failed to stat source path: %v", err)
 			pw.CloseWithError(fmt.Errorf("failed to stat source path: %w", err))
 			return
 		}
@@ -53,28 +57,33 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 				// Create a relative path for the tar file header.
 				relPath, err := filepath.Rel(workDir, path)
 				if err != nil {
+					logrus.Errorf("failed to get relative path: %v", err)
 					return fmt.Errorf("failed to get relative path: %w", err)
 				}
 
 				header, err := tar.FileInfoHeader(info, "")
 				if err != nil {
+					logrus.Errorf("failed to create tar header: %v", err)
 					return fmt.Errorf("failed to create tar header: %w", err)
 				}
 
 				// Set the header name to preserve directory structure.
 				header.Name = relPath
 				if err := tw.WriteHeader(header); err != nil {
+					logrus.Errorf("failed to write header: %v", err)
 					return fmt.Errorf("failed to write header: %w", err)
 				}
 
 				if !info.IsDir() {
 					file, err := os.Open(path)
 					if err != nil {
+						logrus.Errorf("failed to open file %s: %v", path, err)
 						return fmt.Errorf("failed to open file %s: %w", path, err)
 					}
 					defer file.Close()
 
 					if _, err := io.Copy(tw, file); err != nil {
+						logrus.Errorf("failed to write file %s to tar: %v", path, err)
 						return fmt.Errorf("failed to write file %s to tar: %w", path, err)
 					}
 				}
@@ -83,6 +92,7 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 			})
 
 			if err != nil {
+				logrus.Errorf("failed to walk directory: %v", err)
 				pw.CloseWithError(fmt.Errorf("failed to walk directory: %w", err))
 				return
 			}
@@ -90,6 +100,7 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 			// For a single file, include the directory structure.
 			file, err := os.Open(srcPath)
 			if err != nil {
+				logrus.Errorf("failed to open file %s: %v", srcPath, err)
 				pw.CloseWithError(fmt.Errorf("failed to open file: %w", err))
 				return
 			}
@@ -97,6 +108,7 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 
 			header, err := tar.FileInfoHeader(info, "")
 			if err != nil {
+				logrus.Errorf("failed to create tar header for file %s: %v", srcPath, err)
 				pw.CloseWithError(fmt.Errorf("failed to create tar header: %w", err))
 				return
 			}
@@ -105,6 +117,7 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 			// This keeps the directory structure as part of the file path in the tar.
 			relPath, err := filepath.Rel(workDir, srcPath)
 			if err != nil {
+				logrus.Errorf("failed to get relative path for file %s: %v", srcPath, err)
 				pw.CloseWithError(fmt.Errorf("failed to get relative path: %w", err))
 				return
 			}
@@ -112,11 +125,13 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 			// Use the relative path (including directories) as the header name.
 			header.Name = relPath
 			if err := tw.WriteHeader(header); err != nil {
+				logrus.Errorf("failed to write header for file %s: %v", srcPath, err)
 				pw.CloseWithError(fmt.Errorf("failed to write header: %w", err))
 				return
 			}
 
 			if _, err := io.Copy(tw, file); err != nil {
+				logrus.Errorf("failed to copy file to tar for file %s: %v", srcPath, err)
 				pw.CloseWithError(fmt.Errorf("failed to copy file to tar: %w", err))
 				return
 			}
@@ -129,10 +144,12 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 // Untar extracts the contents of a tar archive from the provided reader
 // to the specified destination path.
 func Untar(reader io.Reader, destPath string) error {
+	logrus.Infof("Untaring archive to %s", destPath)
 	tarReader := tar.NewReader(reader)
 
 	// Ensure destination directory exists.
 	if err := os.MkdirAll(destPath, 0755); err != nil {
+		logrus.Errorf("failed to create destination directory: %v", err)
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
@@ -142,12 +159,14 @@ func Untar(reader io.Reader, destPath string) error {
 			break
 		}
 		if err != nil {
+			logrus.Errorf("error reading tar: %v", err)
 			return fmt.Errorf("error reading tar: %w", err)
 		}
 
 		// Sanitize file paths to prevent directory traversal.
 		cleanPath := filepath.Clean(header.Name)
 		if strings.Contains(cleanPath, "..") || strings.HasPrefix(cleanPath, "/") || strings.HasPrefix(cleanPath, ":\\") {
+			logrus.Errorf("tar file contains invalid path: %s", cleanPath)
 			return fmt.Errorf("tar file contains invalid path: %s", cleanPath)
 		}
 
@@ -156,12 +175,14 @@ func Untar(reader io.Reader, destPath string) error {
 		// Create directories for all path components.
 		dirPath := filepath.Dir(targetPath)
 		if err := os.MkdirAll(dirPath, 0755); err != nil {
+			logrus.Errorf("failed to create directory %s: %v", dirPath, err)
 			return fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
+				logrus.Errorf("failed to create directory %s: %v", targetPath, err)
 				return fmt.Errorf("failed to create directory %s: %w", targetPath, err)
 			}
 
@@ -172,11 +193,13 @@ func Untar(reader io.Reader, destPath string) error {
 				os.FileMode(header.Mode),
 			)
 			if err != nil {
+				logrus.Errorf("failed to create file %s: %v", targetPath, err)
 				return fmt.Errorf("failed to create file %s: %w", targetPath, err)
 			}
 
 			if _, err := io.Copy(file, tarReader); err != nil {
 				file.Close()
+				logrus.Errorf("failed to write to file %s: %v", targetPath, err)
 				return fmt.Errorf("failed to write to file %s: %w", targetPath, err)
 			}
 			file.Close()
@@ -184,9 +207,11 @@ func Untar(reader io.Reader, destPath string) error {
 		case tar.TypeSymlink:
 			if isRel(header.Linkname, destPath) && isRel(header.Name, destPath) {
 				if err := os.Symlink(header.Linkname, targetPath); err != nil {
+					logrus.Errorf("failed to create symlink %s -> %s: %v", targetPath, header.Linkname, err)
 					return fmt.Errorf("failed to create symlink %s -> %s: %w", targetPath, header.Linkname, err)
 				}
 			} else {
+				logrus.Errorf("symlink %s -> %s points outside of destination directory", targetPath, header.Linkname)
 				return fmt.Errorf("symlink %s -> %s points outside of destination directory", targetPath, header.Linkname)
 			}
 

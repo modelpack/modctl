@@ -23,6 +23,10 @@ import (
 	"os"
 	"path/filepath"
 
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
+
 	"github.com/CloudNativeAI/modctl/internal/pb"
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
@@ -33,9 +37,6 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
 	"github.com/CloudNativeAI/modctl/pkg/source"
-
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 const (
@@ -45,14 +46,18 @@ const (
 
 // Build builds the user materials into the model artifact which follows the Model Spec.
 func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string, cfg *config.Build) error {
+	logrus.Infof("Building model artifact, modelfile path: %s, work dir: %s", modelfilePath, workDir)
+
 	// parse the repo name and tag name from target.
 	ref, err := ParseReference(target)
 	if err != nil {
+		logrus.Errorf("failed to parse target: %v", err)
 		return fmt.Errorf("failed to parse target: %w", err)
 	}
 
 	modelfile, err := modelfile.NewModelfile(modelfilePath)
 	if err != nil {
+		logrus.Errorf("failed to parse modelfile: %v", err)
 		return fmt.Errorf("failed to parse modelfile: %w", err)
 	}
 
@@ -63,6 +68,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 
 	sourceInfo, err := getSourceInfo(workDir, cfg)
 	if err != nil {
+		logrus.Errorf("failed to get source info: %v", err)
 		return fmt.Errorf("failed to get source info: %w", err)
 	}
 
@@ -77,11 +83,13 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		build.WithInsecure(cfg.Insecure),
 	}
 	if cfg.Nydusify {
+		logrus.Info("As nydusify is enabled, with nydus interceptor for building")
 		opts = append(opts, build.WithInterceptor(interceptor.NewNydus()))
 	}
 
 	builder, err := build.NewBuilder(outputType, b.store, repo, tag, opts...)
 	if err != nil {
+		logrus.Errorf("failed to create builder: %v", err)
 		return fmt.Errorf("failed to create builder: %w", err)
 	}
 
@@ -92,6 +100,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	layers := []ocispec.Descriptor{}
 	layerDescs, err := b.process(ctx, builder, workDir, pb, cfg, b.getProcessors(modelfile)...)
 	if err != nil {
+		logrus.Errorf("failed to process files: %v", err)
 		return fmt.Errorf("failed to process files: %w", err)
 	}
 
@@ -125,11 +134,12 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		}),
 	))
 	if err != nil {
+		logrus.Errorf("failed to build model config: %v", err)
 		return fmt.Errorf("failed to build model config: %w", err)
 	}
 
 	// Build the model manifest.
-	_, err = builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation(modelfile), hooks.NewHooks(
+	desc, err := builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation(modelfile), hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 			return pb.Add(internalpb.NormalizePrompt("Building manifest"), name, size, reader)
 		}),
@@ -141,9 +151,11 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		}),
 	))
 	if err != nil {
+		logrus.Errorf("failed to build model manifest: %v", err)
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
 
+	logrus.Infof("Built model manifest %s successfully, digest: %s", cfg.Target, desc.Digest)
 	return nil
 }
 

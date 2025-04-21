@@ -18,8 +18,11 @@ package backend
 
 import (
 	"context"
-	"os"
 	"os/exec"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/CloudNativeAI/modctl/pkg/config"
 )
 
 const (
@@ -28,7 +31,9 @@ const (
 )
 
 // Nydusify is a function that converts a given model artifact to a nydus image.
-func (b *backend) Nydusify(ctx context.Context, source string) (string, error) {
+func (b *backend) Nydusify(ctx context.Context, source string, cfg *config.Root) (string, error) {
+	logrus.Infof("Nydusifying the model artifact %s", source)
+
 	target := source + nydusImageTagSuffix
 	cmd := exec.CommandContext(
 		ctx,
@@ -44,12 +49,16 @@ func (b *backend) Nydusify(ctx context.Context, source string) (string, error) {
 		source,
 		"--target",
 		target,
+		"--log-level",
+		cfg.LogLevel,
+		"--log-file",
+		cfg.LogFile,
 	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
+		logrus.Errorf("failed to nydusify the model artifact %s: %v", source, err)
 		return "", err
 	}
 
+	logrus.Infof("Nydusifyed the model artifact %s successfully", source)
 	return target, nil
 }

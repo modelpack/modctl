@@ -24,6 +24,7 @@ import (
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
@@ -33,20 +34,24 @@ import (
 
 // Fetch fetches partial files to the output.
 func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) error {
+	logrus.Infof("Fetching model artifact %s to %s, pattern: %v", target, cfg.Output, cfg.Patterns)
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
+		logrus.Errorf("failed to parse the target: %v", err)
 		return fmt.Errorf("failed to parse the target: %w", err)
 	}
 
 	repo, tag := ref.Repository(), ref.Tag()
 	client, err := remote.New(repo, remote.WithPlainHTTP(cfg.PlainHTTP), remote.WithInsecure(cfg.Insecure))
 	if err != nil {
+		logrus.Errorf("failed to create remote client: %v", err)
 		return fmt.Errorf("failed to create remote client: %w", err)
 	}
 
 	_, manifestReader, err := client.Manifests().FetchReference(ctx, tag)
 	if err != nil {
+		logrus.Errorf("failed to fetch the manifest: %v", err)
 		return fmt.Errorf("failed to fetch the manifest: %w", err)
 	}
 
@@ -54,6 +59,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 
 	var manifest ocispec.Manifest
 	if err := json.NewDecoder(manifestReader).Decode(&manifest); err != nil {
+		logrus.Errorf("failed to decode the manifest: %v", err)
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
 
@@ -64,6 +70,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			if anno := layer.Annotations; anno != nil {
 				matched, err := filepath.Match(pattern, anno[modelspec.AnnotationFilepath])
 				if err != nil {
+					logrus.Errorf("failed to match pattern: %v", err)
 					return fmt.Errorf("failed to match pattern: %w", err)
 				}
 
@@ -75,6 +82,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	}
 
 	if len(layers) == 0 {
+		logrus.Error("no layers matched the patterns")
 		return fmt.Errorf("no layers matched the patterns")
 	}
 
@@ -91,5 +99,11 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 		})
 	}
 
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		logrus.Errorf("failed to wait for all tasks: %v", err)
+		return fmt.Errorf("failed to wait for all tasks: %w", err)
+	}
+
+	logrus.Infof("Fetched model artifact %s successfully", target)
+	return nil
 }

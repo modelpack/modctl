@@ -22,31 +22,36 @@ import (
 	"fmt"
 	"io"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
+
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/sync/errgroup"
 )
 
 // Pull pulls an artifact from a registry.
 func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) error {
+	logrus.Infof("Pulling model artifact %s", target)
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
+		logrus.Errorf("failed to parse the target: %v", err)
 		return fmt.Errorf("failed to parse the target: %w", err)
 	}
 
 	repo, tag := ref.Repository(), ref.Tag()
 	src, err := remote.New(repo, remote.WithPlainHTTP(cfg.PlainHTTP), remote.WithInsecure(cfg.Insecure), remote.WithProxy(cfg.Proxy))
 	if err != nil {
+		logrus.Errorf("failed to create the remote client: %v", err)
 		return fmt.Errorf("failed to create the remote client: %w", err)
 	}
 
 	manifestDesc, manifestReader, err := src.Manifests().FetchReference(ctx, tag)
 	if err != nil {
+		logrus.Errorf("failed to fetch the manifest: %v", err)
 		return fmt.Errorf("failed to fetch the manifest: %w", err)
 	}
 
@@ -54,6 +59,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 
 	var manifest ocispec.Manifest
 	if err := json.NewDecoder(manifestReader).Decode(&manifest); err != nil {
+		logrus.Errorf("failed to decode the manifest: %v", err)
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
 
@@ -89,6 +95,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	if err := g.Wait(); err != nil {
+		logrus.Errorf("failed to pull blob to local: %v", err)
 		return fmt.Errorf("failed to pull blob to local: %w", err)
 	}
 
@@ -100,11 +107,13 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 
 	// copy the config.
 	if err := pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling config"), src, dst, manifest.Config, repo, tag); err != nil {
+		logrus.Errorf("failed to pull config to local: %v", err)
 		return fmt.Errorf("failed to pull config to local: %w", err)
 	}
 
 	// copy the manifest.
 	if err := pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling manifest"), src, dst, manifestDesc, repo, tag); err != nil {
+		logrus.Errorf("failed to pull manifest to local: %v", err)
 		return fmt.Errorf("failed to pull manifest to local: %w", err)
 	}
 
@@ -113,10 +122,12 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		// set the concurrency to 1 because the pull already has concurrency control.
 		extractCfg := &config.Extract{Concurrency: 1, Output: cfg.ExtractDir}
 		if err := exportModelArtifact(ctx, dst, manifest, repo, extractCfg); err != nil {
+			logrus.Errorf("failed to export the artifact to the output directory: %v", err)
 			return fmt.Errorf("failed to export the artifact to the output directory: %w", err)
 		}
 	}
 
+	logrus.Infof("Pulled model artifact %s successfully", target)
 	return nil
 }
 
