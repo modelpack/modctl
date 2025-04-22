@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	humanize "github.com/dustin/go-humanize"
 	mpbv8 "github.com/vbauerster/mpb/v8"
@@ -47,7 +48,7 @@ type progressBar struct {
 // NewProgressBar creates a new progress bar.
 func NewProgressBar() *ProgressBar {
 	return &ProgressBar{
-		mpb:  mpbv8.New(mpbv8.WithWidth(60)),
+		mpb:  mpbv8.New(mpbv8.WithWidth(60), mpbv8.WithRefreshRate(300*time.Millisecond)),
 		bars: make(map[string]*progressBar),
 	}
 }
@@ -62,21 +63,14 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 		return reader
 	}
 
+	newBar := &progressBar{size: size, msg: fmt.Sprintf("%s %s", prompt, name)}
 	// Create a new bar if it does not exist.
-	bar := p.mpb.New(size,
+	newBar.Bar = p.mpb.New(size,
 		mpbv8.BarStyle(),
 		mpbv8.BarFillerOnComplete("|"),
 		mpbv8.PrependDecorators(
 			decor.Any(func(s decor.Statistics) string {
-				p.mu.RLock()
-				defer p.mu.RUnlock()
-
-				bar, ok := p.bars[name]
-				if ok && bar.msg != "" {
-					return bar.msg
-				}
-
-				return fmt.Sprintf("%s %s", prompt, name)
+				return newBar.msg
 			}, decor.WCSyncSpaceR),
 		),
 		mpbv8.AppendDecorators(
@@ -89,10 +83,10 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 	)
 
 	p.mu.Lock()
-	p.bars[name] = &progressBar{Bar: bar, size: size}
+	p.bars[name] = newBar
 	p.mu.Unlock()
 
-	return bar.ProxyReader(reader)
+	return newBar.ProxyReader(reader)
 }
 
 // Complete completes the progress bar.
