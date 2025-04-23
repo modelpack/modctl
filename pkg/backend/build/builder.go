@@ -32,6 +32,7 @@ import (
 	godigest "github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 
 	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
@@ -118,17 +119,22 @@ type abstractBuilder struct {
 }
 
 func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+	logrus.Infof("Building layer %s, mediaType: %s", path, mediaType)
+
 	info, err := os.Stat(path)
 	if err != nil {
+		logrus.Errorf("failed to get file info: %v", err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to get file info: %w", err)
 	}
 
 	if info.IsDir() {
+		logrus.Errorf("%s is a directory and not supported yet", path)
 		return ocispec.Descriptor{}, fmt.Errorf("%s is a directory and not supported yet", path)
 	}
 
 	workDirPath, err := filepath.Abs(workDir)
 	if err != nil {
+		logrus.Errorf("failed to get absolute path of workDir: %v", err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to get absolute path of workDir: %w", err)
 	}
 
@@ -136,26 +142,32 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 	//nolint:typecheck
 	relPath, err := filepath.Rel(workDirPath, path)
 	if err != nil {
+		logrus.Errorf("failed to get relative path: %v", err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to get relative path: %w", err)
 	}
 
 	codec, err := codec.New(codec.TypeFromMediaType(mediaType))
 	if err != nil {
+		logrus.Errorf("failed to create codec: %v", err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to create codec: %w", err)
 	}
 
 	// Encode the content by codec depends on the media type.
 	reader, err := codec.Encode(path, workDirPath)
 	if err != nil {
+		logrus.Errorf("failed to encode file: %v", err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
 	}
 
+	logrus.Infof("Calculating the sha256 of encoded file reader of %s", path)
 	// Calculate the digest of the encoded content.
 	hash := sha256.New()
 	size, err := io.Copy(hash, reader)
 	if err != nil {
+		logrus.Errorf("failed to copy content to hash: %v", err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to copy content to hash: %w", err)
 	}
+	logrus.Infof("Calculated sha256:%x of encoded file reader of %s", hash.Sum(nil), path)
 
 	digest := fmt.Sprintf("sha256:%x", hash.Sum(nil))
 
@@ -163,11 +175,13 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 	// otherwise we needs to re-encode the content again.
 	if seeker, ok := reader.(io.ReadSeeker); ok {
 		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+			logrus.Errorf("failed to seek reader: %v", err)
 			return ocispec.Descriptor{}, fmt.Errorf("failed to seek reader: %w", err)
 		}
 	} else {
 		reader, err = codec.Encode(path, workDirPath)
 		if err != nil {
+			logrus.Errorf("failed to encode file: %v", err)
 			return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
 		}
 	}
@@ -179,6 +193,8 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 	)
 	// Intercept the reader if needed.
 	if ab.interceptor != nil {
+		logrus.Infof("Intercepting reader for %s(%s)", path, digest)
+
 		var itReader io.Reader
 		reader, itReader = splitReader(reader)
 
@@ -197,6 +213,7 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 	// Wait for the interceptor to finish.
 	wg.Wait()
 	if itErr != nil {
+		logrus.Errorf("failed to intercept reader for %s(%s): %v", path, digest, itErr)
 		return desc, itErr
 	}
 
@@ -204,25 +221,37 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		applyDesc(&desc)
 	}
 
+	logrus.Infof("Layer %s(%s) has been built", path, desc.Digest)
 	return desc, nil
 }
 
 func (ab *abstractBuilder) BuildConfig(ctx context.Context, layers []ocispec.Descriptor, modelConfig *buildconfig.Model, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+	logrus.Infof("Building config, layers: %#v, modelConfig: %#v", layers, modelConfig)
 	config, err := buildModelConfig(modelConfig, layers)
 	if err != nil {
+		logrus.Errorf("failed to build model config: %v", err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to build model config: %w", err)
 	}
 
 	configJSON, err := json.Marshal(config)
 	if err != nil {
+		logrus.Errorf("failed to marshal config: %v", err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal config: %w", err)
 	}
 
 	digest := fmt.Sprintf("sha256:%x", sha256.Sum256(configJSON))
-	return ab.strategy.OutputConfig(ctx, modelspec.MediaTypeModelConfig, digest, int64(len(configJSON)), bytes.NewReader(configJSON), hooks)
+	desc, err := ab.strategy.OutputConfig(ctx, modelspec.MediaTypeModelConfig, digest, int64(len(configJSON)), bytes.NewReader(configJSON), hooks)
+	if err != nil {
+		logrus.Errorf("failed to output config: %v", err)
+		return ocispec.Descriptor{}, fmt.Errorf("failed to output config: %w", err)
+	}
+
+	logrus.Infof("Config %s has been built, content: %s", desc.Digest, string(configJSON))
+	return desc, nil
 }
 
 func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.Descriptor, config ocispec.Descriptor, annotations map[string]string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+	logrus.Infof("Building manifest, layers: %#v, config: %#v, annotations: %#v", layers, config, annotations)
 	manifest := &ocispec.Manifest{
 		Versioned: spec.Versioned{
 			SchemaVersion: 2,
@@ -240,11 +269,19 @@ func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.D
 
 	manifestJSON, err := json.Marshal(manifest)
 	if err != nil {
+		logrus.Errorf("failed to marshal manifest: %v", err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal manifest: %w", err)
 	}
 
 	digest := fmt.Sprintf("sha256:%x", sha256.Sum256(manifestJSON))
-	return ab.strategy.OutputManifest(ctx, manifest.MediaType, digest, int64(len(manifestJSON)), bytes.NewReader(manifestJSON), hooks)
+	desc, err := ab.strategy.OutputManifest(ctx, manifest.MediaType, digest, int64(len(manifestJSON)), bytes.NewReader(manifestJSON), hooks)
+	if err != nil {
+		logrus.Errorf("failed to output manifest: %v", err)
+		return ocispec.Descriptor{}, fmt.Errorf("failed to output manifest: %w", err)
+	}
+
+	logrus.Infof("Manifest %s has been built, content: %s", desc.Digest, string(manifestJSON))
+	return desc, nil
 }
 
 // buildModelConfig builds the model config.
@@ -297,11 +334,14 @@ func splitReader(original io.Reader) (io.Reader, io.Reader) {
 		defer w1.Close()
 		defer w2.Close()
 
+		logrus.Infof("Copying data from %#v to %#v", original, multiWriter)
 		_, err := io.Copy(multiWriter, original)
 		if err != nil {
+			logrus.Errorf("failed to copy data: %v", err)
 			w1.CloseWithError(err)
 			w2.CloseWithError(err)
 		}
+		logrus.Infof("Copied data from %#v to %#v successfully", original, multiWriter)
 	}()
 
 	return r1, r2

@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"net/http"
 
+	"github.com/sirupsen/logrus"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
@@ -31,14 +32,17 @@ import (
 
 // Login logs into a registry.
 func (b *backend) Login(ctx context.Context, registry, username, password string, cfg *config.Login) error {
+	logrus.Infof("Logging into registry %s, username: %s", registry, username)
 	// read credentials from docker store.
 	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
 	if err != nil {
+		logrus.Errorf("failed to create credentials store: %v", err)
 		return err
 	}
 
 	reg, err := remote.NewRegistry(registry)
 	if err != nil {
+		logrus.Errorf("failed to create registry client: %v", err)
 		return err
 	}
 
@@ -64,5 +68,11 @@ func (b *backend) Login(ctx context.Context, registry, username, password string
 		Password: password,
 	}
 
-	return credentials.Login(ctx, store, reg, cred)
+	if err := credentials.Login(ctx, store, reg, cred); err != nil {
+		logrus.Errorf("failed to login to registry: %v", err)
+		return err
+	}
+
+	logrus.Infof("Logined to registry %s successfully", registry)
+	return nil
 }

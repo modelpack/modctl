@@ -23,21 +23,24 @@ import (
 	"fmt"
 	"io"
 
+	godigest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
+
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-
-	godigest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/sync/errgroup"
 )
 
 // Push pushes the image to the registry.
 func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) error {
+	logrus.Infof("Pushing model artifact %s", target)
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
+		logrus.Errorf("failed to parse the target: %s", target)
 		return fmt.Errorf("failed to parse the target: %w", err)
 	}
 
@@ -47,16 +50,19 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	src := b.store
 	dst, err := remote.New(repo, remote.WithPlainHTTP(cfg.PlainHTTP), remote.WithInsecure(cfg.Insecure))
 	if err != nil {
+		logrus.Errorf("failed to create the destination: %s", target)
 		return fmt.Errorf("failed to create the destination: %w", err)
 	}
 
 	manifestRaw, _, err := src.PullManifest(ctx, repo, tag)
 	if err != nil {
+		logrus.Errorf("failed to pull the manifest: %s", target)
 		return fmt.Errorf("failed to pull the manifest: %w", err)
 	}
 
 	var manifest ocispec.Manifest
 	if err := json.Unmarshal(manifestRaw, &manifest); err != nil {
+		logrus.Errorf("failed to decode the manifest: %s", target)
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
 
@@ -81,11 +87,13 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	}
 
 	if err := g.Wait(); err != nil {
+		logrus.Errorf("failed to push blob to remote: %s", target)
 		return fmt.Errorf("failed to push blob to remote: %w", err)
 	}
 
 	// copy the config.
 	if err := pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag); err != nil {
+		logrus.Errorf("failed to push config to remote: %s", target)
 		return fmt.Errorf("failed to push config to remote: %w", err)
 	}
 
@@ -96,9 +104,11 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		Digest:    godigest.FromBytes(manifestRaw),
 		Data:      manifestRaw,
 	}, repo, tag); err != nil {
+		logrus.Errorf("failed to push manifest to remote: %s", target)
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
 
+	logrus.Infof("Pushed model artifact %s successfully", target)
 	return nil
 }
 

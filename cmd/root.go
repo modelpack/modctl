@@ -24,14 +24,16 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/CloudNativeAI/modctl/cmd/modelfile"
-	"github.com/CloudNativeAI/modctl/pkg/config"
-
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/CloudNativeAI/modctl/cmd/modelfile"
+	"github.com/CloudNativeAI/modctl/pkg/config"
 )
 
 var rootConfig *config.Root
+var logFile *os.File
 
 // rootCmd represents the modctl command.
 var rootCmd = &cobra.Command{
@@ -51,6 +53,30 @@ var rootCmd = &cobra.Command{
 				}
 			}()
 		}
+
+		var err error
+		// Initialize logger.
+		logFile, err = os.OpenFile(rootConfig.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			logrus.Fatalf("Failed to open log file: %v", err)
+		}
+
+		logLevel, err := logrus.ParseLevel(rootConfig.LogLevel)
+		if err != nil {
+			logrus.Fatalf("Failed to parse log level: %v", err)
+		}
+
+		logrus.SetOutput(logFile)
+		logrus.SetLevel(logLevel)
+		logrus.SetFormatter(&logrus.TextFormatter{})
+
+		return nil
+	},
+	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+		if logFile != nil {
+			return logFile.Close()
+		}
+
 		return nil
 	},
 }
@@ -83,6 +109,8 @@ func init() {
 	flags.StringVar(&rootConfig.StoargeDir, "storage-dir", rootConfig.StoargeDir, "specify the storage directory for modctl")
 	flags.BoolVar(&rootConfig.Pprof, "pprof", rootConfig.Pprof, "enable pprof")
 	flags.StringVar(&rootConfig.PprofAddr, "pprof-addr", rootConfig.PprofAddr, "specify the address for pprof")
+	flags.StringVar(&rootConfig.LogLevel, "log-level", rootConfig.LogLevel, "specify the log level")
+	flags.StringVar(&rootConfig.LogFile, "log-file", rootConfig.LogFile, "specify the log file")
 
 	// Bind common flags.
 	if err := viper.BindPFlags(flags); err != nil {

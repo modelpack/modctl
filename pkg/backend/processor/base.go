@@ -24,14 +24,15 @@ import (
 	"sort"
 	"sync"
 
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
+
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/sync/errgroup"
 )
 
 type base struct {
@@ -57,6 +58,8 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		return nil, err
 	}
 
+	logrus.Infof("Processing %s", absWorkDir)
+
 	var matchedPaths []string
 	for _, pattern := range b.patterns {
 		matches, err := filepath.Glob(filepath.Join(absWorkDir, pattern))
@@ -68,6 +71,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 	}
 
 	sort.Strings(matchedPaths)
+	logrus.Infof("Processing matched paths: %#v", matchedPaths)
 
 	var (
 		mu          sync.Mutex
@@ -113,6 +117,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 				}),
 			))
 			if err != nil {
+				logrus.Errorf("Failed to build layer: %v, cancel other process tasks", err)
 				cancel()
 				return err
 			}
@@ -143,5 +148,6 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		return pathI < pathJ
 	})
 
+	logrus.Infof("Processing succeed, descriptors: %#v", descriptors)
 	return descriptors, nil
 }

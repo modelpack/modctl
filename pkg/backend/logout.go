@@ -19,21 +19,26 @@ package backend
 import (
 	"context"
 
+	"github.com/sirupsen/logrus"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 // Logout logs out of a registry.
 func (b *backend) Logout(ctx context.Context, registry string) error {
+	logrus.Infof("Logging out of registry %s", registry)
 	// read credentials from docker store.
 	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
 	if err != nil {
+		logrus.Errorf("failed to create credentials store: %v", err)
 		return err
 	}
 
 	// remove credentials from store.
 	if err := credentials.Logout(ctx, store, registry); err != nil {
+		logrus.Errorf("failed to logout from registry %s: %v", registry, err)
 		return err
 	}
 
+	logrus.Infof("Logged out of registry %s successfully", registry)
 	return nil
 }

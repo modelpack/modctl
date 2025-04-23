@@ -27,6 +27,7 @@ import (
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
@@ -58,13 +59,17 @@ var (
 
 // Attach attaches user materials into the model artifact which follows the Model Spec.
 func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attach) error {
+	logrus.Infof("Attaching file %s to %s", filepath, cfg.Source)
+
 	srcManifest, err := b.getManifest(ctx, cfg.Source, cfg)
 	if err != nil {
+		logrus.Errorf("failed to get source manifest: %v", err)
 		return fmt.Errorf("failed to get source manifest: %w", err)
 	}
 
 	srcModelConfig, err := b.getModelConfig(ctx, cfg.Source, srcManifest.Config, cfg)
 	if err != nil {
+		logrus.Errorf("failed to get source model config: %v", err)
 		return fmt.Errorf("failed to get source model config: %w", err)
 	}
 
@@ -95,11 +100,13 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 
 	proc := b.getProcessor(filepath)
 	if proc == nil {
+		logrus.Errorf("failed to get processor for file %s", filepath)
 		return fmt.Errorf("failed to get processor for file %s", filepath)
 	}
 
 	builder, err := b.getBuilder(cfg.Target, cfg)
 	if err != nil {
+		logrus.Errorf("failed to create builder: %v", err)
 		return fmt.Errorf("failed to create builder: %w", err)
 	}
 
@@ -109,6 +116,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 
 	newLayers, err := proc.Process(ctx, builder, ".", processor.WithProgressTracker(pb))
 	if err != nil {
+		logrus.Errorf("failed to process layers: %v", err)
 		return fmt.Errorf("failed to process layers: %w", err)
 	}
 
@@ -122,6 +130,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 	}
 	// Return earlier if the diffID has no changed, which means the artifact has not changed.
 	if reflect.DeepEqual(diffIDs, srcModelConfig.ModelFS.DiffIDs) {
+		logrus.Info("The artifact has not changed after attaching layer, skip to attach")
 		return nil
 	}
 
@@ -147,6 +156,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		}),
 	))
 	if err != nil {
+		logrus.Errorf("failed to build model config: %v", err)
 		return fmt.Errorf("failed to build model config: %w", err)
 	}
 
@@ -163,8 +173,11 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		}),
 	))
 	if err != nil {
+		logrus.Errorf("failed to build model manifest: %v", err)
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
+
+	logrus.Infof("Attched %s to %s successfully", filepath, cfg.Source)
 
 	return nil
 }

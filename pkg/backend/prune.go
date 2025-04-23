@@ -19,17 +19,24 @@ package backend
 import (
 	"context"
 	"fmt"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Prune prunes the unused blobs and clean up the storage.
 func (b *backend) Prune(ctx context.Context, dryRun, removeUntagged bool) error {
+	logrus.Infof("Pruning unused blobs and cleaning up storage, dryRun: %v, removeUntagged: %v", dryRun, removeUntagged)
+
 	if err := b.store.PerformGC(ctx, dryRun, removeUntagged); err != nil {
-		return fmt.Errorf("faile to perform gc: %w", err)
+		logrus.Errorf("failed to perform gc: %v", err)
+		return fmt.Errorf("failed to perform gc: %w", err)
 	}
 
 	if err := b.store.PerformPurgeUploads(ctx, dryRun); err != nil {
+		logrus.Errorf("failed to perform purge uploads: %v", err)
 		return fmt.Errorf("failed to perform purge uploads: %w", err)
 	}
 
+	logrus.Info("Pruned completed successfully")
 	return nil
 }

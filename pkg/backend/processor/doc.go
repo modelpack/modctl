@@ -19,10 +19,11 @@ package processor
 import (
 	"context"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
+
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 const (
@@ -51,5 +52,6 @@ func (p *docProcessor) Name() string {
 }
 
 func (p *docProcessor) Process(ctx context.Context, builder build.Builder, workDir string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
+	logrus.Infof("Processing doc file, work dir: %s", workDir)
 	return p.base.Process(ctx, builder, workDir, opts...)
 }

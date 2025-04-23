@@ -448,9 +448,9 @@ func (_c *Backend_Logout_Call) RunAndReturn(run func(context.Context, string) er
 	return _c
 }
 
-// Nydusify provides a mock function with given fields: ctx, target
-func (_m *Backend) Nydusify(ctx context.Context, target string) (string, error) {
-	ret := _m.Called(ctx, target)
+// Nydusify provides a mock function with given fields: ctx, target, cfg
+func (_m *Backend) Nydusify(ctx context.Context, target string, cfg *config.Root) (string, error) {
+	ret := _m.Called(ctx, target, cfg)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Nydusify")
@@ -458,17 +458,17 @@ func (_m *Backend) Nydusify(ctx context.Context, target string) (string, error) 
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
-		return rf(ctx, target)
+	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Root) (string, error)); ok {
+		return rf(ctx, target, cfg)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
-		r0 = rf(ctx, target)
+	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Root) string); ok {
+		r0 = rf(ctx, target, cfg)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, target)
+	if rf, ok := ret.Get(1).(func(context.Context, string, *config.Root) error); ok {
+		r1 = rf(ctx, target, cfg)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -484,13 +484,14 @@ type Backend_Nydusify_Call struct {
 // Nydusify is a helper method to define mock.On call
 //   - ctx context.Context
 //   - target string
-func (_e *Backend_Expecter) Nydusify(ctx interface{}, target interface{}) *Backend_Nydusify_Call {
-	return &Backend_Nydusify_Call{Call: _e.mock.On("Nydusify", ctx, target)}
+//   - cfg *config.Root
+func (_e *Backend_Expecter) Nydusify(ctx interface{}, target interface{}, cfg interface{}) *Backend_Nydusify_Call {
+	return &Backend_Nydusify_Call{Call: _e.mock.On("Nydusify", ctx, target, cfg)}
 }
 
-func (_c *Backend_Nydusify_Call) Run(run func(ctx context.Context, target string)) *Backend_Nydusify_Call {
+func (_c *Backend_Nydusify_Call) Run(run func(ctx context.Context, target string, cfg *config.Root)) *Backend_Nydusify_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(*config.Root))
 	})
 	return _c
 }
@@ -500,7 +501,7 @@ func (_c *Backend_Nydusify_Call) Return(_a0 string, _a1 error) *Backend_Nydusify
 	return _c
 }
 
-func (_c *Backend_Nydusify_Call) RunAndReturn(run func(context.Context, string) (string, error)) *Backend_Nydusify_Call {
+func (_c *Backend_Nydusify_Call) RunAndReturn(run func(context.Context, string, *config.Root) (string, error)) *Backend_Nydusify_Call {
 	_c.Call.Return(run)
 	return _c
 }

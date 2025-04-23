@@ -24,6 +24,7 @@ import (
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 // InspectedModelArtifact is the data structure for model artifact that has been inspected.
@@ -64,31 +65,38 @@ type InspectedModelArtifactLayer struct {
 
 // Inspect inspects the target from the storage.
 func (b *backend) Inspect(ctx context.Context, target string) (*InspectedModelArtifact, error) {
+	logrus.Infof("Inspecting model artifact %s", target)
+
 	ref, err := ParseReference(target)
 	if err != nil {
+		logrus.Errorf("failed to parse target: %v", err)
 		return nil, fmt.Errorf("failed to parse target: %w", err)
 	}
 
 	repo, tag := ref.Repository(), ref.Tag()
 	manifestRaw, digest, err := b.store.PullManifest(ctx, repo, tag)
 	if err != nil {
+		logrus.Errorf("failed to get manifest: %v", err)
 		return nil, fmt.Errorf("failed to get manifest: %w", err)
 	}
 
 	var manifest ocispec.Manifest
 	if err := json.Unmarshal(manifestRaw, &manifest); err != nil {
+		logrus.Errorf("failed to unmarshal manifest: %v", err)
 		return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
 	}
 
 	// fetch and parse the model config.
 	configReader, err := b.store.PullBlob(ctx, repo, manifest.Config.Digest.String())
 	if err != nil {
+		logrus.Errorf("failed to pull config: %v", err)
 		return nil, fmt.Errorf("failed to pull config: %w", err)
 	}
 
 	defer configReader.Close()
 	var config modelspec.Model
 	if err := json.NewDecoder(configReader).Decode(&config); err != nil {
+		logrus.Errorf("failed to decode config: %v", err)
 		return nil, fmt.Errorf("failed to decode config: %w", err)
 	}
 
@@ -116,5 +124,6 @@ func (b *backend) Inspect(ctx context.Context, target string) (*InspectedModelAr
 		})
 	}
 
+	logrus.Infof("Inspected model artifact %s successfully: %#v", target, inspectedModelArtifact)
 	return inspectedModelArtifact, nil
 }

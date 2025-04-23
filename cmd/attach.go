@@ -84,7 +84,7 @@ func runAttach(ctx context.Context, filepath string) error {
 		sp.Start()
 		defer sp.Stop()
 
-		nydusName, err := b.Nydusify(ctx, attachConfig.Target)
+		nydusName, err := b.Nydusify(ctx, attachConfig.Target, rootConfig)
 		if err != nil {
 			err = fmt.Errorf("failed to nydusify %s: %w", attachConfig.Target, err)
 			sp.FinalMSG = err.Error()
