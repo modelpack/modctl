@@ -90,7 +90,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	defer pb.Stop()
 
 	layers := []ocispec.Descriptor{}
-	layerDescs, err := b.process(ctx, builder, workDir, pb, cfg, b.getProcessors(modelfile)...)
+	layerDescs, err := b.process(ctx, builder, workDir, pb, cfg, b.getProcessors(modelfile, cfg)...)
 	if err != nil {
 		return fmt.Errorf("failed to process files: %w", err)
 	}
@@ -154,23 +154,39 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	return nil
 }
 
-func (b *backend) getProcessors(modelfile modelfile.Modelfile) []processor.Processor {
+func (b *backend) getProcessors(modelfile modelfile.Modelfile, cfg *config.Build) []processor.Processor {
 	processors := []processor.Processor{}
 
 	if configs := modelfile.GetConfigs(); len(configs) > 0 {
-		processors = append(processors, processor.NewModelConfigProcessor(b.store, modelspec.MediaTypeModelWeightConfig, configs))
+		mediaType := modelspec.MediaTypeModelWeightConfig
+		if cfg.Raw {
+			mediaType = modelspec.MediaTypeModelWeightConfigRaw
+		}
+		processors = append(processors, processor.NewModelConfigProcessor(b.store, mediaType, configs))
 	}
 
 	if models := modelfile.GetModels(); len(models) > 0 {
-		processors = append(processors, processor.NewModelProcessor(b.store, modelspec.MediaTypeModelWeight, models))
+		mediaType := modelspec.MediaTypeModelWeight
+		if cfg.Raw {
+			mediaType = modelspec.MediaTypeModelWeightRaw
+		}
+		processors = append(processors, processor.NewModelProcessor(b.store, mediaType, models))
 	}
 
 	if codes := modelfile.GetCodes(); len(codes) > 0 {
-		processors = append(processors, processor.NewCodeProcessor(b.store, modelspec.MediaTypeModelCode, codes))
+		mediaType := modelspec.MediaTypeModelCode
+		if cfg.Raw {
+			mediaType = modelspec.MediaTypeModelCodeRaw
+		}
+		processors = append(processors, processor.NewCodeProcessor(b.store, mediaType, codes))
 	}
 
 	if docs := modelfile.GetDocs(); len(docs) > 0 {
-		processors = append(processors, processor.NewDocProcessor(b.store, modelspec.MediaTypeModelDoc, docs))
+		mediaType := modelspec.MediaTypeModelDoc
+		if cfg.Raw {
+			mediaType = modelspec.MediaTypeModelDocRaw
+		}
+		processors = append(processors, processor.NewDocProcessor(b.store, mediaType, docs))
 	}
 
 	return processors

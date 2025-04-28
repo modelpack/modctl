@@ -22,8 +22,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -126,7 +128,9 @@ func (s *BuilderTestSuite) TestBuildLayer() {
 
 		desc, err := s.builder.BuildLayer(context.Background(), "test/media-type.tar", s.tempDir, s.tempFile, hooks.NewHooks())
 		s.NoError(err)
-		s.Equal(expectedDesc, desc)
+		s.Equal(expectedDesc.MediaType, desc.MediaType)
+		s.Equal(expectedDesc.Digest, desc.Digest)
+		s.Equal(expectedDesc.Size, desc.Size)
 	})
 
 	s.Run("file not found", func() {
@@ -285,4 +289,83 @@ func TestPipeReader(t *testing.T) {
 	_, err := io.Copy(os.Stdout, r1)
 	assert.NoError(t, err)
 	wg.Wait()
+}
+
+func createTempFile(t *testing.T, dir, pattern, content string) string {
+	t.Helper()
+	f, err := os.CreateTemp(dir, pattern)
+	assert.NoError(t, err)
+	_, err = f.WriteString(content)
+	assert.NoError(t, err)
+	err = f.Close()
+	assert.NoError(t, err)
+	return f.Name()
+}
+
+func createTempDir(t *testing.T, dir, pattern string) string {
+	t.Helper()
+	name, err := os.MkdirTemp(dir, pattern)
+	assert.NoError(t, err)
+	return name
+}
+
+func TestGetFileMetadata(t *testing.T) {
+	baseTempDir := t.TempDir()
+
+	// --- Test Case 1: Regular File ---
+	t.Run("Regular File", func(t *testing.T) {
+		content := "hello world"
+		filePath := createTempFile(t, baseTempDir, "testfile-*.txt", content)
+		fileInfo, err := os.Stat(filePath) // Get ground truth info
+		assert.NoError(t, err)
+
+		metadata, err := getFileMetadata(filePath)
+		assert.NoError(t, err)
+
+		assert.Equal(t, filepath.Base(filePath), metadata.Name)
+		assert.Equal(t, int64(len(content)), metadata.Size)
+		assert.Equal(t, uint32(fileInfo.Mode().Perm()), metadata.Mode)
+		assert.Equal(t, byte(0), metadata.Typeflag, "Typeflag should be 0 for regular file")
+		assert.WithinDuration(t, fileInfo.ModTime(), metadata.ModTime, time.Second)
+
+		// Check UID/GID only on Unix-like systems
+		if stat, ok := fileInfo.Sys().(*syscall.Stat_t); ok {
+			assert.Equal(t, stat.Uid, metadata.Uid, "UID mismatch")
+			assert.Equal(t, stat.Gid, metadata.Gid, "GID mismatch")
+		} else if runtime.GOOS != "windows" {
+			// If not windows and not syscall.Stat_t, something is unexpected
+			t.Logf("Warning: Could not get syscall.Stat_t on non-Windows OS (%s)", runtime.GOOS)
+		} else {
+			// On Windows, expect 0 as syscall.Stat_t assertion fails
+			assert.Equal(t, uint32(0), metadata.Uid, "UID should be 0 on Windows")
+			assert.Equal(t, uint32(0), metadata.Gid, "GID should be 0 on Windows")
+		}
+	})
+
+	// --- Test Case 2: Directory ---
+	t.Run("Directory", func(t *testing.T) {
+		dirPath := createTempDir(t, baseTempDir, "testdir-*")
+		dirInfo, err := os.Stat(dirPath)
+		assert.NoError(t, err)
+
+		metadata, err := getFileMetadata(dirPath)
+		assert.NoError(t, err)
+
+		assert.Equal(t, filepath.Base(dirPath), metadata.Name)
+		assert.Equal(t, dirInfo.Size(), metadata.Size)
+		assert.Equal(t, uint32(dirInfo.Mode().Perm()), metadata.Mode)
+		assert.Equal(t, byte(5), metadata.Typeflag, "Typeflag should be 5 for directory")
+		assert.WithinDuration(t, dirInfo.ModTime(), metadata.ModTime, time.Second)
+
+		// Check UID/GID only on Unix-like systems
+		if stat, ok := dirInfo.Sys().(*syscall.Stat_t); ok {
+			assert.Equal(t, stat.Uid, metadata.Uid, "UID mismatch")
+			assert.Equal(t, stat.Gid, metadata.Gid, "GID mismatch")
+		} else if runtime.GOOS != "windows" {
+			t.Logf("Warning: Could not get syscall.Stat_t on non-Windows OS (%s)", runtime.GOOS)
+		} else {
+			assert.Equal(t, uint32(0), metadata.Uid, "UID should be 0 on Windows")
+			assert.Equal(t, uint32(0), metadata.Gid, "GID should be 0 on Windows")
+		}
+	})
 }

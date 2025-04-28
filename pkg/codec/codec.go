@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type Type = string
@@ -41,7 +43,7 @@ type Codec interface {
 	Encode(targetFilePath, workDirPath string) (io.Reader, error)
 
 	// Decode reads the input reader and decodes the data into the output path.
-	Decode(reader io.Reader, outputDir, filePath string) error
+	Decode(outputDir, filePath string, reader io.Reader, desc ocispec.Descriptor) error
 }
 
 func New(codecType Type) (Codec, error) {
