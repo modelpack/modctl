@@ -22,14 +22,15 @@ import (
 	"fmt"
 	"io"
 
+	retry "github.com/avast/retry-go/v4"
+	sha256 "github.com/minio/sha256-simd"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/sync/errgroup"
+
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
-
-	retry "github.com/avast/retry-go/v4"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/sync/errgroup"
 )
 
 // Pull pulls an artifact from a registry.
@@ -136,6 +137,8 @@ func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 	defer content.Close()
 
 	reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
+	hash := sha256.New()
+	reader = io.TeeReader(reader, hash)
 
 	// push the content to the destination, and wrap the content reader for progress bar,
 	// manifest should use dst.Manifests().Push, others should use dst.Blobs().Push.
@@ -185,6 +188,13 @@ func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		}
 	}
 
+	// validate the digest of the blob.
+	if err := validateDigest(desc.Digest.String(), hash.Sum(nil)); err != nil {
+		err = fmt.Errorf("failed to validate the digest of the blob %s, err: %w", desc.Digest.String(), err)
+		pb.Abort(desc.Digest.String(), err)
+		return err
+	}
+
 	return nil
 }
 
@@ -199,10 +209,37 @@ func pullAndExtractFromRemote(ctx context.Context, pb *internalpb.ProgressBar, p
 	defer content.Close()
 
 	reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
+	hash := sha256.New()
+	reader = io.TeeReader(reader, hash)
+
 	if err := extractLayer(desc, outputDir, reader); err != nil {
 		err = fmt.Errorf("failed to extract the blob %s to output directory: %w", desc.Digest.String(), err)
 		pb.Abort(desc.Digest.String(), err)
 		return err
+	}
+
+	// validate the digest of the blob.
+	if err := validateDigest(desc.Digest.String(), hash.Sum(nil)); err != nil {
+		err = fmt.Errorf("failed to validate the digest of the blob %s, err: %w", desc.Digest.String(), err)
+		pb.Abort(desc.Digest.String(), err)
+		return err
+	}
+
+	return nil
+}
+
+// validateDigest validates the hash digest whether matches the expected digest.
+func validateDigest(digest string, hash []byte) error {
+	if digest == "" {
+		return fmt.Errorf("digest is empty")
+	}
+
+	if len(hash) != sha256.Size {
+		return fmt.Errorf("invalid hash length")
+	}
+
+	if digest != fmt.Sprintf("sha256:%x", hash) {
+		return fmt.Errorf("actual digest %s does not match the expected digest %s", fmt.Sprintf("sha256:%x", hash), digest)
 	}
 
 	return nil
