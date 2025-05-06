@@ -4,6 +4,7 @@ go 1.24.1
 
 require (
 	github.com/CloudNativeAI/model-spec v0.0.3
+	github.com/avast/retry-go/v4 v4.6.1
 	github.com/briandowns/spinner v1.23.2
 	github.com/distribution/distribution/v3 v3.0.0
 	github.com/distribution/reference v0.6.0

@@ -27,6 +27,7 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
+	retry "github.com/avast/retry-go/v4"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 )
@@ -85,7 +86,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	for _, layer := range manifest.Layers {
-		g.Go(func() error { return fn(layer) })
+		g.Go(func() error { return retry.Do(func() error { return fn(layer) }, retryOpts...) })
 	}
 
 	if err := g.Wait(); err != nil {
@@ -99,12 +100,16 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	// copy the config.
-	if err := pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling config"), src, dst, manifest.Config, repo, tag); err != nil {
+	if err := retry.Do(func() error {
+		return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling config"), src, dst, manifest.Config, repo, tag)
+	}, retryOpts...); err != nil {
 		return fmt.Errorf("failed to pull config to local: %w", err)
 	}
 
 	// copy the manifest.
-	if err := pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling manifest"), src, dst, manifestDesc, repo, tag); err != nil {
+	if err := retry.Do(func() error {
+		return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling manifest"), src, dst, manifestDesc, repo, tag)
+	}, retryOpts...); err != nil {
 		return fmt.Errorf("failed to pull manifest to local: %w", err)
 	}
 
@@ -138,7 +143,8 @@ func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		// check whether the content exists in the destination storage.
 		exist, err := dst.StatManifest(ctx, repo, desc.Digest.String())
 		if err != nil {
-			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to check manifest %s, err: %v", desc.Digest.String(), err))
+			err = fmt.Errorf("failed to check manifest %s, err: %w", desc.Digest.String(), err)
+			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
 
@@ -149,18 +155,21 @@ func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 
 		body, err := io.ReadAll(reader)
 		if err != nil {
-			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to read manifest %s, err: %v", desc.Digest.String(), err))
+			err = fmt.Errorf("failed to read manifest %s, err: %w", desc.Digest.String(), err)
+			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
 
 		if _, err := dst.PushManifest(ctx, repo, tag, body); err != nil {
-			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to store manifest %s, err: %v", desc.Digest.String(), err))
+			err = fmt.Errorf("failed to store manifest %s, err: %w", desc.Digest.String(), err)
+			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
 	} else {
 		exist, err := dst.StatBlob(ctx, repo, desc.Digest.String())
 		if err != nil {
-			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to check blob %s, err: %v", desc.Digest.String(), err))
+			err = fmt.Errorf("failed to check blob %s, err: %w", desc.Digest.String(), err)
+			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
 
@@ -170,7 +179,8 @@ func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		}
 
 		if _, _, err := dst.PushBlob(ctx, repo, reader, desc); err != nil {
-			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to store blob %s, err: %v", desc.Digest.String(), err))
+			err = fmt.Errorf("failed to store blob %s, err: %w", desc.Digest.String(), err)
+			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
 	}
@@ -190,8 +200,9 @@ func pullAndExtractFromRemote(ctx context.Context, pb *internalpb.ProgressBar, p
 
 	reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
 	if err := extractLayer(desc, outputDir, reader); err != nil {
-		pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to pull and extract blob %s from remote, err: %v", desc.Digest.String(), err))
-		return fmt.Errorf("failed to extract the blob %s to output directory: %w", desc.Digest.String(), err)
+		err = fmt.Errorf("failed to extract the blob %s to output directory: %w", desc.Digest.String(), err)
+		pb.Abort(desc.Digest.String(), err)
+		return err
 	}
 
 	return nil

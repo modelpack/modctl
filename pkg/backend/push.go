@@ -28,6 +28,7 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
+	retry "github.com/avast/retry-go/v4"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
@@ -76,7 +77,9 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	g.SetLimit(cfg.Concurrency)
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
-			return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag)
+			return retry.Do(func() error {
+				return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag)
+			}, retryOpts...)
 		})
 	}
 
@@ -85,17 +88,21 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	}
 
 	// copy the config.
-	if err := pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag); err != nil {
+	if err := retry.Do(func() error {
+		return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag)
+	}, retryOpts...); err != nil {
 		return fmt.Errorf("failed to push config to remote: %w", err)
 	}
 
 	// copy the manifest.
-	if err := pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, ocispec.Descriptor{
-		MediaType: manifest.MediaType,
-		Size:      int64(len(manifestRaw)),
-		Digest:    godigest.FromBytes(manifestRaw),
-		Data:      manifestRaw,
-	}, repo, tag); err != nil {
+	if err := retry.Do(func() error {
+		return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, ocispec.Descriptor{
+			MediaType: manifest.MediaType,
+			Size:      int64(len(manifestRaw)),
+			Digest:    godigest.FromBytes(manifestRaw),
+			Data:      manifestRaw,
+		}, repo, tag)
+	}, retryOpts...); err != nil {
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
 
@@ -118,7 +125,8 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 			if err != nil {
 				// try to push the tag if error occurred when fetch reference.
 				if err := dst.Tag(ctx, desc, tag); err != nil {
-					pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to push tag %s, err: %v", tag, err))
+					err = fmt.Errorf("failed to push tag %s, err: %w", tag, err)
+					pb.Abort(desc.Digest.String(), err)
 					return err
 				}
 			}
@@ -133,13 +141,15 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 	if desc.MediaType == ocispec.MediaTypeImageManifest {
 		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, bytes.NewReader(desc.Data))
 		if err := dst.Manifests().Push(ctx, desc, reader); err != nil {
-			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to push manifest %s, err: %v", desc.Digest.String(), err))
+			err = fmt.Errorf("failed to push manifest %s, err: %w", desc.Digest.String(), err)
+			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
 
 		// push tag
 		if err := dst.Tag(ctx, desc, tag); err != nil {
-			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to push tag %s, err: %v", tag, err))
+			err = fmt.Errorf("failed to push tag %s, err: %w", tag, err)
+			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
 	} else {
@@ -155,7 +165,8 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		// always return the error when Close() is called.
 		// refer: https://github.com/distribution/distribution/blob/63d3892315c817c931b88779399a8e9142899a8e/registry/storage/filereader.go#L105
 		if err := dst.Blobs().Push(ctx, desc, io.NopCloser(reader)); err != nil {
-			pb.Complete(desc.Digest.String(), fmt.Sprintf("Failed to push blob %s, err: %v", desc.Digest.String(), err))
+			err = fmt.Errorf("failed to push blob %s, err: %w", desc.Digest.String(), err)
+			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
 	}

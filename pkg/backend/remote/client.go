@@ -40,10 +40,7 @@ type client struct {
 }
 
 func New(repo string, opts ...Option) (*remote.Repository, error) {
-	client := &client{
-		// Enable the retry by default.
-		retry: true,
-	}
+	client := &client{}
 	for _, opt := range opts {
 		opt(client)
 	}
