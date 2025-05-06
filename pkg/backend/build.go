@@ -23,7 +23,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/CloudNativeAI/modctl/internal/pb"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	retry "github.com/avast/retry-go/v4"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
@@ -33,9 +36,6 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile"
 	"github.com/CloudNativeAI/modctl/pkg/source"
-
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 const (
@@ -113,34 +113,41 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		SourceURL:      sourceInfo.URL,
 		SourceRevision: revision,
 	}
-	configDesc, err := builder.BuildConfig(ctx, layers, modelConfig, hooks.NewHooks(
-		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
-			return pb.Add(internalpb.NormalizePrompt("Building config"), name, size, reader)
-		}),
-		hooks.WithOnError(func(name string, err error) {
-			pb.Complete(name, fmt.Sprintf("Failed to build config: %v", err))
-		}),
-		hooks.WithOnComplete(func(name string, desc ocispec.Descriptor) {
-			pb.Complete(name, fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Built config"), desc.Digest))
-		}),
-	))
-	if err != nil {
+
+	var configDesc ocispec.Descriptor
+	// Build the model config.
+	if err := retry.Do(func() error {
+		configDesc, err = builder.BuildConfig(ctx, layers, modelConfig, hooks.NewHooks(
+			hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
+				return pb.Add(internalpb.NormalizePrompt("Building config"), name, size, reader)
+			}),
+			hooks.WithOnError(func(name string, err error) {
+				pb.Abort(name, fmt.Errorf("failed to build config: %w", err))
+			}),
+			hooks.WithOnComplete(func(name string, desc ocispec.Descriptor) {
+				pb.Complete(name, fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Built config"), desc.Digest))
+			}),
+		))
+		return err
+	}, retryOpts...); err != nil {
 		return fmt.Errorf("failed to build model config: %w", err)
 	}
 
 	// Build the model manifest.
-	_, err = builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation(modelfile), hooks.NewHooks(
-		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
-			return pb.Add(internalpb.NormalizePrompt("Building manifest"), name, size, reader)
-		}),
-		hooks.WithOnError(func(name string, err error) {
-			pb.Complete(name, fmt.Sprintf("Failed to build manifest: %v", err))
-		}),
-		hooks.WithOnComplete(func(name string, desc ocispec.Descriptor) {
-			pb.Complete(name, fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Built manifest"), desc.Digest))
-		}),
-	))
-	if err != nil {
+	if err := retry.Do(func() error {
+		_, err = builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation(modelfile), hooks.NewHooks(
+			hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
+				return pb.Add(internalpb.NormalizePrompt("Building manifest"), name, size, reader)
+			}),
+			hooks.WithOnError(func(name string, err error) {
+				pb.Abort(name, fmt.Errorf("failed to build manifest: %w", err))
+			}),
+			hooks.WithOnComplete(func(name string, desc ocispec.Descriptor) {
+				pb.Complete(name, fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Built manifest"), desc.Digest))
+			}),
+		))
+		return err
+	}, retryOpts...); err != nil {
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
 
@@ -170,7 +177,7 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile) []processor.Proce
 }
 
 // process walks the user work directory and process the identified files.
-func (b *backend) process(ctx context.Context, builder build.Builder, workDir string, pb *pb.ProgressBar, cfg *config.Build, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
+func (b *backend) process(ctx context.Context, builder build.Builder, workDir string, pb *internalpb.ProgressBar, cfg *config.Build, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
 	descriptors := []ocispec.Descriptor{}
 	for _, p := range processors {
 		descs, err := p.Process(ctx, builder, workDir, processor.WithConcurrency(cfg.Concurrency), processor.WithProgressTracker(pb))

@@ -59,8 +59,9 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 	oldBar := p.bars[name]
 	p.mu.RUnlock()
 
+	// If the bar exists, drop and remove it.
 	if oldBar != nil {
-		return reader
+		oldBar.Abort(true)
 	}
 
 	newBar := &progressBar{size: size, msg: fmt.Sprintf("%s %s", prompt, name)}
@@ -98,6 +99,18 @@ func (p *ProgressBar) Complete(name string, msg string) {
 	if ok {
 		bar.msg = msg
 		bar.Bar.SetCurrent(bar.size)
+	}
+}
+
+// Abort aborts the progress bar.
+func (p *ProgressBar) Abort(name string, err error) {
+	p.mu.RLock()
+	bar, ok := p.bars[name]
+	p.mu.RUnlock()
+
+	if ok {
+		// TODO: Log error message.
+		bar.Abort(true)
 	}
 }
 

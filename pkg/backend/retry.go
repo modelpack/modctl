@@ -14,36 +14,13 @@
  * limitations under the License.
  */
 
-package processor
+package backend
 
 import (
 	"time"
 
 	retry "github.com/avast/retry-go/v4"
-
-	"github.com/CloudNativeAI/modctl/internal/pb"
 )
-
-type ProcessOption func(*processOptions)
-
-type processOptions struct {
-	// concurrency is the number of concurrent workers to use for processing.
-	concurrency int
-	// progressTracker is the progress bar to use for tracking progress.
-	progressTracker *pb.ProgressBar
-}
-
-func WithConcurrency(concurrency int) ProcessOption {
-	return func(o *processOptions) {
-		o.concurrency = concurrency
-	}
-}
-
-func WithProgressTracker(tracker *pb.ProgressBar) ProcessOption {
-	return func(o *processOptions) {
-		o.progressTracker = tracker
-	}
-}
 
 var retryOpts = []retry.Option{
 	retry.Attempts(3),
