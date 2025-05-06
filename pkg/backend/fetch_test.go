@@ -19,6 +19,7 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -26,6 +27,7 @@ import (
 	"testing"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,6 +41,15 @@ func TestFetch(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
+	// Setup mock file
+	const (
+		file1Content = "file1 content..."
+		file2Content = "file2 content..."
+	)
+
+	file1Digest := godigest.FromString(file1Content)
+	file2Digest := godigest.FromString(file2Content)
+
 	// Setup mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -51,16 +62,16 @@ func TestFetch(t *testing.T) {
 				Layers: []ocispec.Descriptor{
 					{
 						MediaType: "application/octet-stream.raw",
-						Digest:    "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-						Size:      0,
+						Digest:    file1Digest,
+						Size:      int64(len(file1Content)),
 						Annotations: map[string]string{
 							modelspec.AnnotationFilepath: "file1.txt",
 						},
 					},
 					{
 						MediaType: "application/octet-stream.raw",
-						Digest:    "sha256:a3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-						Size:      0,
+						Digest:    file2Digest,
+						Size:      int64(len(file2Content)),
 						Annotations: map[string]string{
 							modelspec.AnnotationFilepath: "file2.txt",
 						},
@@ -69,10 +80,13 @@ func TestFetch(t *testing.T) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			require.NoError(t, json.NewEncoder(w).Encode(manifest))
-		case "/v2/test/model/blobs/sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-			"/v2/test/model/blobs/sha256:a3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855":
-			// Return empty content for blobs
-			w.WriteHeader(http.StatusOK)
+		case fmt.Sprintf("/v2/test/model/blobs/%s", file1Digest):
+			_, err := w.Write([]byte(file1Content))
+			require.NoError(t, err)
+
+		case fmt.Sprintf("/v2/test/model/blobs/%s", file2Digest):
+			_, err := w.Write([]byte(file2Content))
+			require.NoError(t, err)
 		default:
 			t.Logf("Unexpected request to %s", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
