@@ -30,6 +30,7 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	"github.com/avast/retry-go/v4"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
 )
@@ -101,27 +102,29 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		}
 
 		eg.Go(func() error {
-			desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, hooks.NewHooks(
-				hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
-					return tracker.Add(internalpb.NormalizePrompt("Building layer"), name, size, reader)
-				}),
-				hooks.WithOnError(func(name string, err error) {
-					tracker.Complete(name, fmt.Sprintf("Failed to build layer: %v", err))
-				}),
-				hooks.WithOnComplete(func(name string, desc ocispec.Descriptor) {
-					tracker.Complete(name, fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Built layer"), desc.Digest))
-				}),
-			))
-			if err != nil {
-				cancel()
-				return err
-			}
+			return retry.Do(func() error {
+				desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, hooks.NewHooks(
+					hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
+						return tracker.Add(internalpb.NormalizePrompt("Building layer"), name, size, reader)
+					}),
+					hooks.WithOnError(func(name string, err error) {
+						tracker.Abort(name, fmt.Errorf("failed to build layer: %w", err))
+					}),
+					hooks.WithOnComplete(func(name string, desc ocispec.Descriptor) {
+						tracker.Complete(name, fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Built layer"), desc.Digest))
+					}),
+				))
+				if err != nil {
+					cancel()
+					return err
+				}
 
-			mu.Lock()
-			descriptors = append(descriptors, desc)
-			mu.Unlock()
+				mu.Lock()
+				descriptors = append(descriptors, desc)
+				mu.Unlock()
 
-			return nil
+				return nil
+			}, retryOpts...)
 		})
 	}
 
