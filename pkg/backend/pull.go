@@ -87,7 +87,16 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	for _, layer := range manifest.Layers {
-		g.Go(func() error { return retry.Do(func() error { return fn(layer) }, retryOpts...) })
+		g.Go(func() error {
+			return retry.Do(func() error {
+				// call the before hook.
+				cfg.Hooks.BeforePullLayer(layer, manifest)
+				err := fn(layer)
+				// call the after hook.
+				cfg.Hooks.AfterPullLayer(layer, err)
+				return err
+			}, retryOpts...)
+		})
 	}
 
 	if err := g.Wait(); err != nil {
