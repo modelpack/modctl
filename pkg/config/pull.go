@@ -16,7 +16,11 @@
 
 package config
 
-import "fmt"
+import (
+	"fmt"
+
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+)
 
 const (
 	// defaultPullConcurrency is the default number of concurrent pull operations.
@@ -30,6 +34,7 @@ type Pull struct {
 	Insecure          bool
 	ExtractDir        string
 	ExtractFromRemote bool
+	Hooks             PullHooks
 }
 
 func NewPull() *Pull {
@@ -40,6 +45,7 @@ func NewPull() *Pull {
 		Insecure:          false,
 		ExtractDir:        "",
 		ExtractFromRemote: false,
+		Hooks:             &emptyPullHook{},
 	}
 }
 
@@ -57,3 +63,18 @@ func (p *Pull) Validate() error {
 
 	return nil
 }
+
+// PullHooks is the hook events during the pull operation.
+type PullHooks interface {
+	// BeforePullLayer will execute before pulling the layer described as desc, will carry the manifest as well.
+	BeforePullLayer(desc ocispec.Descriptor, manifest ocispec.Manifest)
+
+	// AfterPullLayer will execute after pulling the layer described as desc, the error will be nil if pulled successfully.
+	AfterPullLayer(desc ocispec.Descriptor, err error)
+}
+
+// emptyPullHook is the empty pull hook implementation with do nothing.
+type emptyPullHook struct{}
+
+func (emptyPullHook) BeforePullLayer(desc ocispec.Descriptor, manifest ocispec.Manifest) {}
+func (emptyPullHook) AfterPullLayer(desc ocispec.Descriptor, err error)                  {}
