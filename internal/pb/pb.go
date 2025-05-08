@@ -19,6 +19,7 @@ package pb
 import (
 	"fmt"
 	"io"
+	"os"
 	"sync"
 	"time"
 
@@ -46,9 +47,24 @@ type progressBar struct {
 }
 
 // NewProgressBar creates a new progress bar.
-func NewProgressBar() *ProgressBar {
+func NewProgressBar(writers ...io.Writer) *ProgressBar {
+	opts := []mpbv8.ContainerOption{
+		mpbv8.WithAutoRefresh(),
+		mpbv8.WithWidth(60),
+		mpbv8.WithRefreshRate(300 * time.Millisecond),
+	}
+
+	// If no writer specified, use stdout.
+	if len(writers) == 0 {
+		opts = append(opts, mpbv8.WithOutput(os.Stdout))
+	} else if len(writers) == 1 {
+		opts = append(opts, mpbv8.WithOutput(writers[0]))
+	} else {
+		opts = append(opts, mpbv8.WithOutput(io.MultiWriter(writers...)))
+	}
+
 	return &ProgressBar{
-		mpb:  mpbv8.New(mpbv8.WithWidth(60), mpbv8.WithRefreshRate(300*time.Millisecond)),
+		mpb:  mpbv8.New(opts...),
 		bars: make(map[string]*progressBar),
 	}
 }
