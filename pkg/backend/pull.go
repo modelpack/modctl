@@ -60,7 +60,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	// create the progress bar to track the progress of push.
-	pb := internalpb.NewProgressBar()
+	pb := internalpb.NewProgressBar(cfg.ProgressWriter)
 	pb.Start()
 	defer pb.Stop()
 
