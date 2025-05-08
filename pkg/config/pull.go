@@ -18,6 +18,8 @@ package config
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -35,6 +37,7 @@ type Pull struct {
 	ExtractDir        string
 	ExtractFromRemote bool
 	Hooks             PullHooks
+	ProgressWriter    io.Writer
 }
 
 func NewPull() *Pull {
@@ -46,6 +49,7 @@ func NewPull() *Pull {
 		ExtractDir:        "",
 		ExtractFromRemote: false,
 		Hooks:             &emptyPullHook{},
+		ProgressWriter:    os.Stdout,
 	}
 }
 
