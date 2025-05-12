@@ -17,11 +17,15 @@ builds:
       - amd64
       - arm64
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     ldflags:
       - -X github.com/CloudNativeAI/modctl/pkg/version.GitVersion={{ .Tag }}
       - -X github.com/CloudNativeAI/modctl/pkg/version.GitCommit={{ .ShortCommit }}
       - -X github.com/CloudNativeAI/modctl/pkg/version.BuildTime={{ .Date }}
+      - -extldflags "-static"
+    tags:
+      - static
+      - system_libgit2
 
 archives:
   - name_template: "modctl-{{ .Version }}-{{ .Os }}-{{ .Arch }}"

@@ -5,7 +5,7 @@ on:
     tags:
       - v*
 
-permissions:  
+permissions:
   contents: read
 
 jobs:
@@ -27,6 +27,24 @@ jobs:
         uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b
         with:
           go-version-file: go.mod
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config
+          sudo apt update && \
+          sudo DEBIAN_FRONTEND=noninteractive apt install -y build-essential cmake pkg-config libssl-dev libssh2-1-dev zlib1g-dev libhttp-parser-dev python3 wget tar git && \
+          wget https://github.com/libgit2/libgit2/archive/refs/tags/v1.5.1.tar.gz -O libgit2-v1.5.1.tar.gz && \
+          tar -xzf libgit2-v1.5.1.tar.gz && \
+          cd libgit2-1.5.1 && \
+          mkdir build && \
+          cd build && \
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF && \
+          make -j$(nproc) && \
+          sudo make install && \
+          sudo ldconfig
+        env:
+            LIBGIT2_SYS_USE_PKG_CONFIG: "1"
 
       - name: Check GoReleaser config
         uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552
