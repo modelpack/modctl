@@ -1,0 +1,17 @@
+arch: ${GOARCH}
+platform: ${GOOS}
+name: modctl
+version: ${VERSION}
+maintainer: "Model Spec Maintainers <model-spec-maintainers@googlegroups.com>"
+description: "A command line tool for managing artifact bundled based on the Model Format Specification"
+license: "Apache 2.0"
+contents:
+  - src: modctl
+    dst: /usr/bin/modctl
+    expand: true
+
+  - src: build/package/docs/modctl.1
+    dst: /usr/share/man/man1/modctl.1
+
+  - src: LICENSE
+    dst: /usr/share/doc/modctl/License
