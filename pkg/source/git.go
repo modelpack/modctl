@@ -19,49 +19,63 @@ package source
 import (
 	"fmt"
 
-	gogit "github.com/go-git/go-git/v5"
+	git2go "github.com/libgit2/git2go/v34"
 )
 
 type git struct{}
 
 func (g *git) Parse(workspace string) (*Info, error) {
-	repo, err := gogit.PlainOpen(workspace)
+	repo, err := git2go.OpenRepository(workspace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open repo: %w", err)
+		return nil, fmt.Errorf("failed to open repository at %s: %w", workspace, err)
+	}
+	defer repo.Free()
+
+	// Get remote URL(Source URL).
+	remote, err := repo.Remotes.Lookup("origin")
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup remote: %w", err)
+	}
+	defer remote.Free()
+
+	url := remote.Url()
+	if len(url) == 0 {
+		return nil, fmt.Errorf("failed to get remote URL")
 	}
 
-	// By default, use the origin as the remote.
-	remote, err := repo.Remote("origin")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get remote: %w", err)
-	}
-	remoteURLs := remote.Config().URLs
-	if len(remoteURLs) == 0 {
-		return nil, fmt.Errorf("no URLs found for remote 'origin'")
-	}
-	url := remoteURLs[0]
-
-	// Fetch the head commit.
+	// Get HEAD commit.
 	head, err := repo.Head()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get HEAD: %w", err)
 	}
-	commitHash := head.Hash().String()
+	defer head.Free()
 
-	// Check if the workspace is dirty.
-	worktree, err := repo.Worktree()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get worktree: %w", err)
+	commitSHA := head.Target().String()
+	if len(commitSHA) == 0 {
+		return nil, fmt.Errorf("failed to get HEAD commit")
 	}
-	status, err := worktree.Status()
+
+	// Check whether the workspace is dirty.
+	statusOpts := git2go.StatusOptions{}
+	statusOpts.Show = git2go.StatusShowIndexAndWorkdir
+	statusOpts.Flags = git2go.StatusOptIncludeUntracked | git2go.StatusOptRenamesHeadToIndex | git2go.StatusOptSortCaseSensitively
+
+	statusList, err := repo.StatusList(&statusOpts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get status: %w", err)
+		return nil, fmt.Errorf("failed to get status list: %w", err)
 	}
-	isDirty := !status.IsClean()
+	defer statusList.Free()
+
+	entryCount, err := statusList.EntryCount()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get status entry count: %w", err)
+	}
+
+	isDirty := entryCount > 0
 
 	return &Info{
 		URL:    url,
-		Commit: commitHash,
+		Commit: commitSHA,
 		Dirty:  isDirty,
 	}, nil
 }
