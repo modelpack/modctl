@@ -1,0 +1,154 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-24.04-arm
+          - goos: darwin
+            goarch: amd64
+            runner: macos-13
+          - goos: darwin
+            goarch: arm64
+            runner: macos-latest
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24' # Adjust to your Go version
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Install CGO dependencies for Linux
+      if: matrix.goos == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config
+        sudo apt update && \
+        sudo DEBIAN_FRONTEND=noninteractive apt install -y build-essential cmake pkg-config libssl-dev libssh2-1-dev zlib1g-dev libhttp-parser-dev python3 wget tar git && \
+        wget https://github.com/libgit2/libgit2/archive/refs/tags/v1.5.1.tar.gz -O libgit2-v1.5.1.tar.gz && \
+        tar -xzf libgit2-v1.5.1.tar.gz && \
+        cd libgit2-1.5.1 && \
+        mkdir build && \
+        cd build && \
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF && \
+        make -j$(nproc) && \
+        sudo make install && \
+        sudo ldconfig
+
+    - name: Install CGO dependencies for macOS
+      if: matrix.goos == 'darwin'
+      run: |
+        brew install cmake wget zlib libiconv && \
+        wget https://github.com/libgit2/libgit2/archive/refs/tags/v1.5.1.tar.gz -O libgit2-v1.5.1.tar.gz && \
+        tar -xzf libgit2-v1.5.1.tar.gz && \
+        cd libgit2-1.5.1 && \
+        mkdir build && \
+        cd build && \
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF && \
+        make -j$(nproc) && \
+        sudo make install
+
+    - name: Build binary for linux
+      if: matrix.goos == 'linux'
+      env:
+        CGO_ENABLED: 1
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        go build \
+          -tags "static system_libgit2" \
+          -ldflags "-X github.com/CloudNativeAI/modctl/pkg/version.GitVersion=${{ github.ref_name }} \
+                    -X github.com/CloudNativeAI/modctl/pkg/version.GitCommit=$(git rev-parse --short HEAD) \
+                    -X github.com/CloudNativeAI/modctl/pkg/version.BuildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+                    -extldflags '-static'" \
+          -o modctl \
+          main.go
+
+    - name: Build binary for macOS
+      if: matrix.goos == 'darwin'
+      env:
+        CGO_ENABLED: 1
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_LDFLAGS: "-lgit2 -lz -liconv -Wl,-rpath,/Users/runner/work/modctl/modctl/libgit2-1.5.1/build"
+      run: |
+        go build \
+          -tags "static system_libgit2" \
+          -ldflags "-X github.com/CloudNativeAI/modctl/pkg/version.GitVersion=${{ github.ref_name }} \
+                    -X github.com/CloudNativeAI/modctl/pkg/version.GitCommit=$(git rev-parse --short HEAD) \
+                    -X github.com/CloudNativeAI/modctl/pkg/version.BuildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+          -o modctl \
+          main.go
+
+    - name: Create archive
+      run: |
+        mkdir -p dist
+        tar -czf dist/modctl-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz \
+          LICENSE README.md modctl
+
+    - name: Build deb/rpm packages
+      if: matrix.goos == 'linux'
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        VERSION: ${{ github.ref_name }}
+      run: |
+        echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
+        sudo apt update
+        sudo apt install nfpm
+        nfpm pkg --packager deb --config hack/nfpm.yaml --target dist/modctl-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.deb
+        nfpm pkg --packager rpm --config hack/nfpm.yaml --target dist/modctl-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.rpm
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: modctl-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: dist/
+
+  create-release:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Generate unified checksums
+      run: |
+          cd artifacts
+          find . -type f \( -name "modctl-*.tar.gz" -o -name "modctl-*.deb" -o -name "modctl-*.rpm" \) -exec shasum -a 256 {} \; > ../checksums.txt
+
+    - name: Create draft release
+      uses: softprops/action-gh-release@v2
+      with:
+        draft: true
+        files: |
+          artifacts/**/modctl-*.tar.gz
+          artifacts/**/modctl-*.deb
+          artifacts/**/modctl-*.rpm
+          checksums.txt
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
