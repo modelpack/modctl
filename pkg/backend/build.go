@@ -129,7 +129,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 			}),
 		))
 		return err
-	}, retryOpts...); err != nil {
+	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to build model config: %w", err)
 	}
 
@@ -147,7 +147,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 			}),
 		))
 		return err
-	}, retryOpts...); err != nil {
+	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
 

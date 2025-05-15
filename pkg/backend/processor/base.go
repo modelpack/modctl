@@ -124,7 +124,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 				mu.Unlock()
 
 				return nil
-			}, retryOpts...)
+			}, append(defaultRetryOpts, retry.Context(ctx))...)
 		})
 	}
 
