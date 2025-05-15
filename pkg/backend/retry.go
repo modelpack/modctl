@@ -22,7 +22,7 @@ import (
 	retry "github.com/avast/retry-go/v4"
 )
 
-var retryOpts = []retry.Option{
+var defaultRetryOpts = []retry.Option{
 	retry.Attempts(3),
 	retry.DelayType(retry.BackOffDelay),
 	retry.Delay(5 * time.Second),
