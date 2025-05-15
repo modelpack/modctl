@@ -79,7 +79,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		g.Go(func() error {
 			return retry.Do(func() error {
 				return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag)
-			}, retryOpts...)
+			}, append(defaultRetryOpts, retry.Context(ctx))...)
 		})
 	}
 
@@ -90,7 +90,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	// copy the config.
 	if err := retry.Do(func() error {
 		return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag)
-	}, retryOpts...); err != nil {
+	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to push config to remote: %w", err)
 	}
 
@@ -102,7 +102,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 			Digest:    godigest.FromBytes(manifestRaw),
 			Data:      manifestRaw,
 		}, repo, tag)
-	}, retryOpts...); err != nil {
+	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
 

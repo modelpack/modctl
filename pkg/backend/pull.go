@@ -95,7 +95,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 				// call the after hook.
 				cfg.Hooks.AfterPullLayer(layer, err)
 				return err
-			}, retryOpts...)
+			}, append(defaultRetryOpts, retry.Context(ctx))...)
 		})
 	}
 
@@ -112,14 +112,14 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	// copy the config.
 	if err := retry.Do(func() error {
 		return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling config"), src, dst, manifest.Config, repo, tag)
-	}, retryOpts...); err != nil {
+	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to pull config to local: %w", err)
 	}
 
 	// copy the manifest.
 	if err := retry.Do(func() error {
 		return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling manifest"), src, dst, manifestDesc, repo, tag)
-	}, retryOpts...); err != nil {
+	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to pull manifest to local: %w", err)
 	}
 
