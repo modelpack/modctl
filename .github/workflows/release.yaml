@@ -103,8 +103,10 @@ jobs:
 
     - name: Create archive
       run: |
+        TAG=${{ github.ref_name }}
+        TAG=${TAG#v}
         mkdir -p dist
-        tar -czf dist/modctl-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz \
+        tar -czf dist/modctl-${TAG}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz \
           LICENSE README.md modctl
 
     - name: Build deb/rpm packages
@@ -117,8 +119,10 @@ jobs:
         echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
         sudo apt update
         sudo apt install nfpm
-        nfpm pkg --packager deb --config hack/nfpm.yaml --target dist/modctl-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.deb
-        nfpm pkg --packager rpm --config hack/nfpm.yaml --target dist/modctl-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.rpm
+        TAG=${{ github.ref_name }}
+        TAG=${TAG#v}
+        nfpm pkg --packager deb --config hack/nfpm.yaml --target dist/modctl-${TAG}-${{ matrix.goos }}-${{ matrix.goarch }}.deb
+        nfpm pkg --packager rpm --config hack/nfpm.yaml --target dist/modctl-${TAG}-${{ matrix.goos }}-${{ matrix.goarch }}.rpm
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
