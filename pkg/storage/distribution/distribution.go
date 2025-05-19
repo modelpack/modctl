@@ -21,6 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"time"
 
@@ -60,6 +62,24 @@ type storage struct {
 func NewStorage(rootDir string) (*storage, error) {
 	// Mute the logging from distribution.
 	logrus.SetOutput(io.Discard)
+
+	// Create Docker Registry V2 directory structure
+	dockerRegistryDir := filepath.Join(rootDir, "docker", "registry")
+	if err := os.MkdirAll(dockerRegistryDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create docker registry directory: %w", err)
+	}
+
+	// Create v2 directory
+	v2Dir := filepath.Join(dockerRegistryDir, "v2")
+	if err := os.MkdirAll(v2Dir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create v2 directory: %w", err)
+	}
+
+	// Create repositories directory under v2
+	repositoriesDir := filepath.Join(v2Dir, "repositories")
+	if err := os.MkdirAll(repositoriesDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create repositories directory: %w", err)
+	}
 
 	fsDriver := filesystem.New(filesystem.DriverParameters{
 		RootDirectory: rootDir,
