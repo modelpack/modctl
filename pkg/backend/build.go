@@ -209,9 +209,18 @@ func getSourceInfo(workspace string, buildConfig *config.Build) (*source.Info, e
 	// Try to parse the source information if user not specified.
 	if info.URL == "" {
 		var parser source.Parser
+
 		gitPath := filepath.Join(workspace, ".git")
 		if _, err := os.Stat(gitPath); err == nil {
 			parser, err = source.NewParser(source.ParserTypeGit)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		zetaPath := filepath.Join(workspace, ".zeta")
+		if _, err := os.Stat(zetaPath); err == nil {
+			parser, err = source.NewParser(source.ParserTypeZeta)
 			if err != nil {
 				return nil, err
 			}

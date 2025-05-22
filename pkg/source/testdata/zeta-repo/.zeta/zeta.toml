@@ -1,0 +1,3 @@
+[core]
+remote = "https://zeta.com/test/zeta-repo"
+compression-algo = "zstd"

@@ -21,6 +21,9 @@ import "fmt"
 const (
 	// ParserTypeGit is the type of parser for git repositories.
 	ParserTypeGit = "git"
+
+	// ParserTypeZeta is the type of parser for zeta repositories.
+	ParserTypeZeta = "zeta"
 )
 
 // Parser is an interface for parsing the source information.
@@ -45,6 +48,8 @@ func NewParser(typ string) (Parser, error) {
 	switch typ {
 	case ParserTypeGit:
 		return &git{}, nil
+	case ParserTypeZeta:
+		return &zeta{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported parser type: %s", typ)
 	}
