@@ -44,7 +44,7 @@ func TestBackendGetManifest(t *testing.T) {
 		mockStore.On("PullManifest", ctx, "localhost/repo", "tag").Return(manifestBytes, "", nil)
 
 		cfg := &config.Attach{OutputRemote: false}
-		result, err := b.getManifest(ctx, "localhost/repo:tag", cfg)
+		result, err := b.getManifest(ctx, "localhost/repo:tag", cfg.OutputRemote, cfg.PlainHTTP, cfg.Insecure)
 		assert.NoError(t, err)
 		assert.Equal(t, manifest.Layers, result.Layers)
 		mockStore.AssertExpectations(t)
@@ -52,7 +52,7 @@ func TestBackendGetManifest(t *testing.T) {
 
 	t.Run("InvalidReference", func(t *testing.T) {
 		cfg := &config.Attach{OutputRemote: false}
-		_, err := b.getManifest(ctx, "invalid", cfg)
+		_, err := b.getManifest(ctx, "invalid", cfg.OutputRemote, cfg.PlainHTTP, cfg.Insecure)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to parse source reference")
 	})

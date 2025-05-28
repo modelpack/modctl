@@ -56,7 +56,7 @@ type Backend interface {
 	Prune(ctx context.Context, dryRun, removeUntagged bool) error
 
 	// Inspect inspects the model artifact.
-	Inspect(ctx context.Context, target string) (*InspectedModelArtifact, error)
+	Inspect(ctx context.Context, target string, cfg *config.Inspect) (*InspectedModelArtifact, error)
 
 	// Extract extracts the model artifact.
 	Extract(ctx context.Context, target string, cfg *config.Extract) error
