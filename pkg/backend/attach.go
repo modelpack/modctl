@@ -58,12 +58,12 @@ var (
 
 // Attach attaches user materials into the model artifact which follows the Model Spec.
 func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attach) error {
-	srcManifest, err := b.getManifest(ctx, cfg.Source, cfg)
+	srcManifest, err := b.getManifest(ctx, cfg.Source, cfg.OutputRemote, cfg.PlainHTTP, cfg.Insecure)
 	if err != nil {
 		return fmt.Errorf("failed to get source manifest: %w", err)
 	}
 
-	srcModelConfig, err := b.getModelConfig(ctx, cfg.Source, srcManifest.Config, cfg)
+	srcModelConfig, err := b.getModelConfig(ctx, cfg.Source, srcManifest.Config, cfg.OutputRemote, cfg.PlainHTTP, cfg.Insecure)
 	if err != nil {
 		return fmt.Errorf("failed to get source model config: %w", err)
 	}
@@ -169,7 +169,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 	return nil
 }
 
-func (b *backend) getManifest(ctx context.Context, reference string, cfg *config.Attach) (*ocispec.Manifest, error) {
+func (b *backend) getManifest(ctx context.Context, reference string, fromRemote, plainHTTP, insecure bool) (*ocispec.Manifest, error) {
 	ref, err := ParseReference(reference)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse source reference: %w", err)
@@ -181,7 +181,7 @@ func (b *backend) getManifest(ctx context.Context, reference string, cfg *config
 	}
 
 	// Fetch from local storage if it is not remote.
-	if !cfg.OutputRemote {
+	if !fromRemote {
 		manifestRaw, _, err := b.store.PullManifest(ctx, repo, tag)
 		if err != nil {
 			return nil, fmt.Errorf("failed to pull manifest: %w", err)
@@ -195,7 +195,7 @@ func (b *backend) getManifest(ctx context.Context, reference string, cfg *config
 		return &manifest, nil
 	}
 
-	client, err := remote.New(repo, remote.WithPlainHTTP(cfg.PlainHTTP), remote.WithInsecure(cfg.Insecure))
+	client, err := remote.New(repo, remote.WithPlainHTTP(plainHTTP), remote.WithInsecure(insecure))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create remote client: %w", err)
 	}
@@ -214,7 +214,7 @@ func (b *backend) getManifest(ctx context.Context, reference string, cfg *config
 	return &manifest, nil
 }
 
-func (b *backend) getModelConfig(ctx context.Context, reference string, desc ocispec.Descriptor, cfg *config.Attach) (*modelspec.Model, error) {
+func (b *backend) getModelConfig(ctx context.Context, reference string, desc ocispec.Descriptor, fromRemote, plainHTTP, insecure bool) (*modelspec.Model, error) {
 	ref, err := ParseReference(reference)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse reference: %w", err)
@@ -226,7 +226,7 @@ func (b *backend) getModelConfig(ctx context.Context, reference string, desc oci
 	}
 
 	// Fetch from local storage if it is not remote.
-	if !cfg.OutputRemote {
+	if !fromRemote {
 		reader, err := b.store.PullBlob(ctx, repo, desc.Digest.String())
 		if err != nil {
 			return nil, fmt.Errorf("failed to pull blob: %w", err)
@@ -241,7 +241,7 @@ func (b *backend) getModelConfig(ctx context.Context, reference string, desc oci
 		return &model, nil
 	}
 
-	client, err := remote.New(repo, remote.WithPlainHTTP(cfg.PlainHTTP), remote.WithInsecure(cfg.Insecure))
+	client, err := remote.New(repo, remote.WithPlainHTTP(plainHTTP), remote.WithInsecure(insecure))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create remote client: %w", err)
 	}

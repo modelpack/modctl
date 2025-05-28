@@ -22,8 +22,10 @@ import (
 	"io"
 	"testing"
 
-	"github.com/CloudNativeAI/modctl/test/mocks/storage"
 	"github.com/stretchr/testify/assert"
+
+	pkgconfig "github.com/CloudNativeAI/modctl/pkg/config"
+	"github.com/CloudNativeAI/modctl/test/mocks/storage"
 )
 
 func TestInspect(t *testing.T) {
@@ -126,13 +128,13 @@ func TestInspect(t *testing.T) {
   }
 }`
 
-	mockStore.On("PullManifest", ctx, "example.com/repo", "tag").Return([]byte(manifest), "sha256:2bc8836f5910ec63a01109e20db67c2ad7706cb19bef5a303bc86fa5572ec9a2", nil)
+	mockStore.On("PullManifest", ctx, "example.com/repo", "tag").Return([]byte(manifest), "sha256:9ca701e8784e5656e2c36f10f82410a0af4c44f859590a28a3d1519ee1eea89d", nil)
 	mockStore.On("PullBlob", ctx, "example.com/repo", "sha256:e31b55920173ba79526491fbd01efe609c1d0d72c3a83df85b2c4fe74df2eea2").Return(io.NopCloser(bytes.NewReader([]byte(config))), nil)
 
-	inspected, err := b.Inspect(ctx, target)
+	inspected, err := b.Inspect(ctx, target, &pkgconfig.Inspect{})
 	assert.NoError(t, err)
 	assert.Equal(t, "sha256:e31b55920173ba79526491fbd01efe609c1d0d72c3a83df85b2c4fe74df2eea2", inspected.ID)
-	assert.Equal(t, "sha256:2bc8836f5910ec63a01109e20db67c2ad7706cb19bef5a303bc86fa5572ec9a2", inspected.Digest)
+	assert.Equal(t, "sha256:9ca701e8784e5656e2c36f10f82410a0af4c44f859590a28a3d1519ee1eea89d", inspected.Digest)
 	assert.Equal(t, "transformer", inspected.Architecture)
 	assert.Equal(t, "2025-02-12T17:01:43+08:00", inspected.CreatedAt)
 	assert.Equal(t, "qwen2", inspected.Family)

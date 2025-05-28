@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"time"
 
+	godigest "github.com/opencontainers/go-digest"
+
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // InspectedModelArtifact is the data structure for model artifact that has been inspected.
@@ -63,38 +65,30 @@ type InspectedModelArtifactLayer struct {
 }
 
 // Inspect inspects the target from the storage.
-func (b *backend) Inspect(ctx context.Context, target string) (*InspectedModelArtifact, error) {
-	ref, err := ParseReference(target)
+func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspect) (*InspectedModelArtifact, error) {
+	_, err := ParseReference(target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse target: %w", err)
 	}
 
-	repo, tag := ref.Repository(), ref.Tag()
-	manifestRaw, digest, err := b.store.PullManifest(ctx, repo, tag)
+	manifest, err := b.getManifest(ctx, target, cfg.Remote, cfg.PlainHTTP, cfg.Insecure)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get manifest: %w", err)
 	}
 
-	var manifest ocispec.Manifest
-	if err := json.Unmarshal(manifestRaw, &manifest); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
-	}
-
-	// fetch and parse the model config.
-	configReader, err := b.store.PullBlob(ctx, repo, manifest.Config.Digest.String())
+	manifestRaw, err := json.Marshal(manifest)
 	if err != nil {
-		return nil, fmt.Errorf("failed to pull config: %w", err)
+		return nil, fmt.Errorf("failed to marshal manifest: %w", err)
 	}
 
-	defer configReader.Close()
-	var config modelspec.Model
-	if err := json.NewDecoder(configReader).Decode(&config); err != nil {
-		return nil, fmt.Errorf("failed to decode config: %w", err)
+	config, err := b.getModelConfig(ctx, target, manifest.Config, cfg.Remote, cfg.PlainHTTP, cfg.Insecure)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
 	inspectedModelArtifact := &InspectedModelArtifact{
 		ID:           manifest.Config.Digest.String(),
-		Digest:       digest,
+		Digest:       godigest.FromBytes(manifestRaw).String(),
 		Architecture: config.Config.Architecture,
 		Family:       config.Descriptor.Family,
 		Format:       config.Config.Format,

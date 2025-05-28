@@ -22,10 +22,13 @@ import (
 	"fmt"
 
 	"github.com/CloudNativeAI/modctl/pkg/backend"
+	"github.com/CloudNativeAI/modctl/pkg/config"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+var inspectConfig = config.NewInspect()
 
 // inspectCmd represents the modctl command for inspect.
 var inspectCmd = &cobra.Command{
@@ -42,7 +45,10 @@ var inspectCmd = &cobra.Command{
 
 // init initializes inspect command.
 func init() {
-	flags := rmCmd.Flags()
+	flags := inspectCmd.Flags()
+	flags.BoolVar(&inspectConfig.Remote, "remote", false, "inspect model artifact from remote registry")
+	flags.BoolVar(&inspectConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
+	flags.BoolVar(&inspectConfig.Insecure, "insecure", false, "allow insecure connections")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache inspect flags to viper: %w", err))
@@ -60,7 +66,7 @@ func runInspect(ctx context.Context, target string) error {
 		return fmt.Errorf("target is required")
 	}
 
-	inspected, err := b.Inspect(ctx, target)
+	inspected, err := b.Inspect(ctx, target, inspectConfig)
 	if err != nil {
 		return err
 	}
