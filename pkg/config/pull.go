@@ -38,6 +38,7 @@ type Pull struct {
 	ExtractFromRemote bool
 	Hooks             PullHooks
 	ProgressWriter    io.Writer
+	DisableProgress   bool
 }
 
 func NewPull() *Pull {
@@ -50,6 +51,7 @@ func NewPull() *Pull {
 		ExtractFromRemote: false,
 		Hooks:             &emptyPullHook{},
 		ProgressWriter:    os.Stdout,
+		DisableProgress:   false,
 	}
 }
 
