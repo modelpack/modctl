@@ -59,6 +59,11 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
 
+	// TODO: need refactor as currently use a global flag to control the progress bar render.
+	if cfg.DisableProgress {
+		internalpb.SetDisableProgress(true)
+	}
+
 	// create the progress bar to track the progress of push.
 	pb := internalpb.NewProgressBar(cfg.ProgressWriter)
 	pb.Start()

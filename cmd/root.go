@@ -24,11 +24,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/CloudNativeAI/modctl/cmd/modelfile"
-	"github.com/CloudNativeAI/modctl/pkg/config"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/CloudNativeAI/modctl/cmd/modelfile"
+	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
+	"github.com/CloudNativeAI/modctl/pkg/config"
 )
 
 var rootConfig *config.Root
@@ -51,6 +52,9 @@ var rootCmd = &cobra.Command{
 				}
 			}()
 		}
+
+		// TODO: need refactor as currently use a global flag to control the progress bar render.
+		internalpb.SetDisableProgress(rootConfig.DisableProgress)
 		return nil
 	},
 }
@@ -83,6 +87,7 @@ func init() {
 	flags.StringVar(&rootConfig.StoargeDir, "storage-dir", rootConfig.StoargeDir, "specify the storage directory for modctl")
 	flags.BoolVar(&rootConfig.Pprof, "pprof", rootConfig.Pprof, "enable pprof")
 	flags.StringVar(&rootConfig.PprofAddr, "pprof-addr", rootConfig.PprofAddr, "specify the address for pprof")
+	flags.BoolVar(&rootConfig.DisableProgress, "no-progress", rootConfig.DisableProgress, "disable progress bar")
 
 	// Bind common flags.
 	if err := viper.BindPFlags(flags); err != nil {
