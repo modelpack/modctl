@@ -28,6 +28,16 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
+var (
+	// disableProgress is the flag to disable progress bar.
+	disableProgress bool
+)
+
+// SetDisableProgress disables the progress bar.
+func SetDisableProgress(disable bool) {
+	disableProgress = disable
+}
+
 // NormalizePrompt normalizes the prompt string.
 func NormalizePrompt(prompt string) string {
 	return fmt.Sprintf("%s =>", prompt)
@@ -71,6 +81,11 @@ func NewProgressBar(writers ...io.Writer) *ProgressBar {
 
 // Add adds a new progress bar.
 func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.Reader {
+	// Return the reader directly if progress is disabled.
+	if disableProgress {
+		return reader
+	}
+
 	p.mu.RLock()
 	oldBar := p.bars[name]
 	p.mu.RUnlock()
