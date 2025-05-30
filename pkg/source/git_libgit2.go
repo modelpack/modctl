@@ -20,16 +20,53 @@ package source
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	git2go "github.com/libgit2/git2go/v34"
 )
+
+const (
+	// The error returned by libgit2 when the user is not the owner of the git repository.
+	safeDirectoryNotFoundErrorMsg = "config value 'safe.directory' was not found"
+)
+
+// isSafeDirectoryNotFoundError checks if the error is a safe.directory not found error.
+func isSafeDirectoryNotFoundError(err error) bool {
+	if err != nil {
+		return strings.Contains(err.Error(), safeDirectoryNotFoundErrorMsg)
+	}
+
+	return false
+}
 
 type git struct{}
 
 func (g *git) Parse(workspace string) (*Info, error) {
 	repo, err := git2go.OpenRepository(workspace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open repository at %s: %w", workspace, err)
+		// Try to set safe.directory manually if it is not found, and try to open repository again.
+		if isSafeDirectoryNotFoundError(err) {
+			config, err := git2go.OpenDefault()
+			if err != nil {
+				return nil, fmt.Errorf("failed to open config: %w", err)
+			}
+			defer config.Free()
+
+			absWorkspace, err := filepath.Abs(workspace)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get absolute path of workspace: %w", err)
+			}
+
+			if err := config.SetString("safe.directory", absWorkspace); err != nil {
+				return nil, fmt.Errorf("failed to set safe.directory: %w", err)
+			}
+		}
+
+		repo, err = git2go.OpenRepository(workspace)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open repository at %s: %w", workspace, err)
+		}
 	}
 	defer repo.Free()
 
