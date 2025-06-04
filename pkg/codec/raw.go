@@ -17,9 +17,13 @@
 package codec
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
+
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // raw is a codec that for raw files.
@@ -41,7 +45,7 @@ func (r *raw) Encode(targetFilePath, workDirPath string) (io.Reader, error) {
 }
 
 // Decode reads the input reader and decodes the data into the output path.
-func (r *raw) Decode(reader io.Reader, outputDir, filePath string) error {
+func (r *raw) Decode(outputDir, filePath string, reader io.Reader, desc ocispec.Descriptor) error {
 	fullPath := filepath.Join(outputDir, filePath)
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -56,6 +60,33 @@ func (r *raw) Decode(reader io.Reader, outputDir, filePath string) error {
 
 	if _, err := io.Copy(file, reader); err != nil {
 		return err
+	}
+
+	var fileMetadata *modelspec.FileMetadata
+	// Try to retrieve the file metadata from annotation for raw file.
+	if desc.Annotations != nil {
+		if fm := desc.Annotations[modelspec.AnnotationFileMetadata]; fm != "" {
+			if err := json.Unmarshal([]byte(fm), &fileMetadata); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Restore file metadata if available.
+	if fileMetadata != nil {
+		// Restore file mode (convert from decimal to octal).
+		if fileMetadata.Mode != 0 {
+			if err := file.Chmod(os.FileMode(fileMetadata.Mode)); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Restore modification time if available.
+	if fileMetadata != nil && !fileMetadata.ModTime.IsZero() {
+		if err := os.Chtimes(fullPath, fileMetadata.ModTime, fileMetadata.ModTime); err != nil {
+			return err
+		}
 	}
 
 	return nil

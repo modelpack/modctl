@@ -124,7 +124,7 @@ func TestInspect(t *testing.T) {
     "format": "tensorflow",
     "paramSize": "0.5b",
     "precision": "int8",
-    "puantization": "gptq"
+    "quantization": "gptq"
   }
 }`
 

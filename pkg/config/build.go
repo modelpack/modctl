@@ -33,17 +33,21 @@ type Build struct {
 	Nydusify       bool
 	SourceURL      string
 	SourceRevision string
+	Raw            bool
 }
 
 func NewBuild() *Build {
 	return &Build{
-		Concurrency:  defaultBuildConcurrency,
-		Target:       "",
-		Modelfile:    "Modelfile",
-		OutputRemote: false,
-		PlainHTTP:    false,
-		Insecure:     false,
-		Nydusify:     false,
+		Concurrency:    defaultBuildConcurrency,
+		Target:         "",
+		Modelfile:      "Modelfile",
+		OutputRemote:   false,
+		PlainHTTP:      false,
+		Insecure:       false,
+		Nydusify:       false,
+		SourceURL:      "",
+		SourceRevision: "",
+		Raw:            false,
 	}
 }
 

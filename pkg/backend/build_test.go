@@ -19,6 +19,7 @@ package backend
 import (
 	"testing"
 
+	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/test/mocks/modelfile"
 
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func TestGetProcessors(t *testing.T) {
 	modelfile.On("GetDocs").Return([]string{"doc1", "doc2"})
 
 	b := &backend{}
-	processors := b.getProcessors(modelfile)
+	processors := b.getProcessors(modelfile, &config.Build{})
 
 	assert.Len(t, processors, 4)
 	assert.Equal(t, "config", processors[0].Name())

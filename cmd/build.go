@@ -52,8 +52,8 @@ var buildCmd = &cobra.Command{
 func init() {
 	flags := buildCmd.Flags()
 	flags.IntVarP(&buildConfig.Concurrency, "concurrency", "c", buildConfig.Concurrency, "specify the number of concurrent build operations")
-	flags.StringVarP(&buildConfig.Target, "target", "t", "", "target model artifact name")
-	flags.StringVarP(&buildConfig.Modelfile, "modelfile", "f", "Modelfile", "model file path")
+	flags.StringVarP(&buildConfig.Target, "target", "t", buildConfig.Target, "target model artifact name")
+	flags.StringVarP(&buildConfig.Modelfile, "modelfile", "f", buildConfig.Modelfile, "model file path")
 	flags.BoolVarP(&buildConfig.OutputRemote, "output-remote", "", false, "turning on this flag will output model artifact to remote registry directly")
 	flags.BoolVarP(&buildConfig.PlainHTTP, "plain-http", "", false, "turning on this flag will use plain HTTP instead of HTTPS")
 	flags.BoolVarP(&buildConfig.Insecure, "insecure", "", false, "turning on this flag will disable TLS verification")
@@ -61,6 +61,8 @@ func init() {
 	flags.MarkHidden("nydusify")
 	flags.StringVar(&buildConfig.SourceURL, "source-url", "", "source URL")
 	flags.StringVar(&buildConfig.SourceRevision, "source-revision", "", "source revision")
+	// TODO: set the raw flag to true by default in future.
+	flags.BoolVar(&buildConfig.Raw, "raw", false, "turning on this flag will build model artifact layers in raw format")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))

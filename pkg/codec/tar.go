@@ -19,6 +19,8 @@ package codec
 import (
 	"io"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/CloudNativeAI/modctl/pkg/archiver"
 )
 
@@ -41,7 +43,7 @@ func (t *tar) Encode(targetFilePath, workDirPath string) (io.Reader, error) {
 }
 
 // Decode reads the input reader and decodes the data into the output path.
-func (t *tar) Decode(reader io.Reader, outputDir, filePath string) error {
+func (t *tar) Decode(outputDir, filePath string, reader io.Reader, desc ocispec.Descriptor) error {
 	// As the file name has been provided in the tar header,
 	// so we do not care about the filePath.
 	return archiver.Untar(reader, outputDir)
