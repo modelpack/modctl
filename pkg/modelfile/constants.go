@@ -24,17 +24,25 @@ import (
 var (
 	// Config file patterns - supported configuration file extensions.
 	ConfigFilePatterns = []string{
-		"*.json",      // JSON configuration files
-		"*.jsonl",     // JSON Lines format
-		"*.yaml",      // YAML configuration files
-		"*.yml",       // YAML alternative extension
-		"*.toml",      // TOML configuration files
-		"*.ini",       // INI configuration files
-		"*.config",    // Generic config files
-		"*.modelcard", // Model card metadata
-		"*.meta",      // Model metadata
+		"*.json",       // JSON configuration files
+		"*.jsonl",      // JSON Lines format
+		"*.yaml",       // YAML configuration files
+		"*.yml",        // YAML alternative extension
+		"*.toml",       // TOML configuration files
+		"*.ini",        // INI configuration files
+		"*.config",     // Generic config files
+		"*.cfg",        // Generic config files
+		"*.conf",       // Generic config files
+		"*.properties", // Generic config files
+		"*.props",      // Generic config files
+		"*.prop",       // Generic config files
+		"*.xml",        // XML configuration files
+		"*.xsd",        // XML Schema Definition
+		"*.rng",        // XML Schema Relax NG
 
-		// Model-specific files.
+		// Model-specific config files.
+		"*.modelcard",       // Model card metadata
+		"*.meta",            // Model metadata
 		"*tokenizer.model*", // Tokenizer files (e.g., Mistral v3)
 		"config.json.*",     // Model configuration variants
 	}
@@ -56,21 +64,72 @@ var (
 		"*.hdf5",   // HDF5 (alternative extension)
 
 		// Other ML frameworks.
-		"*.ot",      // OpenVINO format
-		"*.engine",  // TensorRT format
-		"*.trt",     // TensorRT format (alternative extension)
-		"*.onnx",    // Open Neural Network Exchange format
-		"*.gguf",    // GGML Universal Format
-		"*.msgpack", // MessagePack serialization
-		"*.model",   // Some NLP frameworks
+		"*.ot",         // OpenVINO format
+		"*.engine",     // TensorRT format
+		"*.trt",        // TensorRT format (alternative extension)
+		"*.onnx",       // Open Neural Network Exchange format
+		"*.gguf",       // GGML Universal Format
+		"*.msgpack",    // MessagePack serialization
+		"*.model",      // Some NLP frameworks
+		"*.pkl",        // Pickle format
+		"*.pickle",     // Pickle format (alternative extension)
+		"*.ckpt",       // Checkpoint format
+		"*.checkpoint", // Checkpoint format (alternative extension)
 	}
 
 	// Code file patterns - supported script and notebook files.
 	CodeFilePatterns = []string{
-		"*.py",    // Python source files
-		"*.sh",    // Shell scripts
-		"*.ipynb", // Jupyter notebooks
-		"*.patch", // Patch files
+		"*.py",     // Python source files
+		"*.ipynb",  // Jupyter notebooks
+		"*.sh",     // Shell scripts
+		"*.patch",  // Patch files
+		"*.c",      // C source files
+		"*.h",      // C header files
+		"*.hxx",    // C++ header files
+		"*.cpp",    // C++ source files
+		"*.cc",     // C++ source files
+		"*.hpp",    // C++ header files
+		"*.hh",     // C++ header files
+		"*.java",   // Java source files
+		"*.js",     // JavaScript source files
+		"*.ts",     // TypeScript source files
+		"*.go",     // Go source files
+		"*.rs",     // Rust source files
+		"*.swift",  // Swift source files
+		"*.rb",     // Ruby source files
+		"*.php",    // PHP source files
+		"*.scala",  // Scala source files
+		"*.kt",     // Kotlin source files
+		"*.r",      // R source files
+		"*.m",      // MATLAB/Objective-C source files
+		"*.f",      // Fortran source files
+		"*.f90",    // Fortran 90 source files
+		"*.jl",     // Julia source files
+		"*.lua",    // Lua source files
+		"*.pl",     // Perl source files
+		"*.cs",     // C# source files
+		"*.vb",     // Visual Basic source files
+		"*.dart",   // Dart source files
+		"*.groovy", // Groovy source files
+		"*.elm",    // Elm source files
+		"*.erl",    // Erlang source files
+		"*.ex",     // Elixir source files
+		"*.hs",     // Haskell source files
+		"*.clj",    // Clojure source files
+		"*.cljs",   // ClojureScript source files
+		"*.cljc",   // Clojure Common Lisp source files
+		"*.cl",     // Common Lisp source files
+		"*.lisp",   // Lisp source files
+		"*.scm",    // Scheme source files
+		"*.cu",     // CUDA source files
+		"*.cuh",    // CUDA header files
+
+		// Library files.
+		"*.so",    // Shared object files
+		"*.dll",   // Dynamic Link Library
+		"*.dylib", // Dynamic Library
+		"*.lib",   // Library files
+		"*.a",     // Static Library
 	}
 
 	// Doc file patterns - supported documentation files
@@ -83,6 +142,7 @@ var (
 		"README*",        // Project documentation
 		"SETUP*",         // Setup instructions
 		"*requirements*", // Dependency specifications
+		"*.log",          // Log files
 
 		// Image assets.
 		"*.jpg",  // JPEG image format
@@ -92,6 +152,23 @@ var (
 		"*.bmp",  // Bitmap image format
 		"*.tiff", // TIFF image format
 		"*.ico",  // Icon format
+		"*.webp", // WebP image format
+		"*.heic", // HEIC image format
+		"*.heif", // HEIF image format
+		"*.hevc", // HEVC image format
+		"*.svg",  // SVG image format
+
+		// Video assets.
+		"*.mp4",  // MPEG-4 video format
+		"*.mov",  // QuickTime video format
+		"*.avi",  // AVI video format
+		"*.mkv",  // Matroska video format
+		"*.webm", // WebM video format
+		"*.m4v",  // MPEG-4 video format
+		"*.flv",  // Flash Video format
+		"*.wmv",  // Windows Media Video format
+		"*.mpg",  // MPEG-1 video format
+		"*.mpeg", // MPEG-2 video format
 	}
 
 	// Skip patterns - files and directories to ignore during processing.
