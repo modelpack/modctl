@@ -20,11 +20,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
@@ -204,6 +206,23 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		applyDesc(&desc)
 	}
 
+	// Retrieve the file metadata.
+	metadata, err := getFileMetadata(path)
+	if err != nil {
+		return desc, fmt.Errorf("failed to retrieve file metadata: %w", err)
+	}
+
+	metadataStr, err := json.Marshal(metadata)
+	if err != nil {
+		return desc, fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	// Apply the metadata to the descriptor annotation.
+	if desc.Annotations == nil {
+		desc.Annotations = make(map[string]string)
+	}
+	desc.Annotations[modelspec.AnnotationFileMetadata] = string(metadataStr)
+
 	return desc, nil
 }
 
@@ -305,4 +324,38 @@ func splitReader(original io.Reader) (io.Reader, io.Reader) {
 	}()
 
 	return r1, r2
+}
+
+// getFileMetadata retrieves metadata for a file at the given path.
+func getFileMetadata(path string) (modelspec.FileMetadata, error) {
+	var metadata modelspec.FileMetadata
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return metadata, err
+	}
+
+	metadata.Name = info.Name()
+	metadata.Mode = uint32(info.Mode().Perm())
+	metadata.Size = info.Size()
+	metadata.ModTime = info.ModTime()
+	// Set Typeflag.
+	switch {
+	case info.Mode().IsRegular():
+		metadata.Typeflag = 0 // Regular file
+	case info.Mode().IsDir():
+		metadata.Typeflag = 5 // Directory
+	case info.Mode()&os.ModeSymlink != 0:
+		metadata.Typeflag = 2 // Symlink
+	default:
+		return metadata, errors.New("unknown file typeflag")
+	}
+
+	// UID and GID (Unix-specific).
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		metadata.Uid = stat.Uid
+		metadata.Gid = stat.Gid
+	}
+
+	return metadata, nil
 }

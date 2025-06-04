@@ -164,6 +164,14 @@ func Untar(reader io.Reader, destPath string) error {
 			if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", targetPath, err)
 			}
+			// Set correct permissions for the directory.
+			if err := os.Chmod(targetPath, os.FileMode(header.Mode)); err != nil {
+				return fmt.Errorf("failed to set directory permissions %s: %w", targetPath, err)
+			}
+			// Set modification time for the directory.
+			if err := os.Chtimes(targetPath, header.ModTime, header.ModTime); err != nil {
+				return fmt.Errorf("failed to set directory mtime %s: %w", targetPath, err)
+			}
 
 		case tar.TypeReg:
 			file, err := os.OpenFile(
@@ -181,13 +189,13 @@ func Untar(reader io.Reader, destPath string) error {
 			}
 			file.Close()
 
-		case tar.TypeSymlink:
-			if isRel(header.Linkname, destPath) && isRel(header.Name, destPath) {
-				if err := os.Symlink(header.Linkname, targetPath); err != nil {
-					return fmt.Errorf("failed to create symlink %s -> %s: %w", targetPath, header.Linkname, err)
-				}
-			} else {
-				return fmt.Errorf("symlink %s -> %s points outside of destination directory", targetPath, header.Linkname)
+			// Set correct permissions for the directory.
+			if err := os.Chmod(targetPath, os.FileMode(header.Mode)); err != nil {
+				return fmt.Errorf("failed to set directory permissions %s: %w", targetPath, err)
+			}
+			// Set modification time for the file.
+			if err := os.Chtimes(targetPath, header.ModTime, header.ModTime); err != nil {
+				return fmt.Errorf("failed to set file mtime %s: %w", targetPath, err)
 			}
 
 		default:
@@ -197,19 +205,4 @@ func Untar(reader io.Reader, destPath string) error {
 	}
 
 	return nil
-}
-
-// isRel checks if the candidate path is within the target directory after resolving symbolic links.
-func isRel(candidate, target string) bool {
-	if filepath.IsAbs(candidate) {
-		return false
-	}
-
-	realpath, err := filepath.EvalSymlinks(filepath.Join(target, candidate))
-	if err != nil {
-		return false
-	}
-
-	relpath, err := filepath.Rel(target, realpath)
-	return err == nil && !strings.HasPrefix(filepath.Clean(relpath), "..")
 }

@@ -98,7 +98,7 @@ func extractLayer(desc ocispec.Descriptor, outputDir string, reader io.Reader) e
 		return fmt.Errorf("failed to create codec for media type %s: %w", desc.MediaType, err)
 	}
 
-	if err := codec.Decode(reader, outputDir, filepath); err != nil {
+	if err := codec.Decode(outputDir, filepath, reader, desc); err != nil {
 		return fmt.Errorf("failed to decode the layer %s to output directory: %w", desc.Digest.String(), err)
 	}
 
