@@ -20,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
-	github.com/vbauerster/mpb/v8 v8.10.1
+	github.com/vbauerster/mpb/v8 v8.10.2
 	golang.org/x/crypto v0.38.0
 	golang.org/x/sync v0.15.0
 	oras.land/oras-go/v2 v2.6.0
