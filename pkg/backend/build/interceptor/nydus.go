@@ -36,8 +36,10 @@ const (
 )
 
 var mediaTypeChunkSizeMap = map[string]int{
-	modelspec.MediaTypeModelWeight:  64 * 1024 * 1024,
-	modelspec.MediaTypeModelDataset: 64 * 1024 * 1024,
+	modelspec.MediaTypeModelWeight:     64 * 1024 * 1024,
+	modelspec.MediaTypeModelWeightRaw:  64 * 1024 * 1024,
+	modelspec.MediaTypeModelDataset:    64 * 1024 * 1024,
+	modelspec.MediaTypeModelDatasetRaw: 64 * 1024 * 1024,
 }
 
 var table = crc32.MakeTable(crc32.Castagnoli)
