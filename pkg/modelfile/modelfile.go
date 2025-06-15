@@ -253,6 +253,10 @@ func (mf *modelfile) validateWorkspace() error {
 
 // generateByWorkspace generates the modelfile by the workspace's files.
 func (mf *modelfile) generateByWorkspace() error {
+	// Initialize counters for workspace limits validation
+	var fileCount int
+	var totalSize int64
+
 	// Walk the path and get the files.
 	if err := filepath.Walk(mf.workspace, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -272,6 +276,26 @@ func (mf *modelfile) generateByWorkspace() error {
 
 		if info.IsDir() {
 			return nil
+		}
+
+		// Check workspace limits for regular files
+		fileCount++
+		fileSize := info.Size()
+		totalSize += fileSize
+
+		// Check single file size limit
+		if fileSize > MaxSingleFileSize {
+			return fmt.Errorf("file %s exceeds maximum single file size limit of %d bytes (%s)", path, MaxSingleFileSize, formatBytes(MaxSingleFileSize))
+		}
+
+		// Check file count limit
+		if fileCount > MaxWorkspaceFileCount {
+			return fmt.Errorf("workspace exceeds maximum file count limit of %d files", MaxWorkspaceFileCount)
+		}
+
+		// Check total workspace size limit
+		if totalSize > MaxTotalWorkspaceSize {
+			return fmt.Errorf("workspace exceeds maximum total size limit of %d bytes (%s)", MaxTotalWorkspaceSize, formatBytes(MaxTotalWorkspaceSize))
 		}
 
 		// Get relative path from the base directory.
