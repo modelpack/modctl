@@ -293,6 +293,93 @@ var (
 		"*requirements*", // Dependency specifications
 		"*.log",          // Log files
 
+		// Office documents
+		"*.doc",   // Microsoft Word 97-2003 Document
+		"*.docx",  // Microsoft Word Document
+		"*.docm",  // Word Macro-Enabled Document
+		"*.dot",   // Word 97-2003 Template
+		"*.dotx",  // Word Template
+		"*.dotm",  // Word Macro-Enabled Template
+		"*.rtf",   // Rich Text Format
+		"*.odt",   // OpenDocument Text
+		"*.ott",   // OpenDocument Text Template
+		"*.fodt",  // Flat OpenDocument Text
+		"*.pages", // Apple Pages document
+		"*.wpd",   // WordPerfect document
+
+		// Spreadsheet documents
+		"*.xls",     // Microsoft Excel 97-2003 Workbook
+		"*.xlsx",    // Microsoft Excel Workbook
+		"*.xlsm",    // Excel Macro-Enabled Workbook
+		"*.xlsb",    // Excel Binary Workbook
+		"*.xlt",     // Excel 97-2003 Template
+		"*.xltx",    // Excel Template
+		"*.xltm",    // Excel Macro-Enabled Template
+		"*.ods",     // OpenDocument Spreadsheet
+		"*.ots",     // OpenDocument Spreadsheet Template
+		"*.fods",    // Flat OpenDocument Spreadsheet
+		"*.numbers", // Apple Numbers spreadsheet
+		"*.csv",     // Comma-Separated Values
+
+		// Presentation documents
+		"*.ppt",  // Microsoft PowerPoint 97-2003 Presentation
+		"*.pptx", // Microsoft PowerPoint Presentation
+		"*.pptm", // PowerPoint Macro-Enabled Presentation
+		"*.pps",  // PowerPoint 97-2003 Show
+		"*.ppsx", // PowerPoint Show
+		"*.ppsm", // PowerPoint Macro-Enabled Show
+		"*.pot",  // PowerPoint 97-2003 Template
+		"*.potx", // PowerPoint Template
+		"*.potm", // PowerPoint Macro-Enabled Template
+		"*.odp",  // OpenDocument Presentation
+		"*.otp",  // OpenDocument Presentation Template
+		"*.fodp", // Flat OpenDocument Presentation
+		"*.key",  // Apple Keynote presentation
+
+		// eBook formats
+		"*.epub", // Electronic Publication
+		"*.mobi", // Mobipocket eBook
+		"*.azw",  // Amazon Kindle eBook
+		"*.azw3", // Amazon Kindle eBook (KF8)
+		"*.fb2",  // FictionBook 2.0
+		"*.fb3",  // FictionBook 3.0
+		"*.lit",  // Microsoft Literature
+		"*.pdb",  // Palm Database/Document File
+		"*.djvu", // DjVu document
+		"*.djv",  // DjVu document (alternative extension)
+
+		// Web and markup documents
+		"*.html",  // HyperText Markup Language
+		"*.htm",   // HyperText Markup Language (alternative)
+		"*.xhtml", // Extensible HyperText Markup Language
+		"*.mhtml", // MIME HTML (Web Archive)
+		"*.mht",   // MIME HTML (Web Archive, alternative)
+		"*.xml",   // eXtensible Markup Language
+		"*.xsl",   // eXtensible Stylesheet Language
+		"*.xslt",  // XSL Transformations
+
+		// Technical documentation formats
+		"*.tex",       // LaTeX document
+		"*.latex",     // LaTeX document (alternative)
+		"*.ltx",       // LaTeX document (alternative)
+		"*.bib",       // BibTeX bibliography
+		"*.rst",       // reStructuredText
+		"*.asciidoc",  // AsciiDoc
+		"*.adoc",      // AsciiDoc (alternative)
+		"*.textile",   // Textile markup
+		"*.wiki",      // Wiki markup
+		"*.mediawiki", // MediaWiki markup
+		"*.org",       // Org-mode document
+		"*.texi",      // Texinfo document
+		"*.texinfo",   // Texinfo document (alternative)
+		"*.info",      // GNU Info document
+		"*.man",       // Manual page
+
+		// Archive and compressed documents
+		"*.chm", // Compiled HTML Help
+		"*.hlp", // Windows Help File
+		"*.xps", // XML Paper Specification
+
 		// Image assets.
 		"*.jpg",  // JPEG image format
 		"*.jpeg", // JPEG alternative extension
