@@ -64,26 +64,70 @@ var (
 		"*.bin", // General binary format
 		"*.pt",  // PyTorch model
 		"*.pth", // PyTorch model (alternative extension)
+		"*.mar", // PyTorch Model Archive
+		"*.pte", // PyTorch ExecuTorch format
+		"*.pt2", // PyTorch 2.0 export format
+		"*.ptl", // PyTorch Mobile format
 
 		// TensorFlow formats.
 		"*.tflite", // TensorFlow Lite
 		"*.h5",     // Keras HDF5 format
 		"*.hdf",    // Hierarchical Data Format
 		"*.hdf5",   // HDF5 (alternative extension)
+		"*.pb",     // TensorFlow SavedModel/Frozen Graph
+		"*.meta",   // TensorFlow checkpoint metadata
+		"*.data-*", // TensorFlow checkpoint data files
+		"*.index",  // TensorFlow checkpoint index
+
+		// GGML formats.
+		"*.gguf", // GGML Universal Format
+		"*.ggml", // GGML format (legacy)
+		"*.ggmf", // GGMF format (deprecated)
+		"*.ggjt", // GGJT format (deprecated)
+		"*.q4_0", // GGML Q4_0 quantization
+		"*.q4_1", // GGML Q4_1 quantization
+		"*.q5_0", // GGML Q5_0 quantization
+		"*.q5_1", // GGML Q5_1 quantization
+		"*.q8_0", // GGML Q8_0 quantization
+		"*.f16",  // GGML F16 format
+		"*.f32",  // GGML F32 format
+
+		// checkpoint formats.
+		"*.ckpt",       // Checkpoint format
+		"*.checkpoint", // Checkpoint format (alternative extension)
+		"*.dist_ckpt",  // Distributed checkpoint format
+
+		// Semantics-specific formats
+		"*.tensor",    // Generic tensor format
+		"*.weights",   // Generic weights format
+		"*.state",     // State files
+		"*.embedding", // Embedding files
+		"*.vocab",     // Vocabulary files (when binary)
 
 		// Other ML frameworks.
 		"*.ot",         // OpenVINO format
 		"*.engine",     // TensorRT format
 		"*.trt",        // TensorRT format (alternative extension)
 		"*.onnx",       // Open Neural Network Exchange format
-		"*.gguf",       // GGML Universal Format
 		"*.msgpack",    // MessagePack serialization
 		"*.model",      // Some NLP frameworks
 		"*.pkl",        // Pickle format
 		"*.pickle",     // Pickle format (alternative extension)
-		"*.ckpt",       // Checkpoint format
-		"*.checkpoint", // Checkpoint format (alternative extension)
-		"*.dist_ckpt",  // Distributed checkpoint format
+		"*.keras",      // Keras native format
+		"*.joblib",     // Joblib serialization (scikit-learn)
+		"*.npy",        // NumPy array format
+		"*.npz",        // NumPy compressed archive
+		"*.nc",         // NetCDF format
+		"*.mlmodel",    // Apple Core ML format
+		"*.coreml",     // Apple Core ML format (alternative)
+		"*.mleap",      // MLeap format (Spark ML)
+		"*.surml",      // SurrealML format
+		"*.llamafile",  // Llamafile format
+		"*.caffemodel", // Caffe model format
+		"*.prototxt",   // Caffe model definition
+		"*.dlc",        // Qualcomm Deep Learning Container
+		"*.circle",     // Samsung Circle format
+		"*.nb",         // Neural Network Binary format
 	}
 
 	// Code file patterns - supported script and notebook files.
