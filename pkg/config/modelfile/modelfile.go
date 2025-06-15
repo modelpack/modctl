@@ -31,7 +31,7 @@ type GenerateConfig struct {
 	Name                        string
 	Version                     string
 	Output                      string
-	IgnoreUnrecognizedFileTypes bool
+	IgnoreUnrecognizedFileTypes bool // [deprecated] will be removed in the next release
 	Overwrite                   bool
 	Arch                        string
 	Family                      string
@@ -83,7 +83,7 @@ func (g *GenerateConfig) Validate() error {
 	// If the output path does not exist, we can create the modelfile.
 	if _, err := os.Stat(g.Output); err == nil {
 		if !g.Overwrite {
-			return fmt.Errorf("Modelfile already exists at %s - use --overwrite to overwrite", g.Output)
+			return fmt.Errorf("modelfile already exists at %s - use --overwrite to overwrite", g.Output)
 		}
 	}
 

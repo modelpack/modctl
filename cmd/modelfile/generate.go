@@ -62,7 +62,7 @@ func init() {
 	flags.StringVar(&generateConfig.Precision, "precision", "", "specify model precision, such as bf16, fp16, int8, etc")
 	flags.StringVar(&generateConfig.Quantization, "quantization", "", "specify model quantization, such as awq, gptq, etc")
 	flags.StringVarP(&generateConfig.Output, "output", "O", ".", "specify the output path of modelfilem, must be a directory")
-	flags.BoolVar(&generateConfig.IgnoreUnrecognizedFileTypes, "ignore-unrecognized-file-types", false, "ignore the unrecognized file types in the workspace")
+	flags.BoolVar(&generateConfig.IgnoreUnrecognizedFileTypes, "ignore-unrecognized-file-types", false, "[deprecated] ignore the unrecognized file types in the workspace")
 	flags.BoolVar(&generateConfig.Overwrite, "overwrite", false, "overwrite the existing modelfile")
 
 	if err := viper.BindPFlags(flags); err != nil {
