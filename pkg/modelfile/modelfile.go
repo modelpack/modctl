@@ -205,7 +205,11 @@ func NewModelfileByWorkspace(workspace string, config *configmodelfile.GenerateC
 		doc:       hashset.New(),
 	}
 
-	if err := mf.generateByWorkspace(config.IgnoreUnrecognizedFileTypes); err != nil {
+	if err := mf.validateWorkspace(); err != nil {
+		return nil, err
+	}
+
+	if err := mf.generateByWorkspace(); err != nil {
 		return nil, err
 	}
 
@@ -217,8 +221,38 @@ func NewModelfileByWorkspace(workspace string, config *configmodelfile.GenerateC
 	return mf, nil
 }
 
+// validateWorkspace validates the workspace directory
+func (mf *modelfile) validateWorkspace() error {
+	// check if the workspace is a directory, symbolic link, or empty
+	info, err := os.Lstat(mf.workspace)
+	if err != nil {
+		return fmt.Errorf("access to workspace failed: %s", err)
+	}
+
+	// check if the workspace is a symbolic link
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("for simplicity, the workspace should not be a symbolic link: %s", mf.workspace)
+	}
+
+	// check if the workspace is a directory
+	if !info.IsDir() {
+		return fmt.Errorf("the workspace is not a directory: %s", mf.workspace)
+	}
+
+	// check if the workspace is empty by reading directory contents
+	entries, err := os.ReadDir(mf.workspace)
+	if err != nil {
+		return fmt.Errorf("failed to read workspace directory: %s", err)
+	}
+	if len(entries) == 0 {
+		return fmt.Errorf("the workspace is empty: %s", mf.workspace)
+	}
+
+	return nil
+}
+
 // generateByWorkspace generates the modelfile by the workspace's files.
-func (mf *modelfile) generateByWorkspace(ignoreUnrecognizedFileTypes bool) error {
+func (mf *modelfile) generateByWorkspace() error {
 	// Walk the path and get the files.
 	if err := filepath.Walk(mf.workspace, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -256,12 +290,14 @@ func (mf *modelfile) generateByWorkspace(ignoreUnrecognizedFileTypes bool) error
 		case IsFileType(filename, DocFilePatterns):
 			mf.doc.Add(relPath)
 		default:
-			// Skip unrecognized files if IgnoreUnrecognizedFileTypes is true.
-			if ignoreUnrecognizedFileTypes {
-				return nil
+			// If the file is large, usually it is a weight file.
+			if SizeShouldBeWeightFile(info.Size()) {
+				mf.model.Add(relPath)
+			} else {
+				mf.code.Add(relPath)
 			}
 
-			return fmt.Errorf("unknown file type: %s", filename)
+			return nil
 		}
 
 		return nil
@@ -269,8 +305,8 @@ func (mf *modelfile) generateByWorkspace(ignoreUnrecognizedFileTypes bool) error
 		return err
 	}
 
-	if mf.model.Size() == 0 {
-		return fmt.Errorf("no recognized model files found in directory - you may need to edit the Modelfile manually")
+	if mf.model.Size() == 0 && mf.code.Size() == 0 && mf.dataset.Size() == 0 {
+		return fmt.Errorf("no model/code/dataset found - you have to create the Modelfile by yourself")
 	}
 
 	return nil

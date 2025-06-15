@@ -180,6 +180,9 @@ var (
 		"*.pyo",       // Python optimized bytecode
 		"*.pyd",       // Python dynamic modules
 	}
+
+	// Large file size threshold
+	WeightFileSizeThreshold int64 = 128 * 1024 * 1024
 )
 
 // IsFileType checks if the filename matches any of the given patterns
@@ -215,4 +218,9 @@ func isSkippable(filename string) bool {
 	}
 
 	return false
+}
+
+// For large unknown file type, usually it is a weight file.
+func SizeShouldBeWeightFile(size int64) bool {
+	return size > WeightFileSizeThreshold
 }
