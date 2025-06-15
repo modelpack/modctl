@@ -19,6 +19,7 @@ package modelfile
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -1306,6 +1307,206 @@ func TestValidateWorkspace(t *testing.T) {
 			}
 
 			err := mf.validateWorkspace()
+
+			if tt.expectedError == "" {
+				assert.NoError(t, err, "Expected no error for test case: %s", tt.name)
+			} else {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				assert.Contains(t, err.Error(), tt.expectedError, "Error message should contain expected text for test case: %s", tt.name)
+			}
+		})
+	}
+}
+
+func TestWorkspaceLimits(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupFunc     func() (string, func()) // returns workspace path and cleanup function
+		expectedError string
+	}{
+		{
+			name: "single_file_exceeds_128GB_limit",
+			setupFunc: func() (string, func()) {
+				tmpDir, err := os.MkdirTemp("", "workspace_limits_test")
+				if err != nil {
+					t.Fatalf("Failed to create temp dir: %v", err)
+				}
+
+				// Create a test file that simulates exceeding 128GB
+				// We'll use a sparse file to avoid actually creating 128GB+ of data
+				testFile := filepath.Join(tmpDir, "large_model.bin")
+				file, err := os.Create(testFile)
+				if err != nil {
+					os.RemoveAll(tmpDir)
+					t.Fatalf("Failed to create test file: %v", err)
+				}
+
+				// Seek to position that would make file appear larger than 128GB
+				largeSize := MaxSingleFileSize + 1
+				_, err = file.Seek(largeSize-1, 0)
+				if err != nil {
+					file.Close()
+					os.RemoveAll(tmpDir)
+					t.Fatalf("Failed to seek in file: %v", err)
+				}
+
+				// Write one byte at the end to make the file that size
+				_, err = file.Write([]byte{0})
+				if err != nil {
+					file.Close()
+					os.RemoveAll(tmpDir)
+					t.Fatalf("Failed to write to file: %v", err)
+				}
+				file.Close()
+
+				return tmpDir, func() { os.RemoveAll(tmpDir) }
+			},
+			expectedError: "exceeds maximum single file size limit",
+		},
+		{
+			name: "file_count_exceeds_2048_limit",
+			setupFunc: func() (string, func()) {
+				tmpDir, err := os.MkdirTemp("", "workspace_limits_test")
+				if err != nil {
+					t.Fatalf("Failed to create temp dir: %v", err)
+				}
+
+				// Create more than 2048 files
+				for i := 0; i <= MaxWorkspaceFileCount; i++ {
+					testFile := filepath.Join(tmpDir, fmt.Sprintf("file_%d.txt", i))
+					err = os.WriteFile(testFile, []byte("test"), 0644)
+					if err != nil {
+						os.RemoveAll(tmpDir)
+						t.Fatalf("Failed to create test file %d: %v", i, err)
+					}
+				}
+
+				return tmpDir, func() { os.RemoveAll(tmpDir) }
+			},
+			expectedError: "exceeds maximum file count limit",
+		},
+		{
+			name: "total_workspace_size_exceeds_8TB_limit",
+			setupFunc: func() (string, func()) {
+				tmpDir, err := os.MkdirTemp("", "workspace_limits_test")
+				if err != nil {
+					t.Fatalf("Failed to create temp dir: %v", err)
+				}
+
+				// Create a few large files that together exceed 8TB
+				// Each file will be just under 128GB (single file limit)
+				// We'll create 70 files of ~120GB each to exceed 8TB total
+				fileSize := MaxSingleFileSize - (1024 * 1024 * 1024) // 127GB per file
+				numFiles := 70                                       // 70 * 127GB = ~8.9TB
+
+				for i := 0; i < numFiles; i++ {
+					testFile := filepath.Join(tmpDir, fmt.Sprintf("file_%d.bin", i))
+					file, err := os.Create(testFile)
+					if err != nil {
+						os.RemoveAll(tmpDir)
+						t.Fatalf("Failed to create test file %d: %v", i, err)
+					}
+
+					// Use sparse file technique
+					_, err = file.Seek(fileSize-1, 0)
+					if err != nil {
+						file.Close()
+						os.RemoveAll(tmpDir)
+						t.Fatalf("Failed to seek in file %d: %v", i, err)
+					}
+
+					_, err = file.Write([]byte{0})
+					if err != nil {
+						file.Close()
+						os.RemoveAll(tmpDir)
+						t.Fatalf("Failed to write to file %d: %v", i, err)
+					}
+					file.Close()
+				}
+
+				return tmpDir, func() { os.RemoveAll(tmpDir) }
+			},
+			expectedError: "exceeds maximum total size limit",
+		},
+		{
+			name: "workspace_within_all_limits",
+			setupFunc: func() (string, func()) {
+				tmpDir, err := os.MkdirTemp("", "workspace_limits_test")
+				if err != nil {
+					t.Fatalf("Failed to create temp dir: %v", err)
+				}
+
+				// Create a reasonable number of small files
+				for i := 0; i < 10; i++ {
+					testFile := filepath.Join(tmpDir, fmt.Sprintf("small_file_%d.txt", i))
+					err = os.WriteFile(testFile, []byte("small content"), 0644)
+					if err != nil {
+						os.RemoveAll(tmpDir)
+						t.Fatalf("Failed to create test file %d: %v", i, err)
+					}
+				}
+
+				// Add a config file to make it a valid workspace
+				configFile := filepath.Join(tmpDir, "config.json")
+				err = os.WriteFile(configFile, []byte(`{"model_type": "test"}`), 0644)
+				if err != nil {
+					os.RemoveAll(tmpDir)
+					t.Fatalf("Failed to create config file: %v", err)
+				}
+
+				// Add a model file to make it a valid workspace
+				modelFile := filepath.Join(tmpDir, "model.safetensors")
+				err = os.WriteFile(modelFile, []byte("fake model data"), 0644)
+				if err != nil {
+					os.RemoveAll(tmpDir)
+					t.Fatalf("Failed to create model file: %v", err)
+				}
+
+				return tmpDir, func() { os.RemoveAll(tmpDir) }
+			},
+			expectedError: "",
+		},
+		{
+			name: "exactly_at_file_count_limit",
+			setupFunc: func() (string, func()) {
+				tmpDir, err := os.MkdirTemp("", "workspace_limits_test")
+				if err != nil {
+					t.Fatalf("Failed to create temp dir: %v", err)
+				}
+
+				// Create exactly 2048 files (should be allowed)
+				// Include one model file to make it valid
+				modelFile := filepath.Join(tmpDir, "model.safetensors")
+				err = os.WriteFile(modelFile, []byte("fake model data"), 0644)
+				if err != nil {
+					os.RemoveAll(tmpDir)
+					t.Fatalf("Failed to create model file: %v", err)
+				}
+
+				// Create the remaining files to reach exactly 2048
+				for i := 1; i < MaxWorkspaceFileCount; i++ {
+					testFile := filepath.Join(tmpDir, fmt.Sprintf("file_%d.txt", i))
+					err = os.WriteFile(testFile, []byte("test"), 0644)
+					if err != nil {
+						os.RemoveAll(tmpDir)
+						t.Fatalf("Failed to create test file %d: %v", i, err)
+					}
+				}
+
+				return tmpDir, func() { os.RemoveAll(tmpDir) }
+			},
+			expectedError: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workspace, cleanup := tt.setupFunc()
+			defer cleanup()
+
+			// Create a modelfile instance and try to generate by workspace
+			config := &configmodelfile.GenerateConfig{}
+			_, err := NewModelfileByWorkspace(workspace, config)
 
 			if tt.expectedError == "" {
 				assert.NoError(t, err, "Expected no error for test case: %s", tt.name)

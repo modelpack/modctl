@@ -17,6 +17,7 @@
 package modelfile
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 )
@@ -419,6 +420,11 @@ var (
 
 	// Large file size threshold
 	WeightFileSizeThreshold int64 = 128 * 1024 * 1024
+
+	// Workspace limits
+	MaxSingleFileSize     int64 = 128 * 1024 * 1024 * 1024      // 128GB
+	MaxWorkspaceFileCount int   = 1024                          // 1024 files
+	MaxTotalWorkspaceSize int64 = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
 )
 
 // IsFileType checks if the filename matches any of the given patterns
@@ -459,4 +465,19 @@ func isSkippable(filename string) bool {
 // For large unknown file type, usually it is a weight file.
 func SizeShouldBeWeightFile(size int64) bool {
 	return size > WeightFileSizeThreshold
+}
+
+// formatBytes converts byte size to human-readable format
+func formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	units := []string{"B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+	return fmt.Sprintf("%.1f%s", float64(bytes)/float64(div), units[exp+1])
 }
