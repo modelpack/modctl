@@ -26,6 +26,8 @@ var (
 	ConfigFilePatterns = []string{
 		"*.json",       // JSON configuration files
 		"*.jsonl",      // JSON Lines format
+		"*.json5",      // JSON5 files
+		"*.jsonc",      // JSON with comments
 		"*.yaml",       // YAML configuration files
 		"*.yml",        // YAML alternative extension
 		"*.toml",       // TOML configuration files
@@ -45,6 +47,12 @@ var (
 		"*.meta",            // Model metadata
 		"*tokenizer.model*", // Tokenizer files (e.g., Mistral v3)
 		"config.json.*",     // Model configuration variants
+		"*.hparams",         // Hyperparameter files
+		"*.params",          // Parameter files
+		"*.hyperparams",     // Hyperparameter configuration
+		"*.wandb",           // Weights & Biases configuration
+		"*.mlflow",          // MLflow configuration
+		"*.tensorboard",     // TensorBoard configuration
 	}
 
 	// Model file patterns - supported model file extensions.
