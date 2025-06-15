@@ -132,6 +132,7 @@ var (
 
 	// Code file patterns - supported script and notebook files.
 	CodeFilePatterns = []string{
+		// language source files
 		"*.py",     // Python source files
 		"*.ipynb",  // Jupyter notebooks
 		"*.sh",     // Shell scripts
@@ -141,11 +142,18 @@ var (
 		"*.hxx",    // C++ header files
 		"*.cpp",    // C++ source files
 		"*.cc",     // C++ source files
+		"*.cxx",    // C++ source files (alternative)
+		"*.c++",    // C++ source files (alternative)
 		"*.hpp",    // C++ header files
 		"*.hh",     // C++ header files
+		"*.h++",    // C++ header files (alternative)
 		"*.java",   // Java source files
 		"*.js",     // JavaScript source files
+		"*.mjs",    // JavaScript ES6 modules
+		"*.cjs",    // CommonJS modules
+		"*.jsx",    // React JSX files
 		"*.ts",     // TypeScript source files
+		"*.tsx",    // TypeScript JSX files
 		"*.go",     // Go source files
 		"*.rs",     // Rust source files
 		"*.swift",  // Swift source files
@@ -153,29 +161,117 @@ var (
 		"*.php",    // PHP source files
 		"*.scala",  // Scala source files
 		"*.kt",     // Kotlin source files
+		"*.kts",    // Kotlin script files
 		"*.r",      // R source files
+		"*.R",      // R source files (alternative)
 		"*.m",      // MATLAB/Objective-C source files
+		"*.mm",     // Objective-C++ source files
 		"*.f",      // Fortran source files
 		"*.f90",    // Fortran 90 source files
+		"*.f95",    // Fortran 95 source files
+		"*.f03",    // Fortran 2003 source files
+		"*.f08",    // Fortran 2008 source files
 		"*.jl",     // Julia source files
 		"*.lua",    // Lua source files
 		"*.pl",     // Perl source files
+		"*.pm",     // Perl modules
 		"*.cs",     // C# source files
 		"*.vb",     // Visual Basic source files
 		"*.dart",   // Dart source files
 		"*.groovy", // Groovy source files
 		"*.elm",    // Elm source files
 		"*.erl",    // Erlang source files
+		"*.hrl",    // Erlang header files
 		"*.ex",     // Elixir source files
+		"*.exs",    // Elixir script files
 		"*.hs",     // Haskell source files
+		"*.lhs",    // Literate Haskell source files
 		"*.clj",    // Clojure source files
 		"*.cljs",   // ClojureScript source files
-		"*.cljc",   // Clojure Common Lisp source files
+		"*.cljc",   // Clojure Common source files
 		"*.cl",     // Common Lisp source files
 		"*.lisp",   // Lisp source files
+		"*.lsp",    // Lisp source files (alternative)
 		"*.scm",    // Scheme source files
+		"*.ss",     // Scheme source files (alternative)
+		"*.rkt",    // Racket source files
+		"*.sql",    // SQL files
+		"*.psql",   // PostgreSQL files
+		"*.mysql",  // MySQL files
+		"*.sqlite", // SQLite files
+		"*.zig",    // Zig source files
 		"*.cu",     // CUDA source files
 		"*.cuh",    // CUDA header files
+
+		// Scripting and automation
+		"*.bash",        // Bash scripts
+		"*.zsh",         // Zsh scripts
+		"*.fish",        // Fish shell scripts
+		"*.csh",         // C shell scripts
+		"*.tcsh",        // TC shell scripts
+		"*.ksh",         // Korn shell scripts
+		"*.ps1",         // PowerShell scripts
+		"*.psm1",        // PowerShell modules
+		"*.psd1",        // PowerShell data files
+		"*.bat",         // Windows batch files
+		"*.cmd",         // Windows command files
+		"*.vbs",         // VBScript files
+		"*.wsf",         // Windows Script Files
+		"*.applescript", // AppleScript files
+		"*.scpt",        // AppleScript compiled files
+		"*.awk",         // AWK scripts
+		"*.sed",         // sed scripts
+		"*.expect",      // Expect scripts
+
+		// Build and project files
+		"*.env",             // Environment variable files
+		"*.env.*",           // Environment files with suffixes
+		".env*",             // Environment files (hidden)
+		"Makefile*",         // Makefile variants
+		"*.dockerfile",      // Dockerfile configurations
+		"Dockerfile*",       // Dockerfile variants
+		"*.mk",              // Make include files
+		"*.cmake",           // CMake files
+		"CMakeLists.txt",    // CMake configuration
+		"*.gradle",          // Gradle build files
+		"*.gradle.kts",      // Kotlin DSL Gradle files
+		"build.gradle*",     // Gradle build files
+		"settings.gradle*",  // Gradle settings files
+		"*.sbt",             // SBT build files
+		"*.mill",            // Mill build files
+		"*.bazel",           // Bazel build files
+		"*.bzl",             // Bazel extension files
+		"BUILD*",            // Bazel BUILD files
+		"WORKSPACE*",        // Bazel WORKSPACE files
+		"*.buck",            // Buck build files
+		"BUCK*",             // Buck BUILD files
+		"*.ninja",           // Ninja build files
+		"*.gyp",             // GYP build files
+		"*.gypi",            // GYP include files
+		"*.waf",             // Waf build files
+		"wscript*",          // Waf build scripts
+		"package.json",      // Node.js package file
+		"package-lock.json", // Node.js lock file
+		"yarn.lock",         // Yarn lock file
+		"pnpm-lock.yaml",    // PNPM lock file
+		"requirements*.txt", // Python requirements
+		"Pipfile*",          // Python Pipenv files
+		"pyproject.toml",    // Python project configuration
+		"setup.cfg",         // Python setup configuration
+		"tox.ini",           // Python tox configuration
+		"poetry.lock",       // Python Poetry lock file
+		"Cargo.toml",        // Rust package configuration
+		"Cargo.lock",        // Rust lock file
+		"go.mod",            // Go module file
+		"go.sum",            // Go checksum file
+		"composer.json",     // PHP Composer file
+		"composer.lock",     // PHP Composer lock file
+		"Gemfile*",          // Ruby Gemfile
+		"*.gemspec",         // Ruby gem specification
+		"mix.exs",           // Elixir Mix file
+		"mix.lock",          // Elixir Mix lock file
+		"rebar.config",      // Erlang Rebar config
+		"rebar.lock",        // Erlang Rebar lock file
 
 		// Library files.
 		"*.so",    // Shared object files
