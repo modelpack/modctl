@@ -75,6 +75,7 @@ var (
 		"*.pickle",     // Pickle format (alternative extension)
 		"*.ckpt",       // Checkpoint format
 		"*.checkpoint", // Checkpoint format (alternative extension)
+		"*.dist_ckpt",  // Distributed checkpoint format
 	}
 
 	// Code file patterns - supported script and notebook files.
