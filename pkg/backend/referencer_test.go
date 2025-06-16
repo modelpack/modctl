@@ -70,6 +70,16 @@ func TestReferencer_Digest(t *testing.T) {
 	assert.Equal(t, "", ref.Digest())
 }
 
+func TestReferencer_Domain(t *testing.T) {
+	ref, err := ParseReference("example.com/repo:tag")
+	assert.NoError(t, err)
+	assert.Equal(t, "example.com", ref.Domain())
+
+	ref, err = ParseReference("example.com/repo@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	assert.NoError(t, err)
+	assert.Equal(t, "example.com", ref.Domain())
+}
+
 func TestReferencer(t *testing.T) {
 	ref, err := ParseReference("example.com/repo:tag@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
 	assert.NoError(t, err)
