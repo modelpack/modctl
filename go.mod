@@ -3,7 +3,7 @@ module github.com/CloudNativeAI/modctl
 go 1.24.1
 
 require (
-	github.com/CloudNativeAI/model-spec v0.0.5
+	github.com/CloudNativeAI/model-spec v0.0.6
 	github.com/antgroup/hugescm v0.18.0
 	github.com/avast/retry-go/v4 v4.6.1
 	github.com/briandowns/spinner v1.23.2
