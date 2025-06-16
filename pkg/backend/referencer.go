@@ -26,6 +26,8 @@ type Referencer interface {
 	Tag() string
 	// Digest returns the digest of the reference.
 	Digest() string
+	// Domain returns the domain of the reference.
+	Domain() string
 }
 
 type referencer struct {
@@ -63,4 +65,9 @@ func (r *referencer) Digest() string {
 	}
 
 	return ""
+}
+
+// Domain returns the domain of the reference.
+func (r *referencer) Domain() string {
+	return reference.Domain(r.named)
 }
