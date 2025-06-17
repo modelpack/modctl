@@ -602,54 +602,6 @@ func (_c *Backend_Pull_Call) RunAndReturn(run func(context.Context, string, *con
 	return _c
 }
 
-// PullByDragonfly provides a mock function with given fields: ctx, target, cfg
-func (_m *Backend) PullByDragonfly(ctx context.Context, target string, cfg *config.Pull) error {
-	ret := _m.Called(ctx, target, cfg)
-
-	if len(ret) == 0 {
-		panic("no return value specified for PullByDragonfly")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Pull) error); ok {
-		r0 = rf(ctx, target, cfg)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// Backend_PullByDragonfly_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PullByDragonfly'
-type Backend_PullByDragonfly_Call struct {
-	*mock.Call
-}
-
-// PullByDragonfly is a helper method to define mock.On call
-//   - ctx context.Context
-//   - target string
-//   - cfg *config.Pull
-func (_e *Backend_Expecter) PullByDragonfly(ctx interface{}, target interface{}, cfg interface{}) *Backend_PullByDragonfly_Call {
-	return &Backend_PullByDragonfly_Call{Call: _e.mock.On("PullByDragonfly", ctx, target, cfg)}
-}
-
-func (_c *Backend_PullByDragonfly_Call) Run(run func(ctx context.Context, target string, cfg *config.Pull)) *Backend_PullByDragonfly_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(*config.Pull))
-	})
-	return _c
-}
-
-func (_c *Backend_PullByDragonfly_Call) Return(_a0 error) *Backend_PullByDragonfly_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *Backend_PullByDragonfly_Call) RunAndReturn(run func(context.Context, string, *config.Pull) error) *Backend_PullByDragonfly_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // Push provides a mock function with given fields: ctx, target, cfg
 func (_m *Backend) Push(ctx context.Context, target string, cfg *config.Push) error {
 	ret := _m.Called(ctx, target, cfg)
