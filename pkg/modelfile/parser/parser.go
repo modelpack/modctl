@@ -185,6 +185,7 @@ func splitCommand(line string) (string, []string, []string, error) {
 
 // extractCommandFlags parses the command flags and returns the remaining part of the line
 // and the command flags (with values only, without the flag names).
+// Only accepts --label flags, other flags are ignored and treated as arguments.
 func extractCommandFlags(line string) (string, []string, error) {
 	flags := []string{}
 	var i int
@@ -214,10 +215,17 @@ func extractCommandFlags(line string) (string, []string, error) {
 		}
 
 		if flag != "" {
-			// Extract the value part from --flag=value format
-			flagValue := extractFlagValue(flag)
-			if flagValue != "" {
-				flags = append(flags, flagValue)
+			// Only process --label flags, ignore all others
+			if strings.HasPrefix(flag, "--label") {
+				// Extract the value part from --label=value format
+				flagValue := extractFlagValue(flag)
+				if flagValue != "" {
+					flags = append(flags, flagValue)
+				}
+			} else {
+				// For non-label flags, treat them as part of the remaining arguments
+				// We need to backtrack to include this flag in the remaining content
+				return line[start:], flags, nil
 			}
 		}
 	}
@@ -231,9 +239,9 @@ func isFlag(line string, i int) bool {
 	return i+1 < len(line) && line[i] == '-' && line[i+1] == '-'
 }
 
-// extractFlagValue extracts the value from a flag string
+// extractFlagValue extracts the value from a --label flag string
 // Example: "--label=key=value" returns "key=value"
-// Example: "--untested" returns ""
+// Example: "--label=" returns ""
 func extractFlagValue(flag string) string {
 	// Remove the leading "--"
 	if strings.HasPrefix(flag, "--") {

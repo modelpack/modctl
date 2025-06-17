@@ -200,10 +200,10 @@ func TestSplitCommand(t *testing.T) {
 		{"MODEL foo", false, "MODEL", []string{"foo"}, []string{}},
 		{"NAME bar", false, "NAME", []string{"bar"}, []string{}},
 		{"MODEL --label=key=value /home/user/model.safetensors", false, "MODEL", []string{"/home/user/model.safetensors"}, []string{"key=value"}},
-		{"MODEL --untested --experimental=test model.safetensors", false, "MODEL", []string{"model.safetensors"}, []string{"test"}},
-		{"CONFIG --format=json config.yaml", false, "CONFIG", []string{"config.yaml"}, []string{"json"}},
-		{"MODEL --flag1=value1 --flag2=value2 model.bin", false, "MODEL", []string{"model.bin"}, []string{"value1", "value2"}},
-		{"MODEL --untested model.safetensors", false, "MODEL", []string{"model.safetensors"}, []string{}}, // flag without value
+		{"MODEL --untested --experimental=test model.safetensors", false, "MODEL", []string{"--untested", "--experimental=test", "model.safetensors"}, []string{}},
+		{"CONFIG --format=json config.yaml", false, "CONFIG", []string{"--format=json", "config.yaml"}, []string{}},
+		{"MODEL --label=flag1=value1 --label=flag2=value2 model.bin", false, "MODEL", []string{"model.bin"}, []string{"flag1=value1", "flag2=value2"}},
+		{"MODEL --untested model.safetensors", false, "MODEL", []string{"--untested", "model.safetensors"}, []string{}},
 		{"invalid", true, "", nil, nil},
 	}
 
@@ -232,29 +232,24 @@ func TestExtractFlagValue(t *testing.T) {
 		expectedValue string
 	}{
 		{
-			name:          "flag with key=value",
+			name:          "label flag with key=value",
 			flag:          "--label=key=value",
 			expectedValue: "key=value",
 		},
 		{
-			name:          "flag with simple value",
-			flag:          "--format=json",
-			expectedValue: "json",
-		},
-		{
-			name:          "flag without value",
-			flag:          "--untested",
-			expectedValue: "",
-		},
-		{
-			name:          "flag with empty value",
+			name:          "label flag with empty value",
 			flag:          "--label=",
 			expectedValue: "",
 		},
 		{
-			name:          "complex flag value",
+			name:          "complex label flag value",
 			flag:          fmt.Sprintf("--label=%s=true", modelspec.AnnotationMediaTypeUntested),
 			expectedValue: fmt.Sprintf("%s=true", modelspec.AnnotationMediaTypeUntested),
+		},
+		{
+			name:          "label flag without value",
+			flag:          "--label",
+			expectedValue: "",
 		},
 	}
 
