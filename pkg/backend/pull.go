@@ -35,6 +35,11 @@ import (
 
 // Pull pulls an artifact from a registry.
 func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) error {
+	// pullByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
+	if cfg.DragonflyEndpoint != "" {
+		return b.pullByDragonfly(ctx, target, cfg)
+	}
+
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {

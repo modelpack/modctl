@@ -40,9 +40,6 @@ type Backend interface {
 	// Pull pulls an artifact from a registry.
 	Pull(ctx context.Context, target string, cfg *config.Pull) error
 
-	// PullByDragonfly pulls an artifact from a registry by Dragonfly.
-	PullByDragonfly(ctx context.Context, target string, cfg *config.Pull) error
-
 	// Fetch fetches partial files to the output.
 	Fetch(ctx context.Context, target string, cfg *config.Fetch) error
 

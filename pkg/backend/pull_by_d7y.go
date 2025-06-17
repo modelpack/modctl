@@ -45,8 +45,8 @@ const (
 	mediaTypeTarSuffix = ".tar"
 )
 
-// PullByDragonfly pulls and hardlinks blobs from Dragonfly gRPC service for remote extraction.
-func (b *backend) PullByDragonfly(ctx context.Context, target string, cfg *config.Pull) error {
+// pullByDragonfly pulls and hardlinks blobs from Dragonfly gRPC service for remote extraction.
+func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *config.Pull) error {
 	// Parse reference and initialize remote client.
 	ref, err := ParseReference(target)
 	if err != nil {
