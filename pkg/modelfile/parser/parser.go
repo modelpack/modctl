@@ -102,7 +102,6 @@ func parseCommandLine(line string, start, end int) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(cmd, args, flags)
 
 	switch cmd {
 	case command.CONFIG, command.DOC, command.NAME, command.ARCH, command.FAMILY, command.FORMAT, command.PARAMSIZE, command.PRECISION, command.QUANTIZATION:
@@ -129,7 +128,6 @@ func parseCommandLine(line string, start, end int) (Node, error) {
 
 		// Add flags as attributes if any exist
 		if len(flags) > 0 {
-			fmt.Println("add flags")
 			for _, flag := range flags {
 				// Parse the flag to get key and value
 				key, value := parseFlagKeyValue(flag)
@@ -138,7 +136,6 @@ func parseCommandLine(line string, start, end int) (Node, error) {
 				}
 			}
 		}
-		fmt.Println(cmdNode.GetAttributes())
 		return cmdNode, nil
 	default:
 		return nil, fmt.Errorf("invalid command: %s", cmd)
@@ -176,8 +173,6 @@ func splitCommand(line string) (string, []string, []string, error) {
 	if err != nil {
 		return "", nil, nil, err
 	}
-
-	fmt.Println("flags:", flags)
 
 	// Parse remaining content as args
 	var args []string
