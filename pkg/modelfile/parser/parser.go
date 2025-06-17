@@ -104,7 +104,7 @@ func parseCommandLine(line string, start, end int) (Node, error) {
 	}
 
 	switch cmd {
-	case command.CONFIG, command.DOC, command.NAME, command.ARCH, command.FAMILY, command.FORMAT, command.PARAMSIZE, command.PRECISION, command.QUANTIZATION:
+	case command.CONFIG, command.DOC, command.DATASET, command.NAME, command.ARCH, command.FAMILY, command.FORMAT, command.PARAMSIZE, command.PRECISION, command.QUANTIZATION:
 		if len(args) != 1 {
 			return nil, errors.New("command " + cmd + " requires exactly one argument")
 		}
@@ -117,7 +117,7 @@ func parseCommandLine(line string, start, end int) (Node, error) {
 		cmdNode.AddNext(argsNode)
 
 		return cmdNode, nil
-	case command.MODEL, command.CODE, command.DATASET:
+	case command.MODEL, command.CODE:
 		argsNode, err := parseStringArgs(args, start, end)
 		if err != nil {
 			return nil, err
