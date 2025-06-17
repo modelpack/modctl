@@ -73,14 +73,8 @@ func runPull(ctx context.Context, target string) error {
 		return fmt.Errorf("target is required")
 	}
 
-	if pullConfig.DragonflyEndpoint != "" {
-		if err := b.PullByDragonfly(ctx, target, pullConfig); err != nil {
-			return err
-		}
-	} else {
-		if err := b.Pull(ctx, target, pullConfig); err != nil {
-			return err
-		}
+	if err := b.Pull(ctx, target, pullConfig); err != nil {
+		return err
 	}
 
 	fmt.Printf("Successfully pulled model artifact: %s\n", target)
