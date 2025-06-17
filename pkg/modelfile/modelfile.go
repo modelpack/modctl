@@ -28,6 +28,7 @@ import (
 	configmodelfile "github.com/CloudNativeAI/modctl/pkg/config/modelfile"
 	modefilecommand "github.com/CloudNativeAI/modctl/pkg/modelfile/command"
 	"github.com/CloudNativeAI/modctl/pkg/modelfile/parser"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 
 	"github.com/emirpasic/gods/sets/hashset"
 )
@@ -333,8 +334,18 @@ func (mf *modelfile) generateByWorkspace() error {
 			// If the file is large, usually it is a weight file.
 			if SizeShouldBeWeightFile(info.Size()) {
 				mf.model.Add(relPath)
+				// Add untested flag for files detected by file size
+				if mf.modelFlags[relPath] == nil {
+					mf.modelFlags[relPath] = make(map[string]string)
+				}
+				mf.modelFlags[relPath][modelspec.AnnotationMediaTypeUntested] = "true"
 			} else {
 				mf.code.Add(relPath)
+				// Add untested flag for files detected by file size
+				if mf.codeFlags[relPath] == nil {
+					mf.codeFlags[relPath] = make(map[string]string)
+				}
+				mf.codeFlags[relPath][modelspec.AnnotationMediaTypeUntested] = "true"
 			}
 
 			return nil
@@ -572,8 +583,8 @@ func (mf *modelfile) Content() []byte {
 
 	// Add multi-value commands.
 	content += mf.writeMultiField("Config files (Generated from the files in the workspace directory)", modefilecommand.CONFIG, mf.GetConfigs(), ConfigFilePatterns)
-	content += mf.writeMultiField("Code files (Generated from the files in the workspace directory)", modefilecommand.CODE, mf.GetCodes(), CodeFilePatterns)
-	content += mf.writeMultiField("Model files (Generated from the files in the workspace directory)", modefilecommand.MODEL, mf.GetModels(), ModelFilePatterns)
+	content += mf.writeMultiFieldWithFlags("Code files (Generated from the files in the workspace directory)", modefilecommand.CODE, mf.GetCodes(), CodeFilePatterns, mf.codeFlags)
+	content += mf.writeMultiFieldWithFlags("Model files (Generated from the files in the workspace directory)", modefilecommand.MODEL, mf.GetModels(), ModelFilePatterns, mf.modelFlags)
 	content += mf.writeMultiField("Documentation files (Generated from the files in the workspace directory)", modefilecommand.DOC, mf.GetDocs(), DocFilePatterns)
 	return []byte(content)
 }
@@ -597,6 +608,33 @@ func (mf *modelfile) writeMultiField(comment, cmd string, values []string, patte
 	sort.Strings(values)
 	for _, value := range values {
 		content += fmt.Sprintf("%s %s\n", cmd, value)
+	}
+
+	return content
+}
+
+func (mf *modelfile) writeMultiFieldWithFlags(comment, cmd string, values []string, patterns []string, flags map[string]map[string]string) string {
+	if len(values) == 0 {
+		return ""
+	}
+
+	content := fmt.Sprintf("\n# %s\n", comment)
+	content += fmt.Sprintf("# Supported file types: %s\n", strings.Join(patterns, ", "))
+
+	sort.Strings(values)
+	for _, value := range values {
+		if fileFlags, hasFlags := flags[value]; hasFlags && len(fileFlags) > 0 {
+			// Build flags string
+			var flagParts []string
+			for key, val := range fileFlags {
+				flagParts = append(flagParts, fmt.Sprintf("%s=%s", key, val))
+			}
+			sort.Strings(flagParts) // Sort for consistent output
+			flagsStr := strings.Join(flagParts, ",")
+			content += fmt.Sprintf("%s --label=%s %s\n", cmd, flagsStr, value)
+		} else {
+			content += fmt.Sprintf("%s %s\n", cmd, value)
+		}
 	}
 
 	return content

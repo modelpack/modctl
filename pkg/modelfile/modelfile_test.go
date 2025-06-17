@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	configmodelfile "github.com/CloudNativeAI/modctl/pkg/config/modelfile"
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/stretchr/testify/assert"
 )
@@ -1516,4 +1517,52 @@ func TestWorkspaceLimits(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDefaultBranchUntestedFlag(t *testing.T) {
+	// Create a temporary directory
+	tempDir := t.TempDir()
+
+	// Create files that will fall into the default branch
+	// Use file extensions that don't match any known patterns
+	unknownLargeFile := filepath.Join(tempDir, "unknown_large.unknown")
+	unknownSmallFile := filepath.Join(tempDir, "unknown_small.unknown")
+
+	// Create a large file (>128MB) that should go to model
+	largeContent := make([]byte, 129*1024*1024) // 129MB
+	err := os.WriteFile(unknownLargeFile, largeContent, 0644)
+	assert.NoError(t, err)
+
+	// Create a small file that should go to code
+	smallContent := []byte("some unknown file content")
+	err = os.WriteFile(unknownSmallFile, smallContent, 0644)
+	assert.NoError(t, err)
+
+	// Generate modelfile from workspace
+	config := &configmodelfile.GenerateConfig{
+		Name: "test-untested-flags",
+	}
+
+	mf, err := NewModelfileByWorkspace(tempDir, config)
+	assert.NoError(t, err)
+
+	// Cast to concrete type to access flags
+	modelfile := mf.(*modelfile)
+
+	// Check that the large file was added to models with the untested flag
+	assert.Contains(t, mf.GetModels(), "unknown_large.unknown")
+	modelFlags := modelfile.GetModelFlags()
+	assert.Contains(t, modelFlags, "unknown_large.unknown")
+	assert.Equal(t, "true", modelFlags["unknown_large.unknown"][modelspec.AnnotationMediaTypeUntested])
+
+	// Check that the small file was added to codes with the untested flag
+	assert.Contains(t, mf.GetCodes(), "unknown_small.unknown")
+	codeFlags := modelfile.GetCodeFlags()
+	assert.Contains(t, codeFlags, "unknown_small.unknown")
+	assert.Equal(t, "true", codeFlags["unknown_small.unknown"][modelspec.AnnotationMediaTypeUntested])
+
+	// Check that the generated content includes the flags
+	content := string(mf.Content())
+	assert.Contains(t, content, fmt.Sprintf("MODEL --label=%s=true unknown_large.unknown", modelspec.AnnotationMediaTypeUntested))
+	assert.Contains(t, content, fmt.Sprintf("CODE --label=%s=true unknown_small.unknown", modelspec.AnnotationMediaTypeUntested))
 }

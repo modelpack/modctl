@@ -17,9 +17,11 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -251,8 +253,8 @@ func TestExtractFlagValue(t *testing.T) {
 		},
 		{
 			name:          "complex flag value",
-			flag:          "--label=org.cnai.model.file.mediatype.untested=true",
-			expectedValue: "org.cnai.model.file.mediatype.untested=true",
+			flag:          fmt.Sprintf("--label=%s=true", modelspec.AnnotationMediaTypeUntested),
+			expectedValue: fmt.Sprintf("%s=true", modelspec.AnnotationMediaTypeUntested),
 		},
 	}
 
