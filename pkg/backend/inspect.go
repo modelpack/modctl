@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	godigest "github.com/opencontainers/go-digest"
@@ -62,6 +63,32 @@ type InspectedModelArtifactLayer struct {
 	Size int64 `json:"Size"`
 	// Filepath is the filepath of the model artifact layer.
 	Filepath string `json:"Filepath"`
+	// Flags is the flags of the model artifact layer.
+	Flags string `json:"Flags,omitempty"`
+}
+
+// collectFlags collects all annotations from the layer (excluding known metadata annotations)
+// and formats them as key=value pairs
+func collectFlags(annotations map[string]string) string {
+	if annotations == nil {
+		return ""
+	}
+
+	var flags []string
+	// Skip the filepath annotation since it's already displayed separately
+	// Also skip the file metadata annotation since it's internal metadata
+	skipAnnotations := map[string]bool{
+		modelspec.AnnotationFilepath:     true,
+		modelspec.AnnotationFileMetadata: true,
+	}
+
+	for key, value := range annotations {
+		if !skipAnnotations[key] {
+			flags = append(flags, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
+
+	return strings.Join(flags, ",")
 }
 
 // Inspect inspects the target from the storage.
@@ -107,6 +134,7 @@ func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspec
 			Digest:   layer.Digest.String(),
 			Size:     layer.Size,
 			Filepath: layer.Annotations[modelspec.AnnotationFilepath],
+			Flags:    collectFlags(layer.Annotations),
 		})
 	}
 

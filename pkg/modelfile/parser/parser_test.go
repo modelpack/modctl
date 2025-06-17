@@ -193,24 +193,74 @@ func TestSplitCommand(t *testing.T) {
 		expectErr bool
 		cmd       string
 		args      []string
+		flags     []string
 	}{
-		{"MODEL foo", false, "MODEL", []string{"foo"}},
-		{"NAME bar", false, "NAME", []string{"bar"}},
-		{"invalid", true, "", nil},
+		{"MODEL foo", false, "MODEL", []string{"foo"}, []string{}},
+		{"NAME bar", false, "NAME", []string{"bar"}, []string{}},
+		{"MODEL --label=key=value /home/user/model.safetensors", false, "MODEL", []string{"/home/user/model.safetensors"}, []string{"key=value"}},
+		{"MODEL --untested --experimental=test model.safetensors", false, "MODEL", []string{"model.safetensors"}, []string{"test"}},
+		{"CONFIG --format=json config.yaml", false, "CONFIG", []string{"config.yaml"}, []string{"json"}},
+		{"MODEL --flag1=value1 --flag2=value2 model.bin", false, "MODEL", []string{"model.bin"}, []string{"value1", "value2"}},
+		{"MODEL --untested model.safetensors", false, "MODEL", []string{"model.safetensors"}, []string{}}, // flag without value
+		{"invalid", true, "", nil, nil},
 	}
 
 	assert := assert.New(t)
 	for _, tc := range testCases {
-		cmd, args, err := splitCommand(tc.line)
+		cmd, args, flags, err := splitCommand(tc.line)
 		if tc.expectErr {
 			assert.Error(err)
 			assert.Empty(cmd)
 			assert.Nil(args)
+			assert.Nil(flags)
 			continue
 		}
 
 		assert.NoError(err)
 		assert.Equal(tc.cmd, cmd)
 		assert.Equal(tc.args, args)
+		assert.Equal(tc.flags, flags)
+	}
+}
+
+func TestExtractFlagValue(t *testing.T) {
+	testCases := []struct {
+		name          string
+		flag          string
+		expectedValue string
+	}{
+		{
+			name:          "flag with key=value",
+			flag:          "--label=key=value",
+			expectedValue: "key=value",
+		},
+		{
+			name:          "flag with simple value",
+			flag:          "--format=json",
+			expectedValue: "json",
+		},
+		{
+			name:          "flag without value",
+			flag:          "--untested",
+			expectedValue: "",
+		},
+		{
+			name:          "flag with empty value",
+			flag:          "--label=",
+			expectedValue: "",
+		},
+		{
+			name:          "complex flag value",
+			flag:          "--label=org.cnai.model.file.mediatype.untested=true",
+			expectedValue: "org.cnai.model.file.mediatype.untested=true",
+		},
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			value := extractFlagValue(tc.flag)
+			assert.Equal(tc.expectedValue, value, "Value mismatch for test case: %s", tc.name)
+		})
 	}
 }

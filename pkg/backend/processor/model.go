@@ -30,7 +30,7 @@ const (
 )
 
 // NewModelProcessor creates a new model processor.
-func NewModelProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
+func NewModelProcessor(store storage.Storage, mediaType string, patterns []string, flags map[string]map[string]string) Processor {
 	return &modelProcessor{
 		base: &base{
 			name:      modelProcessorName,
@@ -38,12 +38,14 @@ func NewModelProcessor(store storage.Storage, mediaType string, patterns []strin
 			mediaType: mediaType,
 			patterns:  patterns,
 		},
+		flags: flags,
 	}
 }
 
 // modelProcessor is the processor to process the model file.
 type modelProcessor struct {
-	base *base
+	base  *base
+	flags map[string]map[string]string
 }
 
 func (p *modelProcessor) Name() string {
@@ -51,5 +53,5 @@ func (p *modelProcessor) Name() string {
 }
 
 func (p *modelProcessor) Process(ctx context.Context, builder build.Builder, workDir string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
-	return p.base.Process(ctx, builder, workDir, opts...)
+	return p.base.Process(ctx, builder, workDir, p.flags, opts...)
 }

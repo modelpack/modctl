@@ -51,5 +51,5 @@ func (p *docProcessor) Name() string {
 }
 
 func (p *docProcessor) Process(ctx context.Context, builder build.Builder, workDir string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
-	return p.base.Process(ctx, builder, workDir, opts...)
+	return p.base.Process(ctx, builder, workDir, nil, opts...)
 }

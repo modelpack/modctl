@@ -81,6 +81,12 @@ type Modelfile interface {
 	// GetQuantization returns the value of the quantization command in the modelfile.
 	GetQuantization() string
 
+	// GetModelFlags returns the flags associated with a specific model file path
+	GetModelFlags() map[string]map[string]string
+
+	// GetCodeFlags returns the flags associated with a specific code file path
+	GetCodeFlags() map[string]map[string]string
+
 	// Content returns the content of the modelfile.
 	Content() []byte
 }
@@ -100,17 +106,21 @@ type modelfile struct {
 	paramsize    string
 	precision    string
 	quantization string
+	modelFlags   map[string]map[string]string
+	codeFlags    map[string]map[string]string
 }
 
 // NewModelfile creates a new modelfile by the path of the modelfile.
 // It parses the modelfile and returns the modelfile interface.
 func NewModelfile(path string) (Modelfile, error) {
 	mf := &modelfile{
-		config:  hashset.New(),
-		model:   hashset.New(),
-		code:    hashset.New(),
-		dataset: hashset.New(),
-		doc:     hashset.New(),
+		config:     hashset.New(),
+		model:      hashset.New(),
+		code:       hashset.New(),
+		dataset:    hashset.New(),
+		doc:        hashset.New(),
+		modelFlags: make(map[string]map[string]string),
+		codeFlags:  make(map[string]map[string]string),
 	}
 
 	if err := mf.parseFile(path); err != nil {
@@ -138,9 +148,13 @@ func (mf *modelfile) parseFile(path string) error {
 		case modefilecommand.CONFIG:
 			mf.config.Add(child.GetNext().GetValue())
 		case modefilecommand.MODEL:
-			mf.model.Add(child.GetNext().GetValue())
+			filePath := child.GetNext().GetValue()
+			mf.model.Add(filePath)
+			mf.modelFlags[filePath] = child.GetAttributes()
 		case modefilecommand.CODE:
-			mf.code.Add(child.GetNext().GetValue())
+			filePath := child.GetNext().GetValue()
+			mf.code.Add(filePath)
+			mf.codeFlags[filePath] = child.GetAttributes()
 		case modefilecommand.DATASET:
 			mf.dataset.Add(child.GetNext().GetValue())
 		case modefilecommand.DOC:
@@ -197,12 +211,14 @@ func (mf *modelfile) parseFile(path string) error {
 //     paramsize, precision, and quantization.
 func NewModelfileByWorkspace(workspace string, config *configmodelfile.GenerateConfig) (Modelfile, error) {
 	mf := &modelfile{
-		workspace: workspace,
-		config:    hashset.New(),
-		model:     hashset.New(),
-		code:      hashset.New(),
-		dataset:   hashset.New(),
-		doc:       hashset.New(),
+		workspace:  workspace,
+		config:     hashset.New(),
+		model:      hashset.New(),
+		code:       hashset.New(),
+		dataset:    hashset.New(),
+		doc:        hashset.New(),
+		modelFlags: make(map[string]map[string]string),
+		codeFlags:  make(map[string]map[string]string),
 	}
 
 	if err := mf.validateWorkspace(); err != nil {
@@ -528,6 +544,16 @@ func (mf *modelfile) GetPrecision() string {
 // GetQuantization returns the value of the quantization command in the modelfile.
 func (mf *modelfile) GetQuantization() string {
 	return mf.quantization
+}
+
+// GetModelFlags returns the flags associated with a specific model file path
+func (mf *modelfile) GetModelFlags() map[string]map[string]string {
+	return mf.modelFlags
+}
+
+// GetCodeFlags returns the flags associated with a specific code file path
+func (mf *modelfile) GetCodeFlags() map[string]map[string]string {
+	return mf.codeFlags
 }
 
 // Content returns the content of the modelfile.

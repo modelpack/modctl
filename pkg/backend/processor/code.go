@@ -30,7 +30,7 @@ const (
 )
 
 // NewCodeProcessor creates a new code processor.
-func NewCodeProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
+func NewCodeProcessor(store storage.Storage, mediaType string, patterns []string, flags map[string]map[string]string) Processor {
 	return &codeProcessor{
 		base: &base{
 			name:      codeProcessorName,
@@ -38,12 +38,14 @@ func NewCodeProcessor(store storage.Storage, mediaType string, patterns []string
 			mediaType: mediaType,
 			patterns:  patterns,
 		},
+		flags: flags,
 	}
 }
 
 // codeProcessor is the processor to process the code file.
 type codeProcessor struct {
-	base *base
+	base  *base
+	flags map[string]map[string]string
 }
 
 func (p *codeProcessor) Name() string {
@@ -51,5 +53,5 @@ func (p *codeProcessor) Name() string {
 }
 
 func (p *codeProcessor) Process(ctx context.Context, builder build.Builder, workDir string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
-	return p.base.Process(ctx, builder, workDir, opts...)
+	return p.base.Process(ctx, builder, workDir, p.flags, opts...)
 }

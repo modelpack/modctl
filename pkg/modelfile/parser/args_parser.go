@@ -23,8 +23,12 @@ import (
 // parseStringArgs parses the string type of args and returns a Node, for example:
 // "MODEL foo" args' value is "foo".
 func parseStringArgs(args []string, start, end int) (Node, error) {
-	if len(args) != 1 {
-		return nil, errors.New("invalid args")
+	if len(args) == 0 {
+		return nil, errors.New("no args provided")
+	}
+
+	if len(args) > 1 {
+		return nil, errors.New("too many args provided")
 	}
 
 	if args[0] == "" {

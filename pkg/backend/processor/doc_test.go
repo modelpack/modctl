@@ -58,7 +58,7 @@ func (s *docProcessorSuite) TestName() {
 
 func (s *docProcessorSuite) TestProcess() {
 	ctx := context.Background()
-	s.mockBuilder.On("BuildLayer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ocispec.Descriptor{
+	s.mockBuilder.On("BuildLayer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ocispec.Descriptor{
 		Digest: godigest.Digest("sha256:1234567890abcdef"),
 		Size:   int64(1024),
 		Annotations: map[string]string{

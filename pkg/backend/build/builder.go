@@ -54,8 +54,8 @@ const (
 
 // Builder is an interface for building artifacts.
 type Builder interface {
-	// BuildLayer builds the layer blob from the given file path.
-	BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error)
+	// BuildLayer builds the layer blob from the given file path with optional extra annotations.
+	BuildLayer(ctx context.Context, mediaType, workDir, path string, annotations map[string]string, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// BuildConfig builds the config blob of the artifact.
 	BuildConfig(ctx context.Context, layers []ocispec.Descriptor, modelConfig *buildconfig.Model, hooks hooks.Hooks) (ocispec.Descriptor, error)
@@ -119,7 +119,7 @@ type abstractBuilder struct {
 	interceptor interceptor.Interceptor
 }
 
-func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, path string, annotations map[string]string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to get file info: %w", err)
@@ -222,6 +222,13 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		desc.Annotations = make(map[string]string)
 	}
 	desc.Annotations[modelspec.AnnotationFileMetadata] = string(metadataStr)
+
+	// Add extra annotations if provided
+	if annotations != nil {
+		for key, value := range annotations {
+			desc.Annotations[key] = value
+		}
+	}
 
 	return desc, nil
 }

@@ -170,7 +170,7 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile, cfg *config.Build
 		if cfg.Raw {
 			mediaType = modelspec.MediaTypeModelWeightRaw
 		}
-		processors = append(processors, processor.NewModelProcessor(b.store, mediaType, models))
+		processors = append(processors, processor.NewModelProcessor(b.store, mediaType, models, modelfile.GetModelFlags()))
 	}
 
 	if codes := modelfile.GetCodes(); len(codes) > 0 {
@@ -178,7 +178,7 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile, cfg *config.Build
 		if cfg.Raw {
 			mediaType = modelspec.MediaTypeModelCodeRaw
 		}
-		processors = append(processors, processor.NewCodeProcessor(b.store, mediaType, codes))
+		processors = append(processors, processor.NewCodeProcessor(b.store, mediaType, codes, modelfile.GetCodeFlags()))
 	}
 
 	if docs := modelfile.GetDocs(); len(docs) > 0 {

@@ -107,6 +107,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 	pb.Start()
 	defer pb.Stop()
 
+	// TODO: Copy old flags to the new layer.
 	newLayers, err := proc.Process(ctx, builder, ".", processor.WithProgressTracker(pb))
 	if err != nil {
 		return fmt.Errorf("failed to process layers: %w", err)
@@ -266,11 +267,11 @@ func (b *backend) getProcessor(filepath string) processor.Processor {
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.ModelFilePatterns) {
-		return processor.NewModelProcessor(b.store, modelspec.MediaTypeModelWeight, []string{filepath})
+		return processor.NewModelProcessor(b.store, modelspec.MediaTypeModelWeight, []string{filepath}, make(map[string]map[string]string))
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.CodeFilePatterns) {
-		return processor.NewCodeProcessor(b.store, modelspec.MediaTypeModelCode, []string{filepath})
+		return processor.NewCodeProcessor(b.store, modelspec.MediaTypeModelCode, []string{filepath}, make(map[string]map[string]string))
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.DocFilePatterns) {

@@ -46,8 +46,8 @@ type base struct {
 	patterns []string
 }
 
-// Process implements the Processor interface, which can be reused by other processors.
-func (b *base) Process(ctx context.Context, builder build.Builder, workDir string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
+// Process implements the Processor interface with file flags support.
+func (b *base) Process(ctx context.Context, builder build.Builder, workDir string, fileFlags map[string]map[string]string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
 	processOpts := &processOptions{}
 	for _, opt := range opts {
 		opt(processOpts)
@@ -103,7 +103,20 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 		eg.Go(func() error {
 			return retry.Do(func() error {
-				desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, hooks.NewHooks(
+				// Get relative path for looking up flags
+				relPath, relErr := filepath.Rel(absWorkDir, path)
+				if relErr != nil {
+					return relErr
+				}
+
+				anno := make(map[string]string)
+				if fileFlags != nil {
+					if flags, exists := fileFlags[relPath]; exists {
+						anno = flags
+					}
+				}
+
+				desc, buildErr := builder.BuildLayer(ctx, b.mediaType, workDir, path, anno, hooks.NewHooks(
 					hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 						return tracker.Add(internalpb.NormalizePrompt("Building layer"), name, size, reader)
 					}),
@@ -114,9 +127,10 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 						tracker.Complete(name, fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Built layer"), desc.Digest))
 					}),
 				))
-				if err != nil {
+
+				if buildErr != nil {
 					cancel()
-					return err
+					return buildErr
 				}
 
 				mu.Lock()

@@ -450,6 +450,53 @@ func (_c *Modelfile_GetModels_Call) RunAndReturn(run func() []string) *Modelfile
 	return _c
 }
 
+// GetModelFlags provides a mock function with no fields
+func (_m *Modelfile) GetModelFlags() map[string]map[string]string {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetModelFlags")
+	}
+
+	var r0 map[string]map[string]string
+	if rf, ok := ret.Get(0).(func() map[string]map[string]string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]map[string]string)
+		}
+	}
+
+	return r0
+}
+
+// Modelfile_GetModelFlags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetModelFlags'
+type Modelfile_GetModelFlags_Call struct {
+	*mock.Call
+}
+
+// GetModelFlags is a helper method to define mock.On call
+func (_e *Modelfile_Expecter) GetModelFlags() *Modelfile_GetModelFlags_Call {
+	return &Modelfile_GetModelFlags_Call{Call: _e.mock.On("GetModelFlags")}
+}
+
+func (_c *Modelfile_GetModelFlags_Call) Run(run func()) *Modelfile_GetModelFlags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Modelfile_GetModelFlags_Call) Return(_a0 map[string]map[string]string) *Modelfile_GetModelFlags_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Modelfile_GetModelFlags_Call) RunAndReturn(run func() map[string]map[string]string) *Modelfile_GetModelFlags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetName provides a mock function with no fields
 func (_m *Modelfile) GetName() string {
 	ret := _m.Called()
@@ -626,6 +673,100 @@ func (_c *Modelfile_GetQuantization_Call) Return(_a0 string) *Modelfile_GetQuant
 }
 
 func (_c *Modelfile_GetQuantization_Call) RunAndReturn(run func() string) *Modelfile_GetQuantization_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCodeFlags provides a mock function with no fields
+func (_m *Modelfile) GetCodeFlags() map[string]map[string]string {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCodeFlags")
+	}
+
+	var r0 map[string]map[string]string
+	if rf, ok := ret.Get(0).(func() map[string]map[string]string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]map[string]string)
+		}
+	}
+
+	return r0
+}
+
+// Modelfile_GetCodeFlags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCodeFlags'
+type Modelfile_GetCodeFlags_Call struct {
+	*mock.Call
+}
+
+// GetCodeFlags is a helper method to define mock.On call
+func (_e *Modelfile_Expecter) GetCodeFlags() *Modelfile_GetCodeFlags_Call {
+	return &Modelfile_GetCodeFlags_Call{Call: _e.mock.On("GetCodeFlags")}
+}
+
+func (_c *Modelfile_GetCodeFlags_Call) Run(run func()) *Modelfile_GetCodeFlags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Modelfile_GetCodeFlags_Call) Return(_a0 map[string]map[string]string) *Modelfile_GetCodeFlags_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Modelfile_GetCodeFlags_Call) RunAndReturn(run func() map[string]map[string]string) *Modelfile_GetCodeFlags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDatasetFlags provides a mock function with no fields
+func (_m *Modelfile) GetDatasetFlags() map[string]map[string]string {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDatasetFlags")
+	}
+
+	var r0 map[string]map[string]string
+	if rf, ok := ret.Get(0).(func() map[string]map[string]string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]map[string]string)
+		}
+	}
+
+	return r0
+}
+
+// Modelfile_GetDatasetFlags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDatasetFlags'
+type Modelfile_GetDatasetFlags_Call struct {
+	*mock.Call
+}
+
+// GetDatasetFlags is a helper method to define mock.On call
+func (_e *Modelfile_Expecter) GetDatasetFlags() *Modelfile_GetDatasetFlags_Call {
+	return &Modelfile_GetDatasetFlags_Call{Call: _e.mock.On("GetDatasetFlags")}
+}
+
+func (_c *Modelfile_GetDatasetFlags_Call) Run(run func()) *Modelfile_GetDatasetFlags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Modelfile_GetDatasetFlags_Call) Return(_a0 map[string]map[string]string) *Modelfile_GetDatasetFlags_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Modelfile_GetDatasetFlags_Call) RunAndReturn(run func() map[string]map[string]string) *Modelfile_GetDatasetFlags_Call {
 	_c.Call.Return(run)
 	return _c
 }

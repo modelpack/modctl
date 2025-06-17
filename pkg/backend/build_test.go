@@ -29,7 +29,9 @@ func TestGetProcessors(t *testing.T) {
 	modelfile := &modelfile.Modelfile{}
 	modelfile.On("GetConfigs").Return([]string{"config1", "config2"})
 	modelfile.On("GetModels").Return([]string{"model1", "model2"})
+	modelfile.On("GetModelFlags").Return(make(map[string]map[string]string))
 	modelfile.On("GetCodes").Return([]string{"1.py", "2.py"})
+	modelfile.On("GetCodeFlags").Return(make(map[string]map[string]string))
 	modelfile.On("GetDocs").Return([]string{"doc1", "doc2"})
 
 	b := &backend{}

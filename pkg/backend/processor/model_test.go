@@ -44,7 +44,7 @@ type modelProcessorSuite struct {
 func (s *modelProcessorSuite) SetupTest() {
 	s.mockStore = &storage.Storage{}
 	s.mockBuilder = &buildmock.Builder{}
-	s.processor = NewModelProcessor(s.mockStore, modelspec.MediaTypeModelWeight, []string{"model"})
+	s.processor = NewModelProcessor(s.mockStore, modelspec.MediaTypeModelWeight, []string{"model"}, make(map[string]map[string]string))
 	// generate test files for prorcess.
 	s.workDir = s.Suite.T().TempDir()
 	if err := os.WriteFile(filepath.Join(s.workDir, "model"), []byte(""), 0644); err != nil {
@@ -58,7 +58,7 @@ func (s *modelProcessorSuite) TestName() {
 
 func (s *modelProcessorSuite) TestProcess() {
 	ctx := context.Background()
-	s.mockBuilder.On("BuildLayer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ocispec.Descriptor{
+	s.mockBuilder.On("BuildLayer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ocispec.Descriptor{
 		Digest: godigest.Digest("sha256:1234567890abcdef"),
 		Size:   int64(1024),
 		Annotations: map[string]string{
