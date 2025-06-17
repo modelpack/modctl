@@ -102,9 +102,9 @@ func (_c *Builder_BuildConfig_Call) RunAndReturn(run func(context.Context, []v1.
 	return _c
 }
 
-// BuildLayer provides a mock function with given fields: ctx, mediaType, workDir, path, extraAnnotations, _a5
-func (_m *Builder) BuildLayer(ctx context.Context, mediaType string, workDir string, path string, extraAnnotations map[string]string, _a5 hooks.Hooks) (v1.Descriptor, error) {
-	ret := _m.Called(ctx, mediaType, workDir, path, extraAnnotations, _a5)
+// BuildLayer provides a mock function with given fields: ctx, mediaType, workDir, path, annotations, _a5
+func (_m *Builder) BuildLayer(ctx context.Context, mediaType string, workDir string, path string, annotations map[string]string, _a5 hooks.Hooks) (v1.Descriptor, error) {
+	ret := _m.Called(ctx, mediaType, workDir, path, annotations, _a5)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BuildLayer")
@@ -113,16 +113,16 @@ func (_m *Builder) BuildLayer(ctx context.Context, mediaType string, workDir str
 	var r0 v1.Descriptor
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, map[string]string, hooks.Hooks) (v1.Descriptor, error)); ok {
-		return rf(ctx, mediaType, workDir, path, extraAnnotations, _a5)
+		return rf(ctx, mediaType, workDir, path, annotations, _a5)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, map[string]string, hooks.Hooks) v1.Descriptor); ok {
-		r0 = rf(ctx, mediaType, workDir, path, extraAnnotations, _a5)
+		r0 = rf(ctx, mediaType, workDir, path, annotations, _a5)
 	} else {
 		r0 = ret.Get(0).(v1.Descriptor)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, map[string]string, hooks.Hooks) error); ok {
-		r1 = rf(ctx, mediaType, workDir, path, extraAnnotations, _a5)
+		r1 = rf(ctx, mediaType, workDir, path, annotations, _a5)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -140,13 +140,13 @@ type Builder_BuildLayer_Call struct {
 //   - mediaType string
 //   - workDir string
 //   - path string
-//   - extraAnnotations map[string]string
+//   - annotations map[string]string
 //   - _a5 hooks.Hooks
-func (_e *Builder_Expecter) BuildLayer(ctx interface{}, mediaType interface{}, workDir interface{}, path interface{}, extraAnnotations interface{}, _a5 interface{}) *Builder_BuildLayer_Call {
-	return &Builder_BuildLayer_Call{Call: _e.mock.On("BuildLayer", ctx, mediaType, workDir, path, extraAnnotations, _a5)}
+func (_e *Builder_Expecter) BuildLayer(ctx interface{}, mediaType interface{}, workDir interface{}, path interface{}, annotations interface{}, _a5 interface{}) *Builder_BuildLayer_Call {
+	return &Builder_BuildLayer_Call{Call: _e.mock.On("BuildLayer", ctx, mediaType, workDir, path, annotations, _a5)}
 }
 
-func (_c *Builder_BuildLayer_Call) Run(run func(ctx context.Context, mediaType string, workDir string, path string, extraAnnotations map[string]string, _a5 hooks.Hooks)) *Builder_BuildLayer_Call {
+func (_c *Builder_BuildLayer_Call) Run(run func(ctx context.Context, mediaType string, workDir string, path string, annotations map[string]string, _a5 hooks.Hooks)) *Builder_BuildLayer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(map[string]string), args[5].(hooks.Hooks))
 	})
