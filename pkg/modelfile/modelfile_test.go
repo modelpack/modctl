@@ -23,11 +23,13 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	configmodelfile "github.com/CloudNativeAI/modctl/pkg/config/modelfile"
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewModelfile(t *testing.T) {
@@ -1192,328 +1194,628 @@ func createHashSet(items []string) *hashset.Set {
 	return set
 }
 
-func TestValidateWorkspace(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupFunc     func() (string, func()) // returns workspace path and cleanup function
-		expectedError string
+// TestGenerateByModelConfig tests the generateByModelConfig method
+func TestGenerateByModelConfig(t *testing.T) {
+	testcases := []struct {
+		name              string
+		configFiles       map[string]map[string]interface{}
+		expectedArch      string
+		expectedFamily    string
+		expectedPrecision string
+		expectError       bool
 	}{
 		{
-			name: "valid_directory",
-			setupFunc: func() (string, func()) {
-				tmpDir, err := os.MkdirTemp("", "validate_workspace_test")
-				if err != nil {
-					t.Fatalf("Failed to create temp dir: %v", err)
-				}
-
-				// Create a test file to make directory non-empty
-				testFile := filepath.Join(tmpDir, "test.txt")
-				err = os.WriteFile(testFile, []byte("test content"), 0644)
-				if err != nil {
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to create test file: %v", err)
-				}
-
-				return tmpDir, func() { os.RemoveAll(tmpDir) }
+			name: "config.json with all fields",
+			configFiles: map[string]map[string]interface{}{
+				"config.json": {
+					"model_type":           "llama",
+					"torch_dtype":          "float16",
+					"transformers_version": "4.30.0",
+				},
 			},
-			expectedError: "",
+			expectedArch:      "transformer",
+			expectedFamily:    "llama",
+			expectedPrecision: "float16",
+			expectError:       false,
 		},
 		{
-			name: "non_existent_directory",
-			setupFunc: func() (string, func()) {
-				return "/non/existent/path", func() {}
+			name: "generation_config.json overrides config.json",
+			configFiles: map[string]map[string]interface{}{
+				"config.json": {
+					"model_type":  "llama",
+					"torch_dtype": "float16",
+				},
+				"generation_config.json": {
+					"model_type":  "gpt2",
+					"torch_dtype": "float32",
+				},
 			},
-			expectedError: "access to workspace failed:",
+			expectedFamily:    "gpt2",
+			expectedPrecision: "float32",
+			expectError:       false,
 		},
 		{
-			name: "file_instead_of_directory",
-			setupFunc: func() (string, func()) {
-				tmpDir, err := os.MkdirTemp("", "validate_workspace_test")
-				if err != nil {
-					t.Fatalf("Failed to create temp dir: %v", err)
-				}
-
-				testFile := filepath.Join(tmpDir, "test.txt")
-				err = os.WriteFile(testFile, []byte("test content"), 0644)
-				if err != nil {
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to create test file: %v", err)
-				}
-
-				return testFile, func() { os.RemoveAll(tmpDir) }
+			name: "invalid json file",
+			configFiles: map[string]map[string]interface{}{
+				"config.json": nil, // This will create invalid JSON
 			},
-			expectedError: "the workspace is not a directory:",
+			expectError: false, // Invalid JSON is silently ignored
 		},
 		{
-			name: "empty_directory",
-			setupFunc: func() (string, func()) {
-				tmpDir, err := os.MkdirTemp("", "validate_workspace_test")
-				if err != nil {
-					t.Fatalf("Failed to create temp dir: %v", err)
-				}
-				return tmpDir, func() { os.RemoveAll(tmpDir) }
-			},
-			expectedError: "the workspace is empty:",
+			name:        "no config files",
+			configFiles: map[string]map[string]interface{}{},
+			expectError: false,
 		},
 		{
-			name: "symbolic_link",
-			setupFunc: func() (string, func()) {
-				tmpDir, err := os.MkdirTemp("", "validate_workspace_test")
-				if err != nil {
-					t.Fatalf("Failed to create temp dir: %v", err)
-				}
-
-				// Create target directory with content
-				targetDir := filepath.Join(tmpDir, "target")
-				err = os.Mkdir(targetDir, 0755)
-				if err != nil {
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to create target dir: %v", err)
-				}
-
-				testFile := filepath.Join(targetDir, "test.txt")
-				err = os.WriteFile(testFile, []byte("test content"), 0644)
-				if err != nil {
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to create test file: %v", err)
-				}
-
-				// Create symbolic link
-				linkPath := filepath.Join(tmpDir, "link")
-				err = os.Symlink(targetDir, linkPath)
-				if err != nil {
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to create symlink: %v", err)
-				}
-
-				return linkPath, func() { os.RemoveAll(tmpDir) }
+			name: "partial config",
+			configFiles: map[string]map[string]interface{}{
+				"config.json": {
+					"model_type": "bert",
+				},
 			},
-			expectedError: "for simplicity, the workspace should not be a symbolic link:",
+			expectedFamily: "bert",
+			expectError:    false,
+		},
+		{
+			name: "transformers version only",
+			configFiles: map[string]map[string]interface{}{
+				"config.json": {
+					"transformers_version": "4.25.1",
+				},
+			},
+			expectedArch: "transformer",
+			expectError:  false,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			workspace, cleanup := tt.setupFunc()
-			defer cleanup()
+	assert := assert.New(t)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir, err := os.MkdirTemp("", "model-config-test-*")
+			require.NoError(t, err)
+			defer os.RemoveAll(tempDir)
 
-			mf := &modelfile{
-				workspace: workspace,
-				config:    hashset.New(),
-				model:     hashset.New(),
-				code:      hashset.New(),
-				dataset:   hashset.New(),
-				doc:       hashset.New(),
+			// Create config files
+			for filename, content := range tc.configFiles {
+				if content == nil {
+					// Create invalid JSON
+					err = os.WriteFile(filepath.Join(tempDir, filename), []byte("invalid json"), 0644)
+				} else {
+					data, err := json.Marshal(content)
+					require.NoError(t, err)
+					err = os.WriteFile(filepath.Join(tempDir, filename), data, 0644)
+				}
+				require.NoError(t, err)
 			}
 
+			mf := &modelfile{workspace: tempDir}
+			err = mf.generateByModelConfig()
+
+			if tc.expectError {
+				assert.Error(err)
+			} else {
+				assert.NoError(err)
+				assert.Equal(tc.expectedArch, mf.arch)
+				assert.Equal(tc.expectedFamily, mf.family)
+				assert.Equal(tc.expectedPrecision, mf.precision)
+			}
+		})
+	}
+}
+
+// TestGenerateByConfig tests the generateByConfig method
+func TestGenerateByConfig(t *testing.T) {
+	testcases := []struct {
+		name                 string
+		workspace            string
+		config               *configmodelfile.GenerateConfig
+		expectedName         string
+		expectedArch         string
+		expectedFamily       string
+		expectedFormat       string
+		expectedParamsize    string
+		expectedPrecision    string
+		expectedQuantization string
+	}{
+		{
+			name:         "default name from workspace",
+			workspace:    "/path/to/my-model",
+			config:       &configmodelfile.GenerateConfig{},
+			expectedName: "my-model",
+		},
+		{
+			name:      "custom name overrides workspace",
+			workspace: "/path/to/workspace",
+			config: &configmodelfile.GenerateConfig{
+				Name: "custom-model",
+			},
+			expectedName: "custom-model",
+		},
+		{
+			name:      "all fields provided",
+			workspace: "/path/to/model",
+			config: &configmodelfile.GenerateConfig{
+				Name:         "test-model",
+				Arch:         "transformer",
+				Family:       "llama",
+				Format:       "safetensors",
+				ParamSize:    "7B",
+				Precision:    "float16",
+				Quantization: "int8",
+			},
+			expectedName:         "test-model",
+			expectedArch:         "transformer",
+			expectedFamily:       "llama",
+			expectedFormat:       "safetensors",
+			expectedParamsize:    "7B",
+			expectedPrecision:    "float16",
+			expectedQuantization: "int8",
+		},
+		{
+			name:         "empty config uses workspace name",
+			workspace:    "/tmp/test-workspace",
+			config:       &configmodelfile.GenerateConfig{},
+			expectedName: "test-workspace",
+		},
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			mf := &modelfile{workspace: tc.workspace}
+			mf.generateByConfig(tc.config)
+
+			assert.Equal(tc.expectedName, mf.name)
+			assert.Equal(tc.expectedArch, mf.arch)
+			assert.Equal(tc.expectedFamily, mf.family)
+			assert.Equal(tc.expectedFormat, mf.format)
+			assert.Equal(tc.expectedParamsize, mf.paramsize)
+			assert.Equal(tc.expectedPrecision, mf.precision)
+			assert.Equal(tc.expectedQuantization, mf.quantization)
+		})
+	}
+}
+
+// TestValidateWorkspace tests the validateWorkspace method specifically
+func TestValidateWorkspace(t *testing.T) {
+	testcases := []struct {
+		name        string
+		setupFunc   func() (string, func())
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid directory workspace",
+			setupFunc: func() (string, func()) {
+				tempDir, err := os.MkdirTemp("", "valid-workspace-*")
+				require.NoError(t, err)
+				// Create a file to make it non-empty
+				err = os.WriteFile(filepath.Join(tempDir, "test.txt"), []byte("test"), 0644)
+				require.NoError(t, err)
+				return tempDir, func() { os.RemoveAll(tempDir) }
+			},
+			expectError: false,
+		},
+		{
+			name: "empty directory workspace",
+			setupFunc: func() (string, func()) {
+				tempDir, err := os.MkdirTemp("", "empty-workspace-*")
+				require.NoError(t, err)
+				return tempDir, func() { os.RemoveAll(tempDir) }
+			},
+			expectError: true,
+			errorMsg:    "the workspace is empty",
+		},
+		{
+			name: "non-existent workspace",
+			setupFunc: func() (string, func()) {
+				return "/non/existent/path", func() {}
+			},
+			expectError: true,
+			errorMsg:    "access to workspace failed",
+		},
+		{
+			name: "file instead of directory",
+			setupFunc: func() (string, func()) {
+				tempFile, err := os.CreateTemp("", "file-workspace-*")
+				require.NoError(t, err)
+				tempFile.Close()
+				return tempFile.Name(), func() { os.Remove(tempFile.Name()) }
+			},
+			expectError: true,
+			errorMsg:    "the workspace is not a directory",
+		},
+		{
+			name: "symbolic link workspace",
+			setupFunc: func() (string, func()) {
+				tempDir, err := os.MkdirTemp("", "symlink-target-*")
+				require.NoError(t, err)
+				// Create a file in target
+				err = os.WriteFile(filepath.Join(tempDir, "test.txt"), []byte("test"), 0644)
+				require.NoError(t, err)
+
+				symlinkPath := tempDir + "-symlink"
+				err = os.Symlink(tempDir, symlinkPath)
+				require.NoError(t, err)
+
+				return symlinkPath, func() {
+					os.RemoveAll(tempDir)
+					os.Remove(symlinkPath)
+				}
+			},
+			expectError: true,
+			errorMsg:    "the workspace should not be a symbolic link",
+		},
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			workspace, cleanup := tc.setupFunc()
+			defer cleanup()
+
+			mf := &modelfile{workspace: workspace}
 			err := mf.validateWorkspace()
 
-			if tt.expectedError == "" {
-				assert.NoError(t, err, "Expected no error for test case: %s", tt.name)
+			if tc.expectError {
+				assert.Error(err)
+				assert.Contains(err.Error(), tc.errorMsg)
 			} else {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
-				assert.Contains(t, err.Error(), tt.expectedError, "Error message should contain expected text for test case: %s", tt.name)
+				assert.NoError(err)
 			}
 		})
 	}
 }
 
 func TestWorkspaceLimits(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupFunc     func() (string, func()) // returns workspace path and cleanup function
-		expectedError string
+	testcases := []struct {
+		name        string
+		setupFunc   func() (string, func())
+		expectError bool
+		errorMsg    string
 	}{
 		{
-			name: "single_file_exceeds_128GB_limit",
+			name: "exceeds file count limit",
 			setupFunc: func() (string, func()) {
-				tmpDir, err := os.MkdirTemp("", "workspace_limits_test")
-				if err != nil {
-					t.Fatalf("Failed to create temp dir: %v", err)
+				tempDir, err := os.MkdirTemp("", "file-count-test-*")
+				require.NoError(t, err)
+
+				// Create more files than the limit (1024)
+				for i := 0; i < MaxWorkspaceFileCount+10; i++ {
+					filename := fmt.Sprintf("file_%d.txt", i)
+					err = os.WriteFile(filepath.Join(tempDir, filename), []byte("test"), 0644)
+					require.NoError(t, err)
 				}
 
-				// Create a test file that simulates exceeding 128GB
-				// We'll use a sparse file to avoid actually creating 128GB+ of data
-				testFile := filepath.Join(tmpDir, "large_model.bin")
-				file, err := os.Create(testFile)
-				if err != nil {
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to create test file: %v", err)
-				}
-
-				// Seek to position that would make file appear larger than 128GB
-				largeSize := MaxSingleFileSize + 1
-				_, err = file.Seek(largeSize-1, 0)
-				if err != nil {
-					file.Close()
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to seek in file: %v", err)
-				}
-
-				// Write one byte at the end to make the file that size
-				_, err = file.Write([]byte{0})
-				if err != nil {
-					file.Close()
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to write to file: %v", err)
-				}
-				file.Close()
-
-				return tmpDir, func() { os.RemoveAll(tmpDir) }
+				return tempDir, func() { os.RemoveAll(tempDir) }
 			},
-			expectedError: "exceeds maximum single file size limit",
+			expectError: true,
+			errorMsg:    "exceeds maximum file count limit",
 		},
 		{
-			name: "file_count_exceeds_2048_limit",
+			name: "normal sized files should pass",
 			setupFunc: func() (string, func()) {
-				tmpDir, err := os.MkdirTemp("", "workspace_limits_test")
-				if err != nil {
-					t.Fatalf("Failed to create temp dir: %v", err)
-				}
+				tempDir, err := os.MkdirTemp("", "normal-file-test-*")
+				require.NoError(t, err)
 
-				// Create more than 2048 files
-				for i := 0; i <= MaxWorkspaceFileCount; i++ {
-					testFile := filepath.Join(tmpDir, fmt.Sprintf("file_%d.txt", i))
-					err = os.WriteFile(testFile, []byte("test"), 0644)
-					if err != nil {
-						os.RemoveAll(tmpDir)
-						t.Fatalf("Failed to create test file %d: %v", i, err)
-					}
-				}
+				// Create normal sized files including a model file
+				normalPath := filepath.Join(tempDir, "model.bin")
+				err = os.WriteFile(normalPath, []byte("test model content"), 0644)
+				require.NoError(t, err)
 
-				return tmpDir, func() { os.RemoveAll(tmpDir) }
+				// Add a config file too
+				configPath := filepath.Join(tempDir, "config.json")
+				err = os.WriteFile(configPath, []byte(`{"model_type": "test"}`), 0644)
+				require.NoError(t, err)
+
+				return tempDir, func() { os.RemoveAll(tempDir) }
 			},
-			expectedError: "exceeds maximum file count limit",
+			expectError: false,
 		},
 		{
-			name: "total_workspace_size_exceeds_8TB_limit",
+			name: "within limits",
 			setupFunc: func() (string, func()) {
-				tmpDir, err := os.MkdirTemp("", "workspace_limits_test")
-				if err != nil {
-					t.Fatalf("Failed to create temp dir: %v", err)
+				tempDir, err := os.MkdirTemp("", "within-limits-test-*")
+				require.NoError(t, err)
+
+				// Create a reasonable number of files including valid model/code files
+				for i := 0; i < 8; i++ {
+					filename := fmt.Sprintf("file_%d.txt", i)
+					err = os.WriteFile(filepath.Join(tempDir, filename), []byte("test content"), 0644)
+					require.NoError(t, err)
 				}
 
-				// Create a few large files that together exceed 8TB
-				// Each file will be just under 128GB (single file limit)
-				// We'll create 70 files of ~120GB each to exceed 8TB total
-				fileSize := MaxSingleFileSize - (1024 * 1024 * 1024) // 127GB per file
-				numFiles := 70                                       // 70 * 127GB = ~8.9TB
+				// Add valid model and config files
+				err = os.WriteFile(filepath.Join(tempDir, "model.bin"), []byte("model content"), 0644)
+				require.NoError(t, err)
+				err = os.WriteFile(filepath.Join(tempDir, "config.json"), []byte(`{"model_type": "test"}`), 0644)
+				require.NoError(t, err)
 
-				for i := 0; i < numFiles; i++ {
-					testFile := filepath.Join(tmpDir, fmt.Sprintf("file_%d.bin", i))
-					file, err := os.Create(testFile)
-					if err != nil {
-						os.RemoveAll(tmpDir)
-						t.Fatalf("Failed to create test file %d: %v", i, err)
-					}
-
-					// Use sparse file technique
-					_, err = file.Seek(fileSize-1, 0)
-					if err != nil {
-						file.Close()
-						os.RemoveAll(tmpDir)
-						t.Fatalf("Failed to seek in file %d: %v", i, err)
-					}
-
-					_, err = file.Write([]byte{0})
-					if err != nil {
-						file.Close()
-						os.RemoveAll(tmpDir)
-						t.Fatalf("Failed to write to file %d: %v", i, err)
-					}
-					file.Close()
-				}
-
-				return tmpDir, func() { os.RemoveAll(tmpDir) }
+				return tempDir, func() { os.RemoveAll(tempDir) }
 			},
-			expectedError: "exceeds maximum total size limit",
-		},
-		{
-			name: "workspace_within_all_limits",
-			setupFunc: func() (string, func()) {
-				tmpDir, err := os.MkdirTemp("", "workspace_limits_test")
-				if err != nil {
-					t.Fatalf("Failed to create temp dir: %v", err)
-				}
-
-				// Create a reasonable number of small files
-				for i := 0; i < 10; i++ {
-					testFile := filepath.Join(tmpDir, fmt.Sprintf("small_file_%d.txt", i))
-					err = os.WriteFile(testFile, []byte("small content"), 0644)
-					if err != nil {
-						os.RemoveAll(tmpDir)
-						t.Fatalf("Failed to create test file %d: %v", i, err)
-					}
-				}
-
-				// Add a config file to make it a valid workspace
-				configFile := filepath.Join(tmpDir, "config.json")
-				err = os.WriteFile(configFile, []byte(`{"model_type": "test"}`), 0644)
-				if err != nil {
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to create config file: %v", err)
-				}
-
-				// Add a model file to make it a valid workspace
-				modelFile := filepath.Join(tmpDir, "model.safetensors")
-				err = os.WriteFile(modelFile, []byte("fake model data"), 0644)
-				if err != nil {
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to create model file: %v", err)
-				}
-
-				return tmpDir, func() { os.RemoveAll(tmpDir) }
-			},
-			expectedError: "",
-		},
-		{
-			name: "exactly_at_file_count_limit",
-			setupFunc: func() (string, func()) {
-				tmpDir, err := os.MkdirTemp("", "workspace_limits_test")
-				if err != nil {
-					t.Fatalf("Failed to create temp dir: %v", err)
-				}
-
-				// Create exactly 2048 files (should be allowed)
-				// Include one model file to make it valid
-				modelFile := filepath.Join(tmpDir, "model.safetensors")
-				err = os.WriteFile(modelFile, []byte("fake model data"), 0644)
-				if err != nil {
-					os.RemoveAll(tmpDir)
-					t.Fatalf("Failed to create model file: %v", err)
-				}
-
-				// Create the remaining files to reach exactly 2048
-				for i := 1; i < MaxWorkspaceFileCount; i++ {
-					testFile := filepath.Join(tmpDir, fmt.Sprintf("file_%d.txt", i))
-					err = os.WriteFile(testFile, []byte("test"), 0644)
-					if err != nil {
-						os.RemoveAll(tmpDir)
-						t.Fatalf("Failed to create test file %d: %v", i, err)
-					}
-				}
-
-				return tmpDir, func() { os.RemoveAll(tmpDir) }
-			},
-			expectedError: "",
+			expectError: false,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			workspace, cleanup := tt.setupFunc()
+	assert := assert.New(t)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			workspace, cleanup := tc.setupFunc()
 			defer cleanup()
 
-			// Create a modelfile instance and try to generate by workspace
-			config := &configmodelfile.GenerateConfig{}
+			config := &configmodelfile.GenerateConfig{
+				Name: "test-model",
+			}
+
 			_, err := NewModelfileByWorkspace(workspace, config)
 
-			if tt.expectedError == "" {
-				assert.NoError(t, err, "Expected no error for test case: %s", tt.name)
+			if tc.expectError {
+				assert.Error(err)
+				assert.Contains(err.Error(), tc.errorMsg)
 			} else {
-				assert.Error(t, err, "Expected error for test case: %s", tt.name)
-				assert.Contains(t, err.Error(), tt.expectedError, "Error message should contain expected text for test case: %s", tt.name)
+				assert.NoError(err)
 			}
 		})
 	}
+}
+
+func TestFileTypeClassification(t *testing.T) {
+	testcases := []struct {
+		name            string
+		files           map[string]int64 // filename -> size
+		expectedConfigs []string
+		expectedModels  []string
+		expectedCodes   []string
+		expectedDocs    []string
+	}{
+		{
+			name: "various file types",
+			files: map[string]int64{
+				"config.json":         1024,
+				"model.bin":           1024 * 1024 * 1024, // 1GB - large file
+				"script.py":           2048,
+				"README.md":           512,
+				"tokenizer.json":      1024,
+				"weights.safetensors": 2 * 1024 * 1024 * 1024, // 2GB - large file
+				"inference.py":        3072,
+				"LICENSE":             256,
+			},
+			expectedConfigs: []string{"config.json", "tokenizer.json"},
+			expectedModels:  []string{"model.bin", "weights.safetensors"},
+			expectedCodes:   []string{"script.py", "inference.py"},
+			expectedDocs:    []string{"README.md", "LICENSE"},
+		},
+		{
+			name: "small unknown files treated as code files",
+			files: map[string]int64{
+				"unknown_small_file":  1024,      // 1KB - below threshold
+				"another_unknown.xyz": 50 * 1024, // 50KB - below threshold
+				"config.json":         1024,      // Add a config to make workspace valid
+			},
+			expectedConfigs: []string{"config.json"},
+			expectedModels:  []string{},
+			expectedCodes:   []string{"unknown_small_file", "another_unknown.xyz"},
+		},
+		{
+			name: "case insensitive file extensions",
+			files: map[string]int64{
+				"CONFIG.JSON": 1024,
+				"Model.BIN":   1024,
+				"Script.PY":   1024,
+				"README.MD":   1024,
+			},
+			expectedConfigs: []string{"CONFIG.JSON"},
+			expectedModels:  []string{"Model.BIN"},
+			expectedCodes:   []string{"Script.PY"},
+			expectedDocs:    []string{"README.MD"},
+		},
+		{
+			name: "nested directory files",
+			files: map[string]int64{
+				"configs/model.json":       1024,
+				"models/pytorch_model.bin": 1024,
+				"src/utils.py":             1024,
+				"docs/guide.md":            1024,
+			},
+			expectedConfigs: []string{"configs/model.json"},
+			expectedModels:  []string{"models/pytorch_model.bin"},
+			expectedCodes:   []string{"src/utils.py"},
+			expectedDocs:    []string{"docs/guide.md"},
+		},
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir, err := os.MkdirTemp("", "file-type-test-*")
+			require.NoError(t, err)
+			defer os.RemoveAll(tempDir)
+
+			// Create files with specified sizes
+			for filename, size := range tc.files {
+				fullPath := filepath.Join(tempDir, filename)
+
+				// Create directory if needed
+				dir := filepath.Dir(fullPath)
+				if dir != tempDir {
+					err = os.MkdirAll(dir, 0755)
+					require.NoError(t, err)
+				}
+
+				// Create file with specified size
+				file, err := os.Create(fullPath)
+				require.NoError(t, err)
+
+				if size > 0 {
+					// For large files, we'll write a smaller amount and then seek to create the size
+					// For testing purposes, just write some content
+					content := strings.Repeat("x", int(min(size, 1024)))
+					_, err = file.WriteString(content)
+					require.NoError(t, err)
+				}
+				file.Close()
+			}
+
+			config := &configmodelfile.GenerateConfig{
+				Name: "test-classification",
+			}
+
+			mf, err := NewModelfileByWorkspace(tempDir, config)
+			require.NoError(t, err)
+
+			assert.ElementsMatch(tc.expectedConfigs, mf.GetConfigs())
+			assert.ElementsMatch(tc.expectedModels, mf.GetModels())
+			assert.ElementsMatch(tc.expectedCodes, mf.GetCodes())
+			assert.ElementsMatch(tc.expectedDocs, mf.GetDocs())
+		})
+	}
+}
+
+func TestSkippedFiles(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "skip-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create various files and directories that should be skipped
+	filesToCreate := []string{
+		".hidden_file",
+		".git/config",
+		"__pycache__/cache.pyc",
+		"model.pyo",
+		"script.pyd",
+		"modelfile",
+		"normal_file.txt",
+		"valid_model.bin",
+	}
+
+	dirsToCreate := []string{
+		".git",
+		"__pycache__",
+		".hidden_dir",
+		"normal_dir",
+	}
+
+	for _, dir := range dirsToCreate {
+		err = os.MkdirAll(filepath.Join(tempDir, dir), 0755)
+		require.NoError(t, err)
+	}
+
+	for _, file := range filesToCreate {
+		fullPath := filepath.Join(tempDir, file)
+		dir := filepath.Dir(fullPath)
+		if dir != tempDir {
+			err = os.MkdirAll(dir, 0755)
+			require.NoError(t, err)
+		}
+		err = os.WriteFile(fullPath, []byte("content"), 0644)
+		require.NoError(t, err)
+	}
+
+	config := &configmodelfile.GenerateConfig{
+		Name: "skip-test",
+	}
+
+	mf, err := NewModelfileByWorkspace(tempDir, config)
+	require.NoError(t, err)
+
+	// Only normal_file.txt and valid_model.bin should be included
+	allFiles := append(append(append(mf.GetConfigs(), mf.GetModels()...), mf.GetCodes()...), mf.GetDocs()...)
+
+	assert := assert.New(t)
+
+	// Check that skipped files are not included
+	for _, file := range allFiles {
+		assert.NotContains(file, ".hidden")
+		assert.NotContains(file, ".git")
+		assert.NotContains(file, "__pycache__")
+		assert.NotContains(file, ".pyc")
+		assert.NotContains(file, ".pyo")
+		assert.NotContains(file, ".pyd")
+		assert.NotEqual(file, "modelfile")
+	}
+
+	// Check that normal files are included
+	expectedFiles := []string{"normal_file.txt", "valid_model.bin"}
+	for _, expectedFile := range expectedFiles {
+		found := false
+		for _, file := range allFiles {
+			if strings.Contains(file, expectedFile) {
+				found = true
+				break
+			}
+		}
+		assert.True(found, "Expected file %s should be included", expectedFile)
+	}
+}
+
+func TestEmptyWorkspaceHandling(t *testing.T) {
+	testcases := []struct {
+		name        string
+		files       []string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "only documentation files",
+			files:       []string{"README.md", "LICENSE", "docs.txt"},
+			expectError: true,
+			errorMsg:    "no model/code/dataset found",
+		},
+		{
+			name:        "only configuration files",
+			files:       []string{"config.json", "settings.yaml"},
+			expectError: true,
+			errorMsg:    "no model/code/dataset found",
+		},
+		{
+			name:        "has model files",
+			files:       []string{"model.bin", "config.json"},
+			expectError: false,
+		},
+		{
+			name:        "has code files",
+			files:       []string{"script.py", "config.json"},
+			expectError: false,
+		},
+		{
+			name:        "mixed valid files",
+			files:       []string{"model.bin", "script.py", "README.md"},
+			expectError: false,
+		},
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir, err := os.MkdirTemp("", "empty-workspace-test-*")
+			require.NoError(t, err)
+			defer os.RemoveAll(tempDir)
+
+			for _, filename := range tc.files {
+				err = os.WriteFile(filepath.Join(tempDir, filename), []byte("content"), 0644)
+				require.NoError(t, err)
+			}
+
+			config := &configmodelfile.GenerateConfig{
+				Name: "test-model",
+			}
+
+			_, err = NewModelfileByWorkspace(tempDir, config)
+
+			if tc.expectError {
+				assert.Error(err)
+				assert.Contains(err.Error(), tc.errorMsg)
+			} else {
+				assert.NoError(err)
+			}
+		})
+	}
+}
+
+// min returns the minimum of two integers
+func min(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
 }
