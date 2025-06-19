@@ -83,7 +83,7 @@ func (g *GenerateConfig) Validate() error {
 	// If the output path does not exist, we can create the modelfile.
 	if _, err := os.Stat(g.Output); err == nil {
 		if !g.Overwrite {
-			return fmt.Errorf("modelfile already exists at %s - use --overwrite to overwrite", g.Output)
+			return fmt.Errorf("Modelfile already exists at %s - use --overwrite to overwrite", g.Output)
 		}
 	}
 
