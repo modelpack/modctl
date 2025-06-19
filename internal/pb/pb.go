@@ -62,7 +62,7 @@ func NewProgressBar(writers ...io.Writer) *ProgressBar {
 		mpbv8.PopCompletedMode(),
 		mpbv8.WithAutoRefresh(),
 		mpbv8.WithWidth(60),
-		mpbv8.WithRefreshRate(200 * time.Millisecond),
+		mpbv8.WithRefreshRate(300 * time.Millisecond),
 	}
 
 	// If no writer specified, use stdout.

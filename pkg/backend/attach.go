@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"sort"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
@@ -87,13 +88,13 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		// Remove the found layer from the layers slice as we need to replace it with the new layer.
 		for i, layer := range layers {
 			if layer.Digest == foundLayer.Digest && layer.MediaType == foundLayer.MediaType {
-				layers = append(layers[:i], layers[i+1:]...)
+				layers = slices.Delete(layers, i, i+1)
 				break
 			}
 		}
 	}
 
-	proc := b.getProcessor(filepath)
+	proc := b.getProcessor(filepath, cfg)
 	if proc == nil {
 		return fmt.Errorf("failed to get processor for file %s", filepath)
 	}
@@ -260,21 +261,37 @@ func (b *backend) getModelConfig(ctx context.Context, reference string, desc oci
 	return &model, nil
 }
 
-func (b *backend) getProcessor(filepath string) processor.Processor {
+func (b *backend) getProcessor(filepath string, cfg *config.Attach) processor.Processor {
 	if modelfile.IsFileType(filepath, modelfile.ConfigFilePatterns) {
-		return processor.NewModelConfigProcessor(b.store, modelspec.MediaTypeModelWeightConfig, []string{filepath})
+		mediaType := modelspec.MediaTypeModelWeightConfig
+		if cfg.Raw {
+			mediaType = modelspec.MediaTypeModelWeightConfigRaw
+		}
+		return processor.NewModelConfigProcessor(b.store, mediaType, []string{filepath})
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.ModelFilePatterns) {
-		return processor.NewModelProcessor(b.store, modelspec.MediaTypeModelWeight, []string{filepath})
+		mediaType := modelspec.MediaTypeModelWeight
+		if cfg.Raw {
+			mediaType = modelspec.MediaTypeModelWeightRaw
+		}
+		return processor.NewModelProcessor(b.store, mediaType, []string{filepath})
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.CodeFilePatterns) {
-		return processor.NewCodeProcessor(b.store, modelspec.MediaTypeModelCode, []string{filepath})
+		mediaType := modelspec.MediaTypeModelCode
+		if cfg.Raw {
+			mediaType = modelspec.MediaTypeModelCodeRaw
+		}
+		return processor.NewCodeProcessor(b.store, mediaType, []string{filepath})
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.DocFilePatterns) {
-		return processor.NewDocProcessor(b.store, modelspec.MediaTypeModelDoc, []string{filepath})
+		mediaType := modelspec.MediaTypeModelDoc
+		if cfg.Raw {
+			mediaType = modelspec.MediaTypeModelDocRaw
+		}
+		return processor.NewDocProcessor(b.store, mediaType, []string{filepath})
 	}
 
 	return nil

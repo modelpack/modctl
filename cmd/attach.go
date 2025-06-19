@@ -59,6 +59,7 @@ func init() {
 	flags.BoolVarP(&attachConfig.Force, "force", "f", false, "turning on this flag will force the attach, which will overwrite the layer if it already exists with same filepath")
 	flags.BoolVar(&attachConfig.Nydusify, "nydusify", false, "[EXPERIMENTAL] nydusify the model artifact")
 	flags.MarkHidden("nydusify")
+	flags.BoolVar(&attachConfig.Raw, "raw", false, "turning on this flag will attach model artifact layer in raw format")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
