@@ -17,9 +17,10 @@
 package modelfile
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/dustin/go-humanize"
 )
 
 var (
@@ -421,10 +422,10 @@ var (
 
 const (
 	// File size thresholds and workspace limits
-	WeightFileSizeThreshold int64 = 128 * 1024 * 1024             // 128MB - threshold for considering file as weight file
-	MaxSingleFileSize       int64 = 128 * 1024 * 1024 * 1024      // 128GB - maximum size for a single file
-	MaxWorkspaceFileCount   int   = 1024                          // 1024 files - maximum number of files in workspace
-	MaxTotalWorkspaceSize   int64 = 8 * 1024 * 1024 * 1024 * 1024 // 8TB - maximum total workspace size
+	WeightFileSizeThreshold int64 = 128 * humanize.MByte // 128MB - threshold for considering file as weight file
+	MaxSingleFileSize       int64 = 128 * humanize.GByte // 128GB - maximum size for a single file
+	MaxWorkspaceFileCount   int   = 1024                 // 1024 files - maximum number of files in workspace
+	MaxTotalWorkspaceSize   int64 = 8 * humanize.TByte   // 8TB - maximum total workspace size
 )
 
 // IsFileType checks if the filename matches any of the given patterns
@@ -467,17 +468,7 @@ func SizeShouldBeWeightFile(size int64) bool {
 	return size > WeightFileSizeThreshold
 }
 
-// formatBytes converts byte size to human-readable format
+// formatBytes converts byte size to human-readable format using go-humanize
 func formatBytes(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	units := []string{"B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
-	return fmt.Sprintf("%.1f%s", float64(bytes)/float64(div), units[exp+1])
+	return humanize.Bytes(uint64(bytes))
 }
