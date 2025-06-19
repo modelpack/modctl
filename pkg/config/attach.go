@@ -26,6 +26,7 @@ type Attach struct {
 	Insecure     bool
 	Nydusify     bool
 	Force        bool
+	Raw          bool
 }
 
 func NewAttach() *Attach {
@@ -37,6 +38,7 @@ func NewAttach() *Attach {
 		Insecure:     false,
 		Nydusify:     false,
 		Force:        false,
+		Raw:          false,
 	}
 }
 
