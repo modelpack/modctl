@@ -417,14 +417,14 @@ var (
 		"*.pyo",       // Python optimized bytecode
 		"*.pyd",       // Python dynamic modules
 	}
+)
 
-	// Large file size threshold
-	WeightFileSizeThreshold int64 = 128 * 1024 * 1024
-
-	// Workspace limits
-	MaxSingleFileSize     int64 = 128 * 1024 * 1024 * 1024      // 128GB
-	MaxWorkspaceFileCount int   = 1024                          // 1024 files
-	MaxTotalWorkspaceSize int64 = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
+const (
+	// File size thresholds and workspace limits
+	WeightFileSizeThreshold int64 = 128 * 1024 * 1024             // 128MB - threshold for considering file as weight file
+	MaxSingleFileSize       int64 = 128 * 1024 * 1024 * 1024      // 128GB - maximum size for a single file
+	MaxWorkspaceFileCount   int   = 1024                          // 1024 files - maximum number of files in workspace
+	MaxTotalWorkspaceSize   int64 = 8 * 1024 * 1024 * 1024 * 1024 // 8TB - maximum total workspace size
 )
 
 // IsFileType checks if the filename matches any of the given patterns
