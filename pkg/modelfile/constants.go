@@ -424,7 +424,7 @@ const (
 	// File size thresholds and workspace limits
 	WeightFileSizeThreshold int64 = 128 * humanize.MByte // 128MB - threshold for considering file as weight file
 	MaxSingleFileSize       int64 = 128 * humanize.GByte // 128GB - maximum size for a single file
-	MaxWorkspaceFileCount   int   = 1024                 // 1024 files - maximum number of files in workspace
+	MaxWorkspaceFileCount   int   = 2048                 // 2048 files - maximum number of files in workspace
 	MaxTotalWorkspaceSize   int64 = 8 * humanize.TByte   // 8TB - maximum total workspace size
 )
 
