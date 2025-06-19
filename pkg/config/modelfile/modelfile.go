@@ -31,7 +31,7 @@ type GenerateConfig struct {
 	Name                        string
 	Version                     string
 	Output                      string
-	IgnoreUnrecognizedFileTypes bool
+	IgnoreUnrecognizedFileTypes bool // [deprecated] will be removed in the next release
 	Overwrite                   bool
 	Arch                        string
 	Family                      string
