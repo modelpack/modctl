@@ -214,3 +214,157 @@ func TestSplitCommand(t *testing.T) {
 		assert.Equal(tc.args, args)
 	}
 }
+
+// TestSplitCommandWithSpaces tests the splitCommand function with spaces and quotes
+func TestSplitCommandWithSpaces(t *testing.T) {
+	testCases := []struct {
+		name         string
+		line         string
+		expectedCmd  string
+		expectedArgs []string
+		expectError  bool
+	}{
+		{
+			name:         "simple command",
+			line:         "MODEL model.bin",
+			expectedCmd:  "MODEL",
+			expectedArgs: []string{"model.bin"},
+			expectError:  false,
+		},
+		{
+			name:         "quoted argument with spaces",
+			line:         "MODEL \"model weights.bin\"",
+			expectedCmd:  "MODEL",
+			expectedArgs: []string{"model weights.bin"},
+			expectError:  false,
+		},
+		{
+			name:         "quoted argument with path separators",
+			line:         "CONFIG \"nested dir/config.json\"",
+			expectedCmd:  "CONFIG",
+			expectedArgs: []string{"nested dir/config.json"},
+			expectError:  false,
+		},
+		{
+			name:         "multiple quoted arguments",
+			line:         "CODE \"script one.py\" \"script two.py\"",
+			expectedCmd:  "CODE",
+			expectedArgs: []string{"script one.py", "script two.py"},
+			expectError:  false,
+		},
+		{
+			name:         "mixed quoted and unquoted",
+			line:         "DOC README.md \"user guide.pdf\"",
+			expectedCmd:  "DOC",
+			expectedArgs: []string{"README.md", "user guide.pdf"},
+			expectError:  false,
+		},
+		{
+			name:         "escaped quotes",
+			line:         "NAME \"model \\\"v2\\\"\"",
+			expectedCmd:  "NAME",
+			expectedArgs: []string{"model \"v2\""},
+			expectError:  false,
+		},
+		{
+			name:        "unclosed quotes",
+			line:        "MODEL \"unclosed",
+			expectError: true,
+		},
+		{
+			name:        "empty command",
+			line:        "",
+			expectError: true,
+		},
+		{
+			name:        "no arguments",
+			line:        "MODEL",
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, args, err := splitCommand(tc.line)
+
+			if tc.expectError {
+				assert.Error(t, err, "Expected error for input: %s", tc.line)
+			} else {
+				assert.NoError(t, err, "Unexpected error for input: %s", tc.line)
+				assert.Equal(t, tc.expectedCmd, cmd, "Command mismatch")
+				assert.Equal(t, tc.expectedArgs, args, "Arguments mismatch")
+			}
+		})
+	}
+}
+
+// TestParseArgsFunction tests the parseArgs function directly
+func TestParseArgsFunction(t *testing.T) {
+	testCases := []struct {
+		name        string
+		argsStr     string
+		expected    []string
+		expectError bool
+	}{
+		{
+			name:        "single unquoted argument",
+			argsStr:     "model.bin",
+			expected:    []string{"model.bin"},
+			expectError: false,
+		},
+		{
+			name:        "single quoted argument",
+			argsStr:     "\"model weights.bin\"",
+			expected:    []string{"model weights.bin"},
+			expectError: false,
+		},
+		{
+			name:        "multiple mixed arguments",
+			argsStr:     "model.bin \"config file.json\" script.py",
+			expected:    []string{"model.bin", "config file.json", "script.py"},
+			expectError: false,
+		},
+		{
+			name:        "argument with tabs and spaces",
+			argsStr:     "\"file\twith\ttabs\tand  spaces\"",
+			expected:    []string{"file\twith\ttabs\tand  spaces"},
+			expectError: false,
+		},
+		{
+			name:        "escaped quotes",
+			argsStr:     "\"file with \\\"quotes\\\" inside\"",
+			expected:    []string{"file with \"quotes\" inside"},
+			expectError: false,
+		},
+		{
+			name:        "empty quoted string",
+			argsStr:     "\"\"",
+			expected:    []string{""},
+			expectError: false,
+		},
+		{
+			name:        "unclosed quotes",
+			argsStr:     "\"unclosed quote",
+			expectError: true,
+		},
+		{
+			name:        "multiple spaces between args",
+			argsStr:     "arg1    arg2     \"arg 3\"",
+			expected:    []string{"arg1", "arg2", "arg 3"},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := parseArgs(tc.argsStr)
+
+			if tc.expectError {
+				assert.Error(t, err, "Expected error for input: %s", tc.argsStr)
+			} else {
+				assert.NoError(t, err, "Unexpected error for input: %s", tc.argsStr)
+				assert.Equal(t, tc.expected, result, "Result mismatch")
+			}
+		})
+	}
+}
