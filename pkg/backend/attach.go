@@ -100,7 +100,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		}
 	}
 
-	proc := b.getProcessor(filepath, cfg)
+	proc := b.getProcessor(filepath, cfg.Raw)
 	if proc == nil {
 		return fmt.Errorf("failed to get processor for file %s", filepath)
 	}
@@ -272,10 +272,10 @@ func (b *backend) getModelConfig(ctx context.Context, reference string, desc oci
 	return &model, nil
 }
 
-func (b *backend) getProcessor(filepath string, cfg *config.Attach) processor.Processor {
+func (b *backend) getProcessor(filepath string, rawMediaType bool) processor.Processor {
 	if modelfile.IsFileType(filepath, modelfile.ConfigFilePatterns) {
 		mediaType := modelspec.MediaTypeModelWeightConfig
-		if cfg.Raw {
+		if rawMediaType {
 			mediaType = modelspec.MediaTypeModelWeightConfigRaw
 		}
 		return processor.NewModelConfigProcessor(b.store, mediaType, []string{filepath})
@@ -283,7 +283,7 @@ func (b *backend) getProcessor(filepath string, cfg *config.Attach) processor.Pr
 
 	if modelfile.IsFileType(filepath, modelfile.ModelFilePatterns) {
 		mediaType := modelspec.MediaTypeModelWeight
-		if cfg.Raw {
+		if rawMediaType {
 			mediaType = modelspec.MediaTypeModelWeightRaw
 		}
 		return processor.NewModelProcessor(b.store, mediaType, []string{filepath})
@@ -291,7 +291,7 @@ func (b *backend) getProcessor(filepath string, cfg *config.Attach) processor.Pr
 
 	if modelfile.IsFileType(filepath, modelfile.CodeFilePatterns) {
 		mediaType := modelspec.MediaTypeModelCode
-		if cfg.Raw {
+		if rawMediaType {
 			mediaType = modelspec.MediaTypeModelCodeRaw
 		}
 		return processor.NewCodeProcessor(b.store, mediaType, []string{filepath})
@@ -299,7 +299,7 @@ func (b *backend) getProcessor(filepath string, cfg *config.Attach) processor.Pr
 
 	if modelfile.IsFileType(filepath, modelfile.DocFilePatterns) {
 		mediaType := modelspec.MediaTypeModelDoc
-		if cfg.Raw {
+		if rawMediaType {
 			mediaType = modelspec.MediaTypeModelDocRaw
 		}
 		return processor.NewDocProcessor(b.store, mediaType, []string{filepath})
