@@ -142,5 +142,6 @@ func init() {
 	rootCmd.AddCommand(tagCmd)
 	rootCmd.AddCommand(fetchCmd)
 	rootCmd.AddCommand(attachCmd)
+	rootCmd.AddCommand(uploadCmd)
 	rootCmd.AddCommand(modelfile.RootCmd)
 }

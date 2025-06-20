@@ -73,7 +73,7 @@ func TestGetProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.filepath, func(t *testing.T) {
-			proc := b.getProcessor(tt.filepath, &config.Attach{})
+			proc := b.getProcessor(tt.filepath, false)
 			if tt.wantType == "" {
 				assert.Nil(t, proc)
 			} else {
