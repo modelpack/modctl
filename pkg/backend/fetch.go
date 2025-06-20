@@ -82,11 +82,17 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	pb.Start()
 	defer pb.Stop()
 
-	g := &errgroup.Group{}
+	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
 	for _, layer := range layers {
 		g.Go(func() error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
 			return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer)
 		})
 	}

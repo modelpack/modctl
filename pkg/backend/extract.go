@@ -62,11 +62,16 @@ func (b *backend) Extract(ctx context.Context, target string, cfg *config.Extrac
 
 // exportModelArtifact exports the target model artifact to the output directory, which will open the artifact and extract to restore the original repo structure.
 func exportModelArtifact(ctx context.Context, store storage.Storage, manifest ocispec.Manifest, repo string, cfg *config.Extract) error {
-	g := &errgroup.Group{}
+	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
 			// pull the blob from the storage.
 			reader, err := store.PullBlob(ctx, repo, layer.Digest.String())
 			if err != nil {

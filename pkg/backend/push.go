@@ -73,10 +73,17 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	// note: the order is important, manifest should be pushed at last.
 
 	// copy the layers.
-	g := &errgroup.Group{}
+	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
+
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
 			return retry.Do(func() error {
 				return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag)
 			}, append(defaultRetryOpts, retry.Context(ctx))...)

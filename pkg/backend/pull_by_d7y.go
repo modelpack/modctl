@@ -95,11 +95,17 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 	defer pb.Stop()
 
 	// Process layers concurrently.
-	g := &errgroup.Group{}
+	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
 			return processLayer(ctx, pb, dfdaemon.NewDfdaemonDownloadClient(conn), ref, manifest, layer, authToken, cfg)
 		})
 	}
