@@ -119,11 +119,77 @@ func parseCommandLine(line string, start, end int) (Node, error) {
 // splitCommand splits the command line into the command and the args. Returns the
 // command and the args, and an error if the command line is invalid.
 // Example: "MODEL foo" returns "MODEL", ["foo"] and nil.
+// Example: "MODEL \"foo bar\"" returns "MODEL", ["foo bar"] and nil.
 func splitCommand(line string) (string, []string, error) {
-	parts := strings.Fields(line)
-	if len(parts) < 2 {
+	// First, split to get the command
+	firstSpace := strings.Index(line, " ")
+	if firstSpace == -1 {
 		return "", nil, fmt.Errorf("invalid command line: %s", line)
 	}
 
-	return strings.ToUpper(parts[0]), parts[1:], nil
+	command := strings.ToUpper(strings.TrimSpace(line[:firstSpace]))
+	argsStr := strings.TrimSpace(line[firstSpace+1:])
+
+	if argsStr == "" {
+		return "", nil, fmt.Errorf("invalid command line: %s", line)
+	}
+
+	// Parse the arguments, handling quoted strings
+	args, err := parseArgs(argsStr)
+	if err != nil {
+		return "", nil, fmt.Errorf("invalid args in command line: %s", line)
+	}
+
+	return command, args, nil
+}
+
+// parseArgs parses argument string, handling quoted strings with spaces
+func parseArgs(argsStr string) ([]string, error) {
+	var args []string
+	var current strings.Builder
+	var inQuotes bool
+	var escape bool
+	var hadQuotes bool // Track if we've seen quotes for the current argument
+
+	for _, r := range argsStr {
+		switch {
+		case escape:
+			// Previous character was escape, add this character literally
+			current.WriteRune(r)
+			escape = false
+		case r == '\\':
+			// Escape next character
+			escape = true
+		case r == '"':
+			// Toggle quote mode
+			inQuotes = !inQuotes
+			hadQuotes = true
+		case r == ' ' || r == '\t':
+			if inQuotes {
+				// Inside quotes, preserve the space
+				current.WriteRune(r)
+			} else {
+				// Outside quotes, this ends the current argument
+				if current.Len() > 0 || hadQuotes {
+					args = append(args, current.String())
+					current.Reset()
+					hadQuotes = false
+				}
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	// Check for unclosed quotes
+	if inQuotes {
+		return nil, fmt.Errorf("unclosed quotes in arguments")
+	}
+
+	// Add the final argument if any
+	if current.Len() > 0 || hadQuotes {
+		args = append(args, current.String())
+	}
+
+	return args, nil
 }

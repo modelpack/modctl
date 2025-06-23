@@ -570,8 +570,21 @@ func (mf *modelfile) writeMultiField(comment, cmd string, values []string, patte
 
 	sort.Strings(values)
 	for _, value := range values {
-		content += fmt.Sprintf("%s %s\n", cmd, value)
+		// Quote the value if it contains spaces or special characters
+		quotedValue := mf.quoteIfNeeded(value)
+		content += fmt.Sprintf("%s %s\n", cmd, quotedValue)
 	}
 
 	return content
+}
+
+// quoteIfNeeded adds quotes around a value if it contains spaces or special characters
+func (mf *modelfile) quoteIfNeeded(value string) string {
+	// Check if the value contains spaces or other characters that need quoting
+	if strings.ContainsAny(value, " \t\n\r") {
+		// Escape any existing quotes in the value
+		escaped := strings.ReplaceAll(value, `"`, `\"`)
+		return fmt.Sprintf(`"%s"`, escaped)
+	}
+	return value
 }
