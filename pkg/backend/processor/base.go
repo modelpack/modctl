@@ -20,8 +20,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
@@ -60,12 +62,33 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 	var matchedPaths []string
 	for _, pattern := range b.patterns {
-		matches, err := filepath.Glob(filepath.Join(absWorkDir, pattern))
-		if err != nil {
-			return nil, err
-		}
+		// Check if the pattern is a specific file path (no wildcards)
+		if !strings.ContainsAny(pattern, "*?[]") {
+			// For specific file paths, check if the file exists
+			var fullPath string
+			if filepath.IsAbs(pattern) {
+				fullPath = pattern
+			} else {
+				fullPath = filepath.Join(absWorkDir, pattern)
+			}
 
-		matchedPaths = append(matchedPaths, matches...)
+			if _, err := os.Stat(fullPath); err != nil {
+				if os.IsNotExist(err) {
+					return nil, fmt.Errorf("file specified in Modelfile does not exist: %s", pattern)
+				}
+				return nil, fmt.Errorf("failed to check file: %s, error: %w", pattern, err)
+			}
+
+			matchedPaths = append(matchedPaths, fullPath)
+		} else {
+			// For patterns with wildcards, use glob matching
+			matches, err := filepath.Glob(filepath.Join(absWorkDir, pattern))
+			if err != nil {
+				return nil, err
+			}
+
+			matchedPaths = append(matchedPaths, matches...)
+		}
 	}
 
 	sort.Strings(matchedPaths)
