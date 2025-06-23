@@ -1194,6 +1194,176 @@ func createHashSet(items []string) *hashset.Set {
 	return set
 }
 
+// TestModelfileWithSpacesInPaths tests handling of file paths containing spaces
+func TestModelfileWithSpacesInPaths(t *testing.T) {
+	// Test case 1: Create a modelfile with paths containing spaces
+	tempDir, err := os.MkdirTemp("", "spaces-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create files with spaces in their names
+	filesWithSpaces := map[string]string{
+		"config file.json":                        `{"model_type": "test"}`,
+		"model weights.bin":                       "model content",
+		"inference script.py":                     "print('hello')",
+		"README file.md":                          "# Documentation",
+		"nested dir/config.json":                  `{"test": true}`,
+		"path with/spaces here/model.safetensors": "model data",
+	}
+
+	// Create directories
+	err = os.MkdirAll(filepath.Join(tempDir, "nested dir"), 0755)
+	require.NoError(t, err)
+	err = os.MkdirAll(filepath.Join(tempDir, "path with", "spaces here"), 0755)
+	require.NoError(t, err)
+
+	// Create files
+	for filename, content := range filesWithSpaces {
+		fullPath := filepath.Join(tempDir, filename)
+		err = os.WriteFile(fullPath, []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Generate modelfile using workspace
+	config := &configmodelfile.GenerateConfig{
+		Name: "spaces-test",
+	}
+
+	mf, err := NewModelfileByWorkspace(tempDir, config)
+	require.NoError(t, err)
+
+	// Get the generated modelfile content
+	content := mf.Content()
+	contentStr := string(content)
+
+	// Print the content for debugging
+	t.Logf("Generated Modelfile content:\n%s", contentStr)
+
+	// Test case 2: Try to parse the generated modelfile
+	modelfileContent := contentStr
+
+	// Write the content to a temporary file
+	tempModelfile, err := os.CreateTemp("", "Modelfile-*")
+	require.NoError(t, err)
+	defer os.Remove(tempModelfile.Name())
+
+	_, err = tempModelfile.WriteString(modelfileContent)
+	require.NoError(t, err)
+	err = tempModelfile.Close()
+	require.NoError(t, err)
+
+	// Try to parse the modelfile back
+	parsedMf, err := NewModelfile(tempModelfile.Name())
+	if err != nil {
+		t.Logf("Error parsing modelfile with spaces: %v", err)
+		t.Logf("Modelfile content that failed to parse:\n%s", modelfileContent)
+	}
+	require.NoError(t, err, "Should be able to parse modelfile with spaces in paths")
+
+	// Verify that the parsed modelfile contains the expected files
+	configs := parsedMf.GetConfigs()
+	models := parsedMf.GetModels()
+	codes := parsedMf.GetCodes()
+	docs := parsedMf.GetDocs()
+
+	// Check that files with spaces are properly handled
+	allFiles := append(append(append(configs, models...), codes...), docs...)
+
+	expectedFiles := []string{
+		"config file.json",
+		"model weights.bin",
+		"inference script.py",
+		"README file.md",
+		"nested dir/config.json",
+		"path with/spaces here/model.safetensors",
+	}
+
+	for _, expectedFile := range expectedFiles {
+		found := false
+		for _, file := range allFiles {
+			if file == expectedFile {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "Expected file '%s' should be found in parsed modelfile", expectedFile)
+	}
+}
+
+// TestModelfileParsingWithQuotedPaths tests parsing of modelfile with quoted paths
+func TestModelfileParsingWithQuotedPaths(t *testing.T) {
+	testCases := []struct {
+		name        string
+		content     string
+		expectError bool
+		description string
+	}{
+		{
+			name: "unquoted_paths_with_spaces",
+			content: `# Test modelfile
+NAME test-model
+CONFIG config file.json
+MODEL model weights.bin
+CODE inference script.py
+DOC README file.md
+`,
+			expectError: true,
+			description: "Unquoted paths with spaces should cause parsing errors",
+		},
+		{
+			name: "quoted_paths_with_spaces",
+			content: `# Test modelfile
+NAME test-model
+CONFIG "config file.json"
+MODEL "model weights.bin"
+CODE "inference script.py"
+DOC "README file.md"
+`,
+			expectError: false,
+			description: "Quoted paths with spaces should parse correctly",
+		},
+		{
+			name: "mixed_quoted_unquoted",
+			content: `# Test modelfile
+NAME test-model
+CONFIG config.json
+MODEL "model weights.bin"
+CODE script.py
+DOC "README file.md"
+`,
+			expectError: false,
+			description: "Mix of quoted and unquoted paths should work",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create temporary modelfile
+			tempFile, err := os.CreateTemp("", "modelfile-test-*")
+			require.NoError(t, err)
+			defer os.Remove(tempFile.Name())
+
+			_, err = tempFile.WriteString(tc.content)
+			require.NoError(t, err)
+			err = tempFile.Close()
+			require.NoError(t, err)
+
+			// Try to parse
+			mf, err := NewModelfile(tempFile.Name())
+
+			if tc.expectError {
+				assert.Error(t, err, tc.description)
+			} else {
+				assert.NoError(t, err, tc.description)
+				if err == nil {
+					// Verify content is parsed correctly
+					assert.Equal(t, "test-model", mf.GetName())
+				}
+			}
+		})
+	}
+}
+
 // TestGenerateByModelConfig tests the generateByModelConfig method
 func TestGenerateByModelConfig(t *testing.T) {
 	testcases := []struct {
