@@ -30,6 +30,7 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
+	"github.com/sirupsen/logrus"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/avast/retry-go/v4"
@@ -50,6 +51,8 @@ type base struct {
 
 // Process implements the Processor interface, which can be reused by other processors.
 func (b *base) Process(ctx context.Context, builder build.Builder, workDir string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
+	logrus.Infof("processing %s, mediaType: %s, pattern: %s", b.name, b.mediaType, b.patterns)
+
 	processOpts := &processOptions{}
 	for _, opt := range opts {
 		opt(processOpts)
@@ -93,6 +96,8 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 	sort.Strings(matchedPaths)
 
+	logrus.Infof("processing %d %s files in total...", len(matchedPaths), b.name)
+
 	var (
 		mu          sync.Mutex
 		eg          *errgroup.Group
@@ -126,6 +131,8 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 		eg.Go(func() error {
 			return retry.Do(func() error {
+				logrus.Infof("processing %s file, path: %s", b.name, path)
+
 				desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, hooks.NewHooks(
 					hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 						return tracker.Add(internalpb.NormalizePrompt("Building layer"), name, size, reader)
@@ -138,11 +145,13 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 					}),
 				))
 				if err != nil {
+					logrus.Errorf("failed to build layer: %v, cancel other build process", err)
 					cancel()
 					return err
 				}
 
 				mu.Lock()
+				logrus.Infof("%s layer %s built successfully, digest: %s, size: %d", b.name, path, desc.Digest, desc.Size)
 				descriptors = append(descriptors, desc)
 				mu.Unlock()
 
@@ -154,6 +163,8 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
+
+	logrus.Infof("processed %d %s files in total successfully", len(matchedPaths), b.name)
 
 	sort.Slice(descriptors, func(i int, j int) bool {
 		// Sort by filepath by default.
@@ -168,6 +179,8 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 		return pathI < pathJ
 	})
+
+	logrus.Debugf("sorted layers: %+v", descriptors)
 
 	return descriptors, nil
 }

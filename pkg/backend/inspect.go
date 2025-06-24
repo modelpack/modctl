@@ -23,6 +23,7 @@ import (
 	"time"
 
 	godigest "github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
@@ -66,6 +67,7 @@ type InspectedModelArtifactLayer struct {
 
 // Inspect inspects the target from the storage.
 func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspect) (*InspectedModelArtifact, error) {
+	logrus.Infof("inspecting target: %s, cfg: %+v", target, cfg)
 	_, err := ParseReference(target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse target: %w", err)
@@ -81,10 +83,14 @@ func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspec
 		return nil, fmt.Errorf("failed to marshal manifest: %w", err)
 	}
 
+	logrus.Infof("manifest: %s", string(manifestRaw))
+
 	config, err := b.getModelConfig(ctx, target, manifest.Config, cfg.Remote, cfg.PlainHTTP, cfg.Insecure)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config: %w", err)
 	}
+
+	logrus.Infof("model config: %+v", config)
 
 	inspectedModelArtifact := &InspectedModelArtifact{
 		ID:           manifest.Config.Digest.String(),

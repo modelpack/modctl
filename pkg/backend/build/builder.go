@@ -34,6 +34,7 @@ import (
 	godigest "github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 
 	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
@@ -146,12 +147,15 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		return ocispec.Descriptor{}, fmt.Errorf("failed to create codec: %w", err)
 	}
 
+	logrus.Infof("building file %s...", relPath)
+
 	// Encode the content by codec depends on the media type.
 	reader, err := codec.Encode(path, workDirPath)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
 	}
 
+	logrus.Infof("calculating digest for %s...", relPath)
 	// Calculate the digest of the encoded content.
 	hash := sha256.New()
 	size, err := io.Copy(hash, reader)
@@ -160,14 +164,17 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 	}
 
 	digest := fmt.Sprintf("sha256:%x", hash.Sum(nil))
+	logrus.Infof("calculated digest for %s: %s", relPath, digest)
 
 	// Seek the reader to the beginning if supported,
 	// otherwise we needs to re-encode the content again.
 	if seeker, ok := reader.(io.ReadSeeker); ok {
+		logrus.Infof("seeking %s reader to beginning...", relPath)
 		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
 			return ocispec.Descriptor{}, fmt.Errorf("failed to seek reader: %w", err)
 		}
 	} else {
+		logrus.Infof("%s reader is not seekable, re-encoding...", relPath)
 		reader, err = codec.Encode(path, workDirPath)
 		if err != nil {
 			return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
@@ -216,6 +223,8 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 	if err != nil {
 		return desc, fmt.Errorf("failed to marshal metadata: %w", err)
 	}
+
+	logrus.Infof("retrieved file %s metadata: %s", relPath, string(metadataStr))
 
 	// Apply the metadata to the descriptor annotation.
 	if desc.Annotations == nil {

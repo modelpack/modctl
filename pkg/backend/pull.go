@@ -25,6 +25,7 @@ import (
 	retry "github.com/avast/retry-go/v4"
 	sha256 "github.com/minio/sha256-simd"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
@@ -35,6 +36,8 @@ import (
 
 // Pull pulls an artifact from a registry.
 func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) error {
+	logrus.Infof("pulling artifact %s, cfg: %+v", target, cfg)
+
 	// pullByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
 	if cfg.DragonflyEndpoint != "" {
 		return b.pullByDragonfly(ctx, target, cfg)
@@ -63,6 +66,8 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	if err := json.NewDecoder(manifestReader).Decode(&manifest); err != nil {
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
+
+	logrus.Infof("manifest: %+v", manifest)
 
 	// TODO: need refactor as currently use a global flag to control the progress bar render.
 	if cfg.DisableProgress {
@@ -96,6 +101,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		}
 	}
 
+	logrus.Infof("pulling %d layers in total...", len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -105,11 +111,13 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 			}
 
 			return retry.Do(func() error {
+				logrus.Infof("pulling layer %s...", layer.Digest)
 				// call the before hook.
 				cfg.Hooks.BeforePullLayer(layer, manifest)
 				err := fn(layer)
 				// call the after hook.
 				cfg.Hooks.AfterPullLayer(layer, err)
+				logrus.Infof("pulling layer %s done, err: %v", layer.Digest, err)
 				return err
 			}, append(defaultRetryOpts, retry.Context(ctx))...)
 		})
@@ -118,6 +126,8 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	if err := g.Wait(); err != nil {
 		return fmt.Errorf("failed to pull blob to local: %w", err)
 	}
+
+	logrus.Infof("pulled %d layers in total successfully", len(manifest.Layers))
 
 	// return earlier if extract from remote is enabled as config and manifest
 	// are not needed for this operation.
