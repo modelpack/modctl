@@ -26,6 +26,7 @@ import (
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	retry "github.com/avast/retry-go/v4"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
@@ -45,6 +46,7 @@ const (
 
 // Build builds the user materials into the model artifact which follows the Model Spec.
 func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string, cfg *config.Build) error {
+	logrus.Infof("building model artifact: %s, cfg: %+v", target, cfg)
 	// parse the repo name and tag name from target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -97,6 +99,8 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 
 	layers = append(layers, layerDescs...)
 
+	logrus.Infof("model artifact layers: %+v", layers)
+
 	revision := sourceInfo.Commit
 	if revision != "" && sourceInfo.Dirty {
 		revision += "-dirty"
@@ -113,6 +117,8 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		SourceURL:      sourceInfo.URL,
 		SourceRevision: revision,
 	}
+
+	logrus.Infof("model artifact config: %+v", modelConfig)
 
 	var configDesc ocispec.Descriptor
 	// Build the model config.

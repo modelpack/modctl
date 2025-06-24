@@ -28,6 +28,7 @@ import (
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 
 	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build"
@@ -59,6 +60,7 @@ var (
 
 // Attach attaches user materials into the model artifact which follows the Model Spec.
 func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attach) error {
+	logrus.Infof("attaching file %s, cfg: %+v", filepath, cfg)
 	srcManifest, err := b.getManifest(ctx, cfg.Source, cfg.OutputRemote, cfg.PlainHTTP, cfg.Insecure)
 	if err != nil {
 		return fmt.Errorf("failed to get source manifest: %w", err)
@@ -68,6 +70,8 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 	if err != nil {
 		return fmt.Errorf("failed to get source model config: %w", err)
 	}
+
+	logrus.Infof("source model config: %+v", srcModelConfig)
 
 	var foundLayer *ocispec.Descriptor
 	for _, layer := range srcManifest.Layers {
@@ -82,6 +86,8 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 			}
 		}
 	}
+
+	logrus.Infof("found original layer: %+v", foundLayer)
 
 	layers := srcManifest.Layers
 	if foundLayer != nil {
@@ -117,6 +123,8 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 	layers = append(layers, newLayers...)
 	sortLayers(layers)
 
+	logrus.Infof("new sorted layers: %+v", layers)
+
 	diffIDs := []godigest.Digest{}
 	for _, layer := range layers {
 		diffIDs = append(diffIDs, layer.Digest)
@@ -136,6 +144,9 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		Family:       srcModelConfig.Descriptor.Family,
 		Name:         srcModelConfig.Descriptor.Name,
 	}
+
+	logrus.Infof("new model config: %+v", modelConfig)
+
 	configDesc, err := builder.BuildConfig(ctx, layers, modelConfig, hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 			return pb.Add(internalpb.NormalizePrompt("Building config"), name, size, reader)

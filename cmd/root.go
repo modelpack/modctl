@@ -22,8 +22,10 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -33,6 +35,7 @@ import (
 )
 
 var rootConfig *config.Root
+var logFile *os.File
 
 // rootCmd represents the modctl command.
 var rootCmd = &cobra.Command{
@@ -53,8 +56,36 @@ var rootCmd = &cobra.Command{
 			}()
 		}
 
+		// Ensure log directory exists.
+		if err := os.MkdirAll(rootConfig.LogDir, 0755); err != nil {
+			return err
+		}
+
+		// Ensure log file exists.
+		var err error
+		logFile, err = os.OpenFile(filepath.Join(rootConfig.LogDir, "modctl.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			return err
+		}
+
+		logLevel, err := logrus.ParseLevel(rootConfig.LogLevel)
+		if err != nil {
+			return err
+		}
+
+		logrus.SetOutput(logFile)
+		logrus.SetLevel(logLevel)
+		logrus.SetFormatter(&logrus.TextFormatter{})
+
 		// TODO: need refactor as currently use a global flag to control the progress bar render.
 		internalpb.SetDisableProgress(rootConfig.DisableProgress)
+		return nil
+	},
+	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+		if logFile != nil {
+			return logFile.Close()
+		}
+
 		return nil
 	},
 }
@@ -88,6 +119,8 @@ func init() {
 	flags.BoolVar(&rootConfig.Pprof, "pprof", rootConfig.Pprof, "enable pprof")
 	flags.StringVar(&rootConfig.PprofAddr, "pprof-addr", rootConfig.PprofAddr, "specify the address for pprof")
 	flags.BoolVar(&rootConfig.DisableProgress, "no-progress", rootConfig.DisableProgress, "disable progress bar")
+	flags.StringVar(&rootConfig.LogDir, "log-dir", rootConfig.LogDir, "specify the log directory for modctl")
+	flags.StringVar(&rootConfig.LogLevel, "log-level", rootConfig.LogLevel, "specify the log level for modctl")
 
 	// Bind common flags.
 	if err := viper.BindPFlags(flags); err != nil {
