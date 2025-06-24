@@ -27,6 +27,7 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
+	"github.com/sirupsen/logrus"
 
 	retry "github.com/avast/retry-go/v4"
 	godigest "github.com/opencontainers/go-digest"
@@ -36,6 +37,7 @@ import (
 
 // Push pushes the image to the registry.
 func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) error {
+	logrus.Infof("pushing model artifact %s, cfg: %+v", target, cfg)
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -55,6 +57,8 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	if err != nil {
 		return fmt.Errorf("failed to pull the manifest: %w", err)
 	}
+
+	logrus.Infof("manifest: %s", string(manifestRaw))
 
 	var manifest ocispec.Manifest
 	if err := json.Unmarshal(manifestRaw, &manifest); err != nil {
@@ -76,6 +80,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
+	logrus.Infof("pushing %d layers in total...", len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -85,7 +90,12 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 			}
 
 			return retry.Do(func() error {
-				return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag)
+				logrus.Infof("pushing layer %s...", layer.Digest)
+				if err := pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag); err != nil {
+					return err
+				}
+				logrus.Infof("pushed layer %s successfully", layer.Digest)
+				return nil
 			}, append(defaultRetryOpts, retry.Context(ctx))...)
 		})
 	}

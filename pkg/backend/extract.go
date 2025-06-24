@@ -27,6 +27,7 @@ import (
 	"github.com/CloudNativeAI/modctl/pkg/config"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -39,6 +40,7 @@ const (
 
 // Extract extracts the model artifact.
 func (b *backend) Extract(ctx context.Context, target string, cfg *config.Extract) error {
+	logrus.Infof("extracting model artifact: %s, cfg: %+v", target, cfg)
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -57,6 +59,8 @@ func (b *backend) Extract(ctx context.Context, target string, cfg *config.Extrac
 		return fmt.Errorf("failed to unmarshal the manifest: %w", err)
 	}
 
+	logrus.Infof("manifest: %s", string(manifestRaw))
+
 	return exportModelArtifact(ctx, b.store, manifest, repo, cfg)
 }
 
@@ -65,6 +69,7 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
+	logrus.Infof("extracting %d layers in total...", len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -72,6 +77,8 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 				return ctx.Err()
 			default:
 			}
+
+			logrus.Infof("extracting layer %s...", layer.Digest.String())
 			// pull the blob from the storage.
 			reader, err := store.PullBlob(ctx, repo, layer.Digest.String())
 			if err != nil {
@@ -83,6 +90,8 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 			if err := extractLayer(layer, cfg.Output, bufferedReader); err != nil {
 				return fmt.Errorf("failed to extract layer %s: %w", layer.Digest.String(), err)
 			}
+
+			logrus.Infof("extracted layer %s successfully", layer.Digest.String())
 
 			return nil
 		})

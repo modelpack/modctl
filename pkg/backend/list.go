@@ -24,8 +24,8 @@ import (
 	"time"
 
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
-
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 // ModelArtifact is the data model to represent the model artifact.
@@ -44,6 +44,7 @@ type ModelArtifact struct {
 
 // List lists all the model artifacts.
 func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
+	logrus.Info("listing model artifacts")
 	modelArtifacts := []*ModelArtifact{}
 
 	// list all the repositories.
@@ -52,12 +53,16 @@ func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
 		return nil, fmt.Errorf("failed to list repositories: %w", err)
 	}
 
+	logrus.Infof("listed %d repositories: %+v", len(repos), repos)
+
 	// list all the tags in the repository.
 	for _, repo := range repos {
 		tags, err := b.store.ListTags(ctx, repo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list tags in repository %s: %w", repo, err)
 		}
+
+		logrus.Infof("listed %d tags in repository %s: %+v", len(tags), repo, tags)
 
 		// assemble the model artifact.
 		for _, tag := range tags {

@@ -19,11 +19,14 @@ package backend
 import (
 	"context"
 	"fmt"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Remove removes the target from the storage, notice that remove only removes the manifest,
 // the blobs may still be used by other manifests, so should use prune to remove the unused blobs.
 func (b *backend) Remove(ctx context.Context, target string) (string, error) {
+	logrus.Infof("removing target %s", target)
 	ref, err := ParseReference(target)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse target: %w", err)
@@ -43,6 +46,8 @@ func (b *backend) Remove(ctx context.Context, target string) (string, error) {
 	if err := b.store.DeleteManifest(ctx, repo, reference); err != nil {
 		return "", fmt.Errorf("failed to delete manifest %s: %w", reference, err)
 	}
+
+	logrus.Infof("manifest %s removed", reference)
 
 	return reference, nil
 }

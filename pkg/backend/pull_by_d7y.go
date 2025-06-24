@@ -30,6 +30,7 @@ import (
 	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/avast/retry-go/v4"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -47,6 +48,7 @@ const (
 
 // pullByDragonfly pulls and hardlinks blobs from Dragonfly gRPC service for remote extraction.
 func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *config.Pull) error {
+	logrus.Infof("pulling %s by Dragonfly", target)
 	// Parse reference and initialize remote client.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -70,6 +72,8 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 	if err := json.NewDecoder(manifestReader).Decode(&manifest); err != nil {
 		return fmt.Errorf("failed to decode manifest: %w", err)
 	}
+
+	logrus.Infof("manifest: %+v", manifest)
 
 	// Get authentication token.
 	authToken, err := getAuthToken(ctx, src, registry, repo)
@@ -98,6 +102,7 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
+	logrus.Infof("pulling %d layers in total...", len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -106,7 +111,12 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 			default:
 			}
 
-			return processLayer(ctx, pb, dfdaemon.NewDfdaemonDownloadClient(conn), ref, manifest, layer, authToken, cfg)
+			logrus.Infof("pulling layer %s...", layer.Digest)
+			if err := processLayer(ctx, pb, dfdaemon.NewDfdaemonDownloadClient(conn), ref, manifest, layer, authToken, cfg); err != nil {
+				return err
+			}
+			logrus.Infof("layer %s pulled successfully", layer.Digest)
+			return nil
 		})
 	}
 
@@ -220,8 +230,10 @@ func downloadAndExtractLayer(ctx context.Context, pb *internalpb.ProgressBar, cl
 
 		switch taskResp := resp.Response.(type) {
 		case *dfdaemon.DownloadTaskResponse_DownloadTaskStartedResponse:
+			logrus.Debugf("received DownloadTaskStartedResponse: %+v", taskResp)
 			pb.Add(internalpb.NormalizePrompt("Pulling blob"), desc.Digest.String(), desc.Size, nil)
 		case *dfdaemon.DownloadTaskResponse_DownloadPieceFinishedResponse:
+			logrus.Debugf("received DownloadPieceFinishedResponse: %+v", taskResp)
 			if bar := pb.Get(desc.Digest.String()); bar != nil {
 				bar.SetCurrent(bar.Current() + int64(taskResp.DownloadPieceFinishedResponse.Piece.Length))
 			}

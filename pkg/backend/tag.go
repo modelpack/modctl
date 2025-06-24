@@ -22,10 +22,12 @@ import (
 	"fmt"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 // Tag creates a new tag that refers to the source model artifact.
 func (b *backend) Tag(ctx context.Context, source, target string) error {
+	logrus.Infof("tagging source artifact %s to target %s", source, target)
 	srcRef, err := ParseReference(source)
 	if err != nil {
 		return fmt.Errorf("failed to parse source: %w", err)
@@ -41,6 +43,8 @@ func (b *backend) Tag(ctx context.Context, source, target string) error {
 		return fmt.Errorf("failed to pull manifest: %w", err)
 	}
 
+	logrus.Infof("manifest pulled from source artifact %s", string(manifestRaw))
+
 	var manifest ocispec.Manifest
 	if err := json.Unmarshal(manifestRaw, &manifest); err != nil {
 		return fmt.Errorf("failed to unmarshal manifest: %w", err)
@@ -53,14 +57,18 @@ func (b *backend) Tag(ctx context.Context, source, target string) error {
 	}
 
 	for _, layer := range layers {
+		logrus.Infof("mounting blob %s...", layer.Digest.String())
 		if err := b.store.MountBlob(ctx, srcRef.Repository(), targetRef.Repository(), layer); err != nil {
 			return fmt.Errorf("failed to mount blob %s: %w", layer.Digest.String(), err)
 		}
+		logrus.Infof("blob %s mounted successfully", layer.Digest.String())
 	}
 
 	if _, err := b.store.PushManifest(ctx, targetRef.Repository(), targetRef.Tag(), manifestRaw); err != nil {
 		return fmt.Errorf("failed to push manifest: %w", err)
 	}
+
+	logrus.Infof("manifest pushed to target artifact %s successfully", target)
 
 	return nil
 }

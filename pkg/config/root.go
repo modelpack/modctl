@@ -26,6 +26,8 @@ type Root struct {
 	Pprof           bool
 	PprofAddr       string
 	DisableProgress bool
+	LogDir          string
+	LogLevel        string
 }
 
 func NewRoot() (*Root, error) {
@@ -39,5 +41,7 @@ func NewRoot() (*Root, error) {
 		Pprof:           false,
 		PprofAddr:       "localhost:6060",
 		DisableProgress: false,
+		LogDir:          filepath.Join(user.HomeDir, ".modctl/logs"),
+		LogLevel:        "info",
 	}, nil
 }
