@@ -34,7 +34,7 @@ import (
 
 // Fetch fetches partial files to the output.
 func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) error {
-	logrus.Infof("fetching partial files, target: %s, cfg: %+v", target, cfg)
+	logrus.Infof("fetch: starting fetch operation for target %s [config: %+v]", target, cfg)
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -59,7 +59,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
 
-	logrus.Infof("manifest: %+v", manifest)
+	logrus.Debugf("fetch: loaded manifest for target %s [manifest: %+v]", target, manifest)
 
 	layers := []ocispec.Descriptor{}
 	// filter the layers by patterns.
@@ -89,7 +89,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("fetching %d layers in total...", len(layers))
+	logrus.Infof("fetch: processing matched layers [count: %d]", len(layers))
 	for _, layer := range layers {
 		g.Go(func() error {
 			select {
@@ -98,16 +98,20 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			default:
 			}
 
-			logrus.Infof("fetching layer %s...", layer.Digest)
+			logrus.Debugf("fetch: processing layer %s", layer.Digest)
 			if err := pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer); err != nil {
 				return err
 			}
 
-			logrus.Infof("layer %s fetched successfully", layer.Digest)
+			logrus.Debugf("fetch: successfully processed layer %s", layer.Digest)
 			return nil
 		})
 	}
 
-	logrus.Infof("fetched %d layers in total successfully", len(layers))
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	logrus.Infof("fetch: successfully fetched layers [count: %d]", len(layers))
+	return nil
 }

@@ -67,7 +67,7 @@ type InspectedModelArtifactLayer struct {
 
 // Inspect inspects the target from the storage.
 func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspect) (*InspectedModelArtifact, error) {
-	logrus.Infof("inspecting target: %s, cfg: %+v", target, cfg)
+	logrus.Infof("inspect: starting inspect operation for target %s [config: %+v]", target, cfg)
 	_, err := ParseReference(target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse target: %w", err)
@@ -83,14 +83,14 @@ func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspec
 		return nil, fmt.Errorf("failed to marshal manifest: %w", err)
 	}
 
-	logrus.Infof("manifest: %s", string(manifestRaw))
+	logrus.Debugf("inspect: loaded manifest for target %s [manifest: %s]", target, string(manifestRaw))
 
 	config, err := b.getModelConfig(ctx, target, manifest.Config, cfg.Remote, cfg.PlainHTTP, cfg.Insecure)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
-	logrus.Infof("model config: %+v", config)
+	logrus.Debugf("inspect: loaded model config for target %s [family: %s, name: %s]", target, config.Descriptor.Family, config.Descriptor.Name)
 
 	inspectedModelArtifact := &InspectedModelArtifact{
 		ID:           manifest.Config.Digest.String(),
@@ -116,5 +116,6 @@ func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspec
 		})
 	}
 
+	logrus.Infof("inspect: successfully inspected target %s", target)
 	return inspectedModelArtifact, nil
 }
