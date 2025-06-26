@@ -36,10 +36,11 @@ import (
 
 // Pull pulls an artifact from a registry.
 func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) error {
-	logrus.Infof("pulling artifact %s, cfg: %+v", target, cfg)
+	logrus.Infof("pull: starting pull operation for target %s [config: %+v]", target, cfg)
 
 	// pullByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
 	if cfg.DragonflyEndpoint != "" {
+		logrus.Infof("pull: using dragonfly for target %s", target)
 		return b.pullByDragonfly(ctx, target, cfg)
 	}
 
@@ -67,7 +68,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		return fmt.Errorf("failed to decode the manifest: %w", err)
 	}
 
-	logrus.Infof("manifest: %+v", manifest)
+	logrus.Debugf("pull: loaded manifest for target %s [manifest: %+v]", target, manifest)
 
 	// TODO: need refactor as currently use a global flag to control the progress bar render.
 	if cfg.DisableProgress {
@@ -101,7 +102,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		}
 	}
 
-	logrus.Infof("pulling %d layers in total...", len(manifest.Layers))
+	logrus.Infof("pull: processing layers for target %s [count: %d]", target, len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -111,13 +112,17 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 			}
 
 			return retry.Do(func() error {
-				logrus.Infof("pulling layer %s...", layer.Digest)
+				logrus.Debugf("pull: processing layer %s", layer.Digest)
 				// call the before hook.
 				cfg.Hooks.BeforePullLayer(layer, manifest)
 				err := fn(layer)
 				// call the after hook.
 				cfg.Hooks.AfterPullLayer(layer, err)
-				logrus.Infof("pulling layer %s done, err: %v", layer.Digest, err)
+				if err != nil {
+					logrus.Debugf("pull: failed to process layer %s: %v", layer.Digest, err)
+				} else {
+					logrus.Debugf("pull: successfully processed layer %s", layer.Digest)
+				}
 				return err
 			}, append(defaultRetryOpts, retry.Context(ctx))...)
 		})
@@ -127,7 +132,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		return fmt.Errorf("failed to pull blob to local: %w", err)
 	}
 
-	logrus.Infof("pulled %d layers in total successfully", len(manifest.Layers))
+	logrus.Infof("pull: successfully processed layers [count: %d]", len(manifest.Layers))
 
 	// return earlier if extract from remote is enabled as config and manifest
 	// are not needed for this operation.
@@ -156,8 +161,10 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		if err := exportModelArtifact(ctx, dst, manifest, repo, extractCfg); err != nil {
 			return fmt.Errorf("failed to export the artifact to the output directory: %w", err)
 		}
+		logrus.Infof("pull: successfully pulled and extracted artifact %s", target)
 	}
 
+	logrus.Infof("pull: successfully pulled artifact %s", target)
 	return nil
 }
 

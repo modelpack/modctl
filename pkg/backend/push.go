@@ -37,7 +37,7 @@ import (
 
 // Push pushes the image to the registry.
 func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) error {
-	logrus.Infof("pushing model artifact %s, cfg: %+v", target, cfg)
+	logrus.Infof("push: starting push operation for target %s [config: %+v]", target, cfg)
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -58,7 +58,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		return fmt.Errorf("failed to pull the manifest: %w", err)
 	}
 
-	logrus.Infof("manifest: %s", string(manifestRaw))
+	logrus.Debugf("push: loaded manifest for target %s [manifest: %s]", target, string(manifestRaw))
 
 	var manifest ocispec.Manifest
 	if err := json.Unmarshal(manifestRaw, &manifest); err != nil {
@@ -80,7 +80,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("pushing %d layers in total...", len(manifest.Layers))
+	logrus.Infof("push: processing layers for target %s [count: %d]", target, len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -90,11 +90,11 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 			}
 
 			return retry.Do(func() error {
-				logrus.Infof("pushing layer %s...", layer.Digest)
+				logrus.Debugf("push: processing layer %s", layer.Digest)
 				if err := pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag); err != nil {
 					return err
 				}
-				logrus.Infof("pushed layer %s successfully", layer.Digest)
+				logrus.Debugf("push: successfully processed layer %s", layer.Digest)
 				return nil
 			}, append(defaultRetryOpts, retry.Context(ctx))...)
 		})
@@ -123,6 +123,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
 
+	logrus.Infof("push: successfully pushed artifact %s", target)
 	return nil
 }
 

@@ -48,7 +48,7 @@ const (
 
 // pullByDragonfly pulls and hardlinks blobs from Dragonfly gRPC service for remote extraction.
 func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *config.Pull) error {
-	logrus.Infof("pulling %s by Dragonfly", target)
+	logrus.Infof("pull: starting dragonfly pull operation for target %s", target)
 	// Parse reference and initialize remote client.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -73,7 +73,7 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 		return fmt.Errorf("failed to decode manifest: %w", err)
 	}
 
-	logrus.Infof("manifest: %+v", manifest)
+	logrus.Debugf("pull: loaded manifest for target %s [manifest: %+v]", target, manifest)
 
 	// Get authentication token.
 	authToken, err := getAuthToken(ctx, src, registry, repo)
@@ -102,7 +102,7 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("pulling %d layers in total...", len(manifest.Layers))
+	logrus.Infof("pull: processing layers via dragonfly [count: %d]", len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -111,16 +111,21 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 			default:
 			}
 
-			logrus.Infof("pulling layer %s...", layer.Digest)
+			logrus.Debugf("pull: processing layer %s via dragonfly", layer.Digest)
 			if err := processLayer(ctx, pb, dfdaemon.NewDfdaemonDownloadClient(conn), ref, manifest, layer, authToken, cfg); err != nil {
 				return err
 			}
-			logrus.Infof("layer %s pulled successfully", layer.Digest)
+			logrus.Debugf("pull: successfully processed layer %s via dragonfly", layer.Digest)
 			return nil
 		})
 	}
 
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	logrus.Infof("pull: successfully pulled artifact %s via dragonfly", target)
+	return nil
 }
 
 // getAuthToken retrieves the authentication token for the registry.
@@ -230,10 +235,10 @@ func downloadAndExtractLayer(ctx context.Context, pb *internalpb.ProgressBar, cl
 
 		switch taskResp := resp.Response.(type) {
 		case *dfdaemon.DownloadTaskResponse_DownloadTaskStartedResponse:
-			logrus.Debugf("received DownloadTaskStartedResponse: %+v", taskResp)
+			logrus.Debugf("pull: dragonfly download started for layer %s", desc.Digest.String())
 			pb.Add(internalpb.NormalizePrompt("Pulling blob"), desc.Digest.String(), desc.Size, nil)
 		case *dfdaemon.DownloadTaskResponse_DownloadPieceFinishedResponse:
-			logrus.Debugf("received DownloadPieceFinishedResponse: %+v", taskResp)
+			logrus.Debugf("pull: dragonfly download progress for layer %s [piece length: %d]", desc.Digest.String(), taskResp.DownloadPieceFinishedResponse.Piece.Length)
 			if bar := pb.Get(desc.Digest.String()); bar != nil {
 				bar.SetCurrent(bar.Current() + int64(taskResp.DownloadPieceFinishedResponse.Piece.Length))
 			}

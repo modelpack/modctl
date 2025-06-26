@@ -40,7 +40,7 @@ const (
 
 // Extract extracts the model artifact.
 func (b *backend) Extract(ctx context.Context, target string, cfg *config.Extract) error {
-	logrus.Infof("extracting model artifact: %s, cfg: %+v", target, cfg)
+	logrus.Infof("extract: starting extract operation for target %s [config: %+v]", target, cfg)
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -59,7 +59,7 @@ func (b *backend) Extract(ctx context.Context, target string, cfg *config.Extrac
 		return fmt.Errorf("failed to unmarshal the manifest: %w", err)
 	}
 
-	logrus.Infof("manifest: %s", string(manifestRaw))
+	logrus.Debugf("extract: loaded manifest for target %s [manifest: %s]", target, string(manifestRaw))
 
 	return exportModelArtifact(ctx, b.store, manifest, repo, cfg)
 }
@@ -69,7 +69,7 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("extracting %d layers in total...", len(manifest.Layers))
+	logrus.Infof("extract: processing layers for target %s [count: %d]", repo, len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -78,7 +78,7 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 			default:
 			}
 
-			logrus.Infof("extracting layer %s...", layer.Digest.String())
+			logrus.Debugf("extract: processing layer %s", layer.Digest.String())
 			// pull the blob from the storage.
 			reader, err := store.PullBlob(ctx, repo, layer.Digest.String())
 			if err != nil {
@@ -91,13 +91,18 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 				return fmt.Errorf("failed to extract layer %s: %w", layer.Digest.String(), err)
 			}
 
-			logrus.Infof("extracted layer %s successfully", layer.Digest.String())
+			logrus.Debugf("extract: successfully processed layer %s", layer.Digest.String())
 
 			return nil
 		})
 	}
 
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	logrus.Infof("extract: successfully extracted model artifact %s", repo)
+	return nil
 }
 
 // extractLayer extracts the layer to the output directory.
