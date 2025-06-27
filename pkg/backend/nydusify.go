@@ -20,6 +20,8 @@ import (
 	"context"
 	"os"
 	"os/exec"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -29,6 +31,7 @@ const (
 
 // Nydusify is a function that converts a given model artifact to a nydus image.
 func (b *backend) Nydusify(ctx context.Context, source string) (string, error) {
+	logrus.Infof("nydusify: starting nydusify operation for source %s", source)
 	target := source + nydusImageTagSuffix
 	cmd := exec.CommandContext(
 		ctx,
@@ -51,5 +54,6 @@ func (b *backend) Nydusify(ctx context.Context, source string) (string, error) {
 		return "", err
 	}
 
+	logrus.Infof("nydusify: successfully nydusified source %s to target %s", source, target)
 	return target, nil
 }

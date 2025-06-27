@@ -51,7 +51,7 @@ type base struct {
 
 // Process implements the Processor interface, which can be reused by other processors.
 func (b *base) Process(ctx context.Context, builder build.Builder, workDir string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
-	logrus.Infof("processing %s, mediaType: %s, pattern: %s", b.name, b.mediaType, b.patterns)
+	logrus.Infof("processor: starting %s processing [mediaType: %s, patterns: %v]", b.name, b.mediaType, b.patterns)
 
 	processOpts := &processOptions{}
 	for _, opt := range opts {
@@ -96,7 +96,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 	sort.Strings(matchedPaths)
 
-	logrus.Infof("processing %d %s files in total...", len(matchedPaths), b.name)
+	logrus.Infof("processor: processing %s files [count: %d]", b.name, len(matchedPaths))
 
 	var (
 		mu          sync.Mutex
@@ -131,7 +131,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 		eg.Go(func() error {
 			return retry.Do(func() error {
-				logrus.Infof("processing %s file, path: %s", b.name, path)
+				logrus.Debugf("processor: processing %s file %s", b.name, path)
 
 				desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, hooks.NewHooks(
 					hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
@@ -145,13 +145,13 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 					}),
 				))
 				if err != nil {
-					logrus.Errorf("failed to build layer: %v, cancel other build process", err)
+					logrus.Errorf("processor: failed to build layer for %s file %s: %v", b.name, path, err)
 					cancel()
 					return err
 				}
 
 				mu.Lock()
-				logrus.Infof("%s layer %s built successfully, digest: %s, size: %d", b.name, path, desc.Digest, desc.Size)
+				logrus.Debugf("processor: successfully built %s layer for file %s [digest: %s, size: %d]", b.name, path, desc.Digest, desc.Size)
 				descriptors = append(descriptors, desc)
 				mu.Unlock()
 
@@ -164,7 +164,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		return nil, err
 	}
 
-	logrus.Infof("processed %d %s files in total successfully", len(matchedPaths), b.name)
+	logrus.Infof("processor: successfully processed %s files [count: %d]", b.name, len(matchedPaths))
 
 	sort.Slice(descriptors, func(i int, j int) bool {
 		// Sort by filepath by default.
@@ -180,7 +180,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		return pathI < pathJ
 	})
 
-	logrus.Debugf("sorted layers: %+v", descriptors)
+	logrus.Debugf("processor: sorted %s layers [layers: %+v]", b.name, descriptors)
 
 	return descriptors, nil
 }
