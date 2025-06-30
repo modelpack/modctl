@@ -5,7 +5,7 @@ go 1.24.1
 require (
 	d7y.io/api/v2 v2.1.39
 	github.com/CloudNativeAI/model-spec v0.0.6
-	github.com/antgroup/hugescm v0.18.0
+	github.com/antgroup/hugescm v0.18.2
 	github.com/avast/retry-go/v4 v4.6.1
 	github.com/briandowns/spinner v1.23.2
 	github.com/distribution/distribution/v3 v3.0.0
@@ -62,7 +62,7 @@ require (
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
@@ -110,7 +110,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.40.0 // indirect
+	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.32.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
