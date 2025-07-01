@@ -44,7 +44,7 @@ type ModelArtifact struct {
 
 // List lists all the model artifacts.
 func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
-	logrus.Info("listing model artifacts")
+	logrus.Info("list: starting list operation for model artifacts")
 	modelArtifacts := []*ModelArtifact{}
 
 	// list all the repositories.
@@ -53,7 +53,7 @@ func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
 		return nil, fmt.Errorf("failed to list repositories: %w", err)
 	}
 
-	logrus.Infof("listed %d repositories: %+v", len(repos), repos)
+	logrus.Debugf("list: loaded repositories [count: %d]", len(repos))
 
 	// list all the tags in the repository.
 	for _, repo := range repos {
@@ -62,7 +62,7 @@ func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
 			return nil, fmt.Errorf("failed to list tags in repository %s: %w", repo, err)
 		}
 
-		logrus.Infof("listed %d tags in repository %s: %+v", len(tags), repo, tags)
+		logrus.Debugf("list: loaded tags for repository %s [count: %d]", repo, len(tags))
 
 		// assemble the model artifact.
 		for _, tag := range tags {
@@ -79,6 +79,7 @@ func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
 		return modelArtifacts[i].CreatedAt.After(modelArtifacts[j].CreatedAt)
 	})
 
+	logrus.Infof("list: successfully listed model artifacts [count: %d]", len(modelArtifacts))
 	return modelArtifacts, nil
 }
 

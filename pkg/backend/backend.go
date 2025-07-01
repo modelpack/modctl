@@ -34,6 +34,9 @@ type Backend interface {
 	// Attach attaches user materials into the model artifact which follows the Model Spec.
 	Attach(ctx context.Context, filepath string, cfg *config.Attach) error
 
+	// Upload uploads the file to a model artifact repository in advance, but will not push config and manifest.
+	Upload(ctx context.Context, filepath string, cfg *config.Upload) error
+
 	// Build builds the user materials into the model artifact which follows the Model Spec.
 	Build(ctx context.Context, modelfilePath, workDir, target string, cfg *config.Build) error
 
