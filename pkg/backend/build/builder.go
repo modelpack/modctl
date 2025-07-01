@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -35,11 +36,12 @@ import (
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 
 	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
 	"github.com/CloudNativeAI/modctl/pkg/backend/build/interceptor"
-	"github.com/CloudNativeAI/modctl/pkg/codec"
+	pkgcodec "github.com/CloudNativeAI/modctl/pkg/codec"
 	"github.com/CloudNativeAI/modctl/pkg/storage"
 )
 
@@ -142,12 +144,12 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		return ocispec.Descriptor{}, fmt.Errorf("failed to get relative path: %w", err)
 	}
 
-	codec, err := codec.New(codec.TypeFromMediaType(mediaType))
+	codec, err := pkgcodec.New(pkgcodec.TypeFromMediaType(mediaType))
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to create codec: %w", err)
 	}
 
-	logrus.Infof("building file %s...", relPath)
+	logrus.Debugf("builder: starting build layer for file %s", relPath)
 
 	// Encode the content by codec depends on the media type.
 	reader, err := codec.Encode(path, workDirPath)
@@ -155,30 +157,9 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
 	}
 
-	logrus.Infof("calculating digest for %s...", relPath)
-	// Calculate the digest of the encoded content.
-	hash := sha256.New()
-	size, err := io.Copy(hash, reader)
+	reader, digest, size, err := computeDigestAndSize(mediaType, path, workDirPath, info, reader, codec)
 	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to copy content to hash: %w", err)
-	}
-
-	digest := fmt.Sprintf("sha256:%x", hash.Sum(nil))
-	logrus.Infof("calculated digest for %s: %s", relPath, digest)
-
-	// Seek the reader to the beginning if supported,
-	// otherwise we needs to re-encode the content again.
-	if seeker, ok := reader.(io.ReadSeeker); ok {
-		logrus.Infof("seeking %s reader to beginning...", relPath)
-		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
-			return ocispec.Descriptor{}, fmt.Errorf("failed to seek reader: %w", err)
-		}
-	} else {
-		logrus.Infof("%s reader is not seekable, re-encoding...", relPath)
-		reader, err = codec.Encode(path, workDirPath)
-		if err != nil {
-			return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
-		}
+		return ocispec.Descriptor{}, fmt.Errorf("failed to compute digest and size: %w", err)
 	}
 
 	var (
@@ -213,24 +194,10 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		applyDesc(&desc)
 	}
 
-	// Retrieve the file metadata.
-	metadata, err := getFileMetadata(path)
-	if err != nil {
-		return desc, fmt.Errorf("failed to retrieve file metadata: %w", err)
+	// Add file metadata to descriptor.
+	if err := addFileMetadata(&desc, path, relPath); err != nil {
+		return desc, err
 	}
-
-	metadataStr, err := json.Marshal(metadata)
-	if err != nil {
-		return desc, fmt.Errorf("failed to marshal metadata: %w", err)
-	}
-
-	logrus.Infof("retrieved file %s metadata: %s", relPath, string(metadataStr))
-
-	// Apply the metadata to the descriptor annotation.
-	if desc.Annotations == nil {
-		desc.Annotations = make(map[string]string)
-	}
-	desc.Annotations[modelspec.AnnotationFileMetadata] = string(metadataStr)
 
 	return desc, nil
 }
@@ -315,6 +282,109 @@ func buildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descripto
 	}, nil
 }
 
+// computeDigestAndSize computes the digest and size for the encoded content, using xattrs if available.
+func computeDigestAndSize(mediaType, path, workDirPath string, info os.FileInfo, reader io.Reader, codec pkgcodec.Codec) (io.Reader, string, int64, error) {
+	var digest string
+	var size int64
+
+	if pkgcodec.IsRawMediaType(mediaType) {
+		// By default let's assume the mtime and size has changed.
+		mtimeChanged := true
+		sizeChanged := true
+
+		if mtime, err := getXattr(path, xattrMtimeKey(mediaType)); err == nil {
+			if string(mtime) == fmt.Sprintf("%d", info.ModTime().UnixNano()) {
+				mtimeChanged = false
+			}
+		}
+
+		if sizeBytes, err := getXattr(path, xattrSizeKey(mediaType)); err == nil {
+			if parsedSize, err := strconv.ParseInt(string(sizeBytes), 10, 64); err == nil {
+				if parsedSize == info.Size() {
+					sizeChanged = false
+				}
+			}
+		}
+
+		if !mtimeChanged && !sizeChanged {
+			// Check xattrs for cached digest and size.
+			if sha256, err := getXattr(path, xattrSha256Key(mediaType)); err == nil {
+				digest = string(sha256)
+				logrus.Infof("builder: retrieved sha256 hash from xattr for file %s [digest: %s]", path, digest)
+			}
+
+			if sizeBytes, err := getXattr(path, xattrSizeKey(mediaType)); err == nil {
+				if parsedSize, err := strconv.ParseInt(string(sizeBytes), 10, 64); err == nil {
+					size = parsedSize
+					logrus.Infof("builder: retrieved size from xattr for file %s [size: %d]", path, size)
+				}
+			}
+		}
+	}
+
+	// Compute digest and size if not retrieved from xattrs.
+	if digest == "" {
+		logrus.Infof("builder: calculating digest for file %s", path)
+		var err error
+		hash := sha256.New()
+		size, err = io.Copy(hash, reader)
+		if err != nil {
+			return reader, "", 0, fmt.Errorf("failed to copy content to hash: %w", err)
+		}
+		digest = fmt.Sprintf("sha256:%x", hash.Sum(nil))
+		logrus.Infof("builder: calculated digest for file %s [digest: %s]", path, digest)
+
+		// Reset reader
+		reader, err = resetReader(reader, path, workDirPath, codec)
+		if err != nil {
+			return reader, "", 0, err
+		}
+
+		// Store xattrs if raw media type.
+		if pkgcodec.IsRawMediaType(mediaType) {
+			setXattr(path, xattrMtimeKey(mediaType), fmt.Appendf([]byte{}, "%d", info.ModTime().UnixNano()))
+			setXattr(path, xattrSha256Key(mediaType), []byte(digest))
+			setXattr(path, xattrSizeKey(mediaType), fmt.Appendf([]byte{}, "%d", size))
+		}
+	}
+
+	return reader, digest, size, nil
+}
+
+// resetReader resets the reader to the beginning or re-encodes if not seekable.
+func resetReader(reader io.Reader, path, workDirPath string, codec pkgcodec.Codec) (io.Reader, error) {
+	if seeker, ok := reader.(io.ReadSeeker); ok {
+		logrus.Debugf("builder: seeking reader to beginning for file %s", path)
+		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+			return nil, fmt.Errorf("failed to seek reader: %w", err)
+		}
+		return reader, nil
+	}
+
+	logrus.Debugf("builder: reader not seekable, re-encoding file %s", path)
+	return codec.Encode(path, workDirPath)
+}
+
+// addFileMetadata adds file metadata to the descriptor.
+func addFileMetadata(desc *ocispec.Descriptor, path, relPath string) error {
+	metadata, err := getFileMetadata(path)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve file metadata: %w", err)
+	}
+
+	metadataStr, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	logrus.Infof("builder: retrieved metadata for file %s [metadata: %s]", relPath, string(metadataStr))
+
+	if desc.Annotations == nil {
+		desc.Annotations = make(map[string]string)
+	}
+	desc.Annotations[modelspec.AnnotationFileMetadata] = string(metadataStr)
+	return nil
+}
+
 // splitReader splits the original reader into two readers.
 func splitReader(original io.Reader) (io.Reader, io.Reader) {
 	r1, w1 := io.Pipe()
@@ -367,4 +437,53 @@ func getFileMetadata(path string) (modelspec.FileMetadata, error) {
 	}
 
 	return metadata, nil
+}
+
+func xattrSha256Key(mediaType string) string {
+	// Uniformity between linux and mac platforms is simplified by adding the prefix 'user.',
+	// because the key may be unlimited under mac,
+	// but on linux, in some cases, the user can only manipulate the user space.
+	return fmt.Sprintf("user.%s.sha256", mediaType)
+}
+
+func xattrSizeKey(mediaType string) string {
+	// Uniformity between linux and mac platforms is simplified by adding the prefix 'user.',
+	// because the key may be unlimited under mac,
+	// but on linux, in some cases, the user can only manipulate the user space.
+	return fmt.Sprintf("user.%s.size", mediaType)
+}
+
+func xattrMtimeKey(mediaType string) string {
+	// Uniformity between linux and mac platforms is simplified by adding the prefix 'user.',
+	// because the key may be unlimited under mac,
+	// but on linux, in some cases, the user can only manipulate the user space.
+	return fmt.Sprintf("user.%s.mtime", mediaType)
+}
+
+// getXattr retrieves an xattr value for a given key.
+func getXattr(path, key string) ([]byte, error) {
+	var value []byte
+	sz, err := unix.Getxattr(path, key, value)
+	if err != nil {
+		logrus.Warnf("builder: failed to get xattr %s for file %s: %v", key, path, err)
+		return nil, err
+	}
+
+	value = make([]byte, sz)
+	_, err = unix.Getxattr(path, key, value)
+	if err != nil {
+		logrus.Warnf("builder: failed to get xattr %s for file %s: %v", key, path, err)
+		return nil, err
+	}
+
+	return value, nil
+}
+
+// setXattr sets an xattr value for a given key.
+func setXattr(path, key string, value []byte) {
+	if err := unix.Setxattr(path, key, value, 0); err != nil {
+		logrus.Warnf("builder: failed to set xattr %s for file %s: %v", key, path, err)
+	} else {
+		logrus.Infof("builder: set xattr %s for file %s: %s", key, path, string(value))
+	}
 }

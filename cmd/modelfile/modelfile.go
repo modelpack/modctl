@@ -17,8 +17,6 @@
 package modelfile
 
 import (
-	"github.com/sirupsen/logrus"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -32,8 +30,6 @@ var RootCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logrus.Debug("modctl modelfile is running")
-
 		return nil
 	},
 }
