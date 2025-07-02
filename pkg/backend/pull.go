@@ -119,10 +119,10 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 				// call the after hook.
 				cfg.Hooks.AfterPullLayer(layer, err)
 				if err != nil {
-					logrus.Debugf("pull: failed to process layer %s: %v", layer.Digest, err)
-				} else {
-					logrus.Debugf("pull: successfully processed layer %s", layer.Digest)
+					err = fmt.Errorf("pull: failed to process layer %s: %w", layer.Digest, err)
+					logrus.Error(err)
 				}
+
 				return err
 			}, append(defaultRetryOpts, retry.Context(ctx))...)
 		})

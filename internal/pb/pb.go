@@ -24,6 +24,7 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/sirupsen/logrus"
 	mpbv8 "github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
@@ -154,7 +155,7 @@ func (p *ProgressBar) Abort(name string, err error) {
 	p.mu.RUnlock()
 
 	if ok {
-		// TODO: Log error message.
+		logrus.Errorf("abort the progress bar[%s] as error occurred: %v", name, err)
 		bar.Abort(true)
 	}
 }
