@@ -165,11 +165,19 @@ func buildBlobURL(ref Referencer, plainHTTP bool, digest string) string {
 
 // processLayer handles downloading and extracting a single layer.
 func processLayer(ctx context.Context, pb *internalpb.ProgressBar, client dfdaemon.DfdaemonDownloadClient, ref Referencer, manifest ocispec.Manifest, desc ocispec.Descriptor, authToken string, cfg *config.Pull) error {
-	cfg.Hooks.BeforePullLayer(desc, manifest) // Call before hook
 	err := retry.Do(func() error {
-		return downloadAndExtractLayer(ctx, pb, client, ref, desc, authToken, cfg)
+		logrus.Debugf("pull: processing layer %s", desc.Digest)
+		cfg.Hooks.BeforePullLayer(desc, manifest) // Call before hook
+		err := downloadAndExtractLayer(ctx, pb, client, ref, desc, authToken, cfg)
+		cfg.Hooks.AfterPullLayer(desc, err) // Call after hook
+		if err != nil {
+			err = fmt.Errorf("pull: failed to download and extract layer %s: %w", desc.Digest, err)
+			logrus.Error(err)
+		}
+
+		return err
 	}, append(defaultRetryOpts, retry.Context(ctx))...)
-	cfg.Hooks.AfterPullLayer(desc, err) // Call after hook
+
 	return err
 }
 
