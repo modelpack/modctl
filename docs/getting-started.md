@@ -151,6 +151,14 @@ $ modctl attach foo.txt -s registry.com/models/llama3:v1.0.0 -t registry.com/mod
 $ modctl attach foo.txt -s registry.com/models/llama3:v1.0.0 -t registry.com/models/llama3:v1.0.1 --output-remote
 ```
 
+### Upload
+
+The `upload` command allows you to pre-upload a file to a repository. This is useful for saving overall build time by uploading large files in parallel with other tasks. Please note that this command only uploads file blobs in advance; you still need to run the `build` command at the end to create and upload the model's config and manifest. Since the large file data is already in the repository, the final build will be much faster.
+
+```shell
+$ modctl upload model-00001-of-00003.safetensors --repo registry.com/models/llama3
+```
+
 
 ### Cleanup
 
