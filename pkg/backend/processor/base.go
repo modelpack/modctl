@@ -145,13 +145,14 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 					}),
 				))
 				if err != nil {
-					logrus.Errorf("processor: failed to build layer for %s file %s: %v", b.name, path, err)
+					err = fmt.Errorf("processor: failed to build layer for %s file %s: %w", b.name, path, err)
+					logrus.Error(err)
 					cancel()
 					return err
 				}
 
-				mu.Lock()
 				logrus.Debugf("processor: successfully built %s layer for file %s [digest: %s, size: %d]", b.name, path, desc.Digest, desc.Size)
+				mu.Lock()
 				descriptors = append(descriptors, desc)
 				mu.Unlock()
 

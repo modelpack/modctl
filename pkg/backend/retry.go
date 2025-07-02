@@ -23,8 +23,8 @@ import (
 )
 
 var defaultRetryOpts = []retry.Option{
-	retry.Attempts(3),
+	retry.Attempts(4),
 	retry.DelayType(retry.BackOffDelay),
-	retry.Delay(5 * time.Second),
-	retry.MaxDelay(10 * time.Second),
+	retry.Delay(10 * time.Second),
+	retry.MaxDelay(20 * time.Second),
 }
