@@ -88,17 +88,17 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 
 	// copy the layers.
 	dst := b.store
-	g, ctx := errgroup.WithContext(ctx)
+	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
 	var fn func(desc ocispec.Descriptor) error
 	if cfg.ExtractFromRemote {
 		fn = func(desc ocispec.Descriptor) error {
-			return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, cfg.ExtractDir, desc)
+			return pullAndExtractFromRemote(gctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, cfg.ExtractDir, desc)
 		}
 	} else {
 		fn = func(desc ocispec.Descriptor) error {
-			return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, dst, desc, repo, tag)
+			return pullIfNotExist(gctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, dst, desc, repo, tag)
 		}
 	}
 
@@ -106,8 +106,8 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
-			case <-ctx.Done():
-				return ctx.Err()
+			case <-gctx.Done():
+				return gctx.Err()
 			default:
 			}
 
@@ -124,7 +124,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 				}
 
 				return err
-			}, append(defaultRetryOpts, retry.Context(ctx))...)
+			}, append(defaultRetryOpts, retry.Context(gctx))...)
 		})
 	}
 

@@ -77,26 +77,26 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	// note: the order is important, manifest should be pushed at last.
 
 	// copy the layers.
-	g, ctx := errgroup.WithContext(ctx)
+	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
 	logrus.Infof("push: processing layers for target %s [count: %d]", target, len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
-			case <-ctx.Done():
-				return ctx.Err()
+			case <-gctx.Done():
+				return gctx.Err()
 			default:
 			}
 
 			return retry.Do(func() error {
 				logrus.Debugf("push: processing layer %s", layer.Digest)
-				if err := pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag); err != nil {
+				if err := pushIfNotExist(gctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag); err != nil {
 					return err
 				}
 				logrus.Debugf("push: successfully processed layer %s", layer.Digest)
 				return nil
-			}, append(defaultRetryOpts, retry.Context(ctx))...)
+			}, append(defaultRetryOpts, retry.Context(gctx))...)
 		})
 	}
 
