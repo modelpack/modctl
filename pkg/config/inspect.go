@@ -20,6 +20,7 @@ type Inspect struct {
 	Remote    bool
 	PlainHTTP bool
 	Insecure  bool
+	Config    bool
 }
 
 func NewInspect() *Inspect {
@@ -27,5 +28,6 @@ func NewInspect() *Inspect {
 		Remote:    false,
 		PlainHTTP: false,
 		Insecure:  false,
+		Config:    false,
 	}
 }

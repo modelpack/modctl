@@ -49,6 +49,7 @@ func init() {
 	flags.BoolVar(&inspectConfig.Remote, "remote", false, "inspect model artifact from remote registry")
 	flags.BoolVar(&inspectConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
 	flags.BoolVar(&inspectConfig.Insecure, "insecure", false, "allow insecure connections")
+	flags.BoolVar(&inspectConfig.Config, "config", false, "inspect the config of the model artifact")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache inspect flags to viper: %w", err))

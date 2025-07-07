@@ -131,7 +131,8 @@ func TestInspect(t *testing.T) {
 	mockStore.On("PullManifest", ctx, "example.com/repo", "tag").Return([]byte(manifest), "sha256:9ca701e8784e5656e2c36f10f82410a0af4c44f859590a28a3d1519ee1eea89d", nil)
 	mockStore.On("PullBlob", ctx, "example.com/repo", "sha256:e31b55920173ba79526491fbd01efe609c1d0d72c3a83df85b2c4fe74df2eea2").Return(io.NopCloser(bytes.NewReader([]byte(config))), nil)
 
-	inspected, err := b.Inspect(ctx, target, &pkgconfig.Inspect{})
+	inspectedAny, err := b.Inspect(ctx, target, &pkgconfig.Inspect{})
+	inspected := inspectedAny.(*InspectedModelArtifact)
 	assert.NoError(t, err)
 	assert.Equal(t, "sha256:e31b55920173ba79526491fbd01efe609c1d0d72c3a83df85b2c4fe74df2eea2", inspected.ID)
 	assert.Equal(t, "sha256:9ca701e8784e5656e2c36f10f82410a0af4c44f859590a28a3d1519ee1eea89d", inspected.Digest)

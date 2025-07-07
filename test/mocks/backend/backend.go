@@ -235,23 +235,23 @@ func (_c *Backend_Fetch_Call) RunAndReturn(run func(context.Context, string, *co
 }
 
 // Inspect provides a mock function with given fields: ctx, target, cfg
-func (_m *Backend) Inspect(ctx context.Context, target string, cfg *config.Inspect) (*backend.InspectedModelArtifact, error) {
+func (_m *Backend) Inspect(ctx context.Context, target string, cfg *config.Inspect) (interface{}, error) {
 	ret := _m.Called(ctx, target, cfg)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Inspect")
 	}
 
-	var r0 *backend.InspectedModelArtifact
+	var r0 interface{}
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Inspect) (*backend.InspectedModelArtifact, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Inspect) (interface{}, error)); ok {
 		return rf(ctx, target, cfg)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Inspect) *backend.InspectedModelArtifact); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Inspect) interface{}); ok {
 		r0 = rf(ctx, target, cfg)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*backend.InspectedModelArtifact)
+			r0 = ret.Get(0).(interface{})
 		}
 	}
 
@@ -284,12 +284,12 @@ func (_c *Backend_Inspect_Call) Run(run func(ctx context.Context, target string,
 	return _c
 }
 
-func (_c *Backend_Inspect_Call) Return(_a0 *backend.InspectedModelArtifact, _a1 error) *Backend_Inspect_Call {
+func (_c *Backend_Inspect_Call) Return(_a0 interface{}, _a1 error) *Backend_Inspect_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *Backend_Inspect_Call) RunAndReturn(run func(context.Context, string, *config.Inspect) (*backend.InspectedModelArtifact, error)) *Backend_Inspect_Call {
+func (_c *Backend_Inspect_Call) RunAndReturn(run func(context.Context, string, *config.Inspect) (interface{}, error)) *Backend_Inspect_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -751,6 +751,54 @@ func (_c *Backend_Tag_Call) Return(_a0 error) *Backend_Tag_Call {
 }
 
 func (_c *Backend_Tag_Call) RunAndReturn(run func(context.Context, string, string) error) *Backend_Tag_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Upload provides a mock function with given fields: ctx, filepath, cfg
+func (_m *Backend) Upload(ctx context.Context, filepath string, cfg *config.Upload) error {
+	ret := _m.Called(ctx, filepath, cfg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Upload")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *config.Upload) error); ok {
+		r0 = rf(ctx, filepath, cfg)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Backend_Upload_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Upload'
+type Backend_Upload_Call struct {
+	*mock.Call
+}
+
+// Upload is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filepath string
+//   - cfg *config.Upload
+func (_e *Backend_Expecter) Upload(ctx interface{}, filepath interface{}, cfg interface{}) *Backend_Upload_Call {
+	return &Backend_Upload_Call{Call: _e.mock.On("Upload", ctx, filepath, cfg)}
+}
+
+func (_c *Backend_Upload_Call) Run(run func(ctx context.Context, filepath string, cfg *config.Upload)) *Backend_Upload_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(*config.Upload))
+	})
+	return _c
+}
+
+func (_c *Backend_Upload_Call) Return(_a0 error) *Backend_Upload_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Backend_Upload_Call) RunAndReturn(run func(context.Context, string, *config.Upload) error) *Backend_Upload_Call {
 	_c.Call.Return(run)
 	return _c
 }
