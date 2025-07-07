@@ -66,7 +66,7 @@ type InspectedModelArtifactLayer struct {
 }
 
 // Inspect inspects the target from the storage.
-func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspect) (*InspectedModelArtifact, error) {
+func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspect) (any, error) {
 	logrus.Infof("inspect: starting inspect operation for target %s [config: %+v]", target, cfg)
 	_, err := ParseReference(target)
 	if err != nil {
@@ -91,6 +91,10 @@ func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspec
 	}
 
 	logrus.Debugf("inspect: loaded model config for target %s [family: %s, name: %s]", target, config.Descriptor.Family, config.Descriptor.Name)
+
+	if cfg.Config {
+		return config, nil
+	}
 
 	inspectedModelArtifact := &InspectedModelArtifact{
 		ID:           manifest.Config.Digest.String(),
