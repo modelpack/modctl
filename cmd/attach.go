@@ -60,6 +60,7 @@ func init() {
 	flags.BoolVar(&attachConfig.Nydusify, "nydusify", false, "[EXPERIMENTAL] nydusify the model artifact")
 	flags.MarkHidden("nydusify")
 	flags.BoolVar(&attachConfig.Raw, "raw", false, "turning on this flag will attach model artifact layer in raw format")
+	flags.BoolVar(&attachConfig.Config, "config", false, "turning on this flag will overwrite model artifact config layer")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))

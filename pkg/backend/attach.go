@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"slices"
 	"sort"
@@ -73,33 +74,6 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 
 	logrus.Infof("attach: loaded source model config [%+v]", srcModelConfig)
 
-	var foundLayer *ocispec.Descriptor
-	for _, layer := range srcManifest.Layers {
-		if anno := layer.Annotations; anno != nil {
-			if anno[modelspec.AnnotationFilepath] == filepath {
-				if !cfg.Force {
-					return fmt.Errorf("file %s already exists, please use --force to overwrite if you want to attach it forcibly", filepath)
-				}
-
-				foundLayer = &layer
-				break
-			}
-		}
-	}
-
-	logrus.Infof("attach: found existing layer for file %s [%+v]", filepath, foundLayer)
-
-	layers := srcManifest.Layers
-	if foundLayer != nil {
-		// Remove the found layer from the layers slice as we need to replace it with the new layer.
-		for i, layer := range layers {
-			if layer.Digest == foundLayer.Digest && layer.MediaType == foundLayer.MediaType {
-				layers = slices.Delete(layers, i, i+1)
-				break
-			}
-		}
-	}
-
 	proc := b.getProcessor(filepath, cfg.Raw)
 	if proc == nil {
 		return fmt.Errorf("failed to get processor for file %s", filepath)
@@ -114,40 +88,86 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 	pb.Start()
 	defer pb.Stop()
 
-	newLayers, err := proc.Process(ctx, builder, ".", processor.WithProgressTracker(pb))
-	if err != nil {
-		return fmt.Errorf("failed to process layers: %w", err)
+	layers := srcManifest.Layers
+	// If attach a normal file, we need to process it and create a new layer.
+	if !cfg.Config {
+		var foundLayer *ocispec.Descriptor
+		for _, layer := range srcManifest.Layers {
+			if anno := layer.Annotations; anno != nil {
+				if anno[modelspec.AnnotationFilepath] == filepath {
+					if !cfg.Force {
+						return fmt.Errorf("file %s already exists, please use --force to overwrite if you want to attach it forcibly", filepath)
+					}
+
+					foundLayer = &layer
+					break
+				}
+			}
+		}
+
+		logrus.Infof("attach: found existing layer for file %s [%+v]", filepath, foundLayer)
+		if foundLayer != nil {
+			// Remove the found layer from the layers slice as we need to replace it with the new layer.
+			for i, layer := range layers {
+				if layer.Digest == foundLayer.Digest && layer.MediaType == foundLayer.MediaType {
+					layers = slices.Delete(layers, i, i+1)
+					break
+				}
+			}
+		}
+
+		newLayers, err := proc.Process(ctx, builder, ".", processor.WithProgressTracker(pb))
+		if err != nil {
+			return fmt.Errorf("failed to process layers: %w", err)
+		}
+
+		// Append the new layers to the original layers.
+		layers = append(layers, newLayers...)
+		sortLayers(layers)
+
+		logrus.Debugf("attach: generated sorted layers [layers: %+v]", layers)
+
+		diffIDs := []godigest.Digest{}
+		for _, layer := range layers {
+			diffIDs = append(diffIDs, layer.Digest)
+		}
+		// Return earlier if the diffID has no changed, which means the artifact has not changed.
+		if reflect.DeepEqual(diffIDs, srcModelConfig.ModelFS.DiffIDs) {
+			return nil
+		}
 	}
 
-	// Append the new layers to the original layers.
-	layers = append(layers, newLayers...)
-	sortLayers(layers)
+	var config modelspec.Model
+	if !cfg.Config {
+		config, err = build.BuildModelConfig(&buildconfig.Model{
+			Architecture:   srcModelConfig.Config.Architecture,
+			Format:         srcModelConfig.Config.Format,
+			Precision:      srcModelConfig.Config.Precision,
+			Quantization:   srcModelConfig.Config.Quantization,
+			ParamSize:      srcModelConfig.Config.ParamSize,
+			Family:         srcModelConfig.Descriptor.Family,
+			Name:           srcModelConfig.Descriptor.Name,
+			SourceURL:      srcModelConfig.Descriptor.SourceURL,
+			SourceRevision: srcModelConfig.Descriptor.Revision,
+		}, layers)
+		if err != nil {
+			return fmt.Errorf("failed to build model config: %w", err)
+		}
+	} else {
+		configFile, err := os.Open(filepath)
+		if err != nil {
+			return fmt.Errorf("failed to open config file: %w", err)
+		}
+		defer configFile.Close()
 
-	logrus.Debugf("attach: generated sorted layers [layers: %+v]", layers)
-
-	diffIDs := []godigest.Digest{}
-	for _, layer := range layers {
-		diffIDs = append(diffIDs, layer.Digest)
+		if err := json.NewDecoder(configFile).Decode(&config); err != nil {
+			return fmt.Errorf("failed to decode config file %s: %w", filepath, err)
+		}
 	}
-	// Return earlier if the diffID has no changed, which means the artifact has not changed.
-	if reflect.DeepEqual(diffIDs, srcModelConfig.ModelFS.DiffIDs) {
-		return nil
-	}
 
-	// Build the model config.
-	modelConfig := &buildconfig.Model{
-		Architecture: srcModelConfig.Config.Architecture,
-		Format:       srcModelConfig.Config.Format,
-		Precision:    srcModelConfig.Config.Precision,
-		Quantization: srcModelConfig.Config.Quantization,
-		ParamSize:    srcModelConfig.Config.ParamSize,
-		Family:       srcModelConfig.Descriptor.Family,
-		Name:         srcModelConfig.Descriptor.Name,
-	}
+	logrus.Infof("attach: built model config [%+v]", config)
 
-	logrus.Infof("attach: built model config [%+v]", modelConfig)
-
-	configDesc, err := builder.BuildConfig(ctx, layers, modelConfig, hooks.NewHooks(
+	configDesc, err := builder.BuildConfig(ctx, config, hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 			return pb.Add(internalpb.NormalizePrompt("Building config"), name, size, reader)
 		}),

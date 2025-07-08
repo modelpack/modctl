@@ -163,10 +163,13 @@ func (s *BuilderTestSuite) TestBuildConfig() {
 			Name:         "llama-2",
 		}
 
+		config, err := BuildModelConfig(modelConfig, []ocispec.Descriptor{})
+		s.NoError(err)
+
 		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(expectedDesc, nil).Once()
 
-		desc, err := s.builder.BuildConfig(context.Background(), []ocispec.Descriptor{}, modelConfig, hooks.NewHooks())
+		desc, err := s.builder.BuildConfig(context.Background(), config, hooks.NewHooks())
 		s.NoError(err)
 		s.Equal(expectedDesc, desc)
 
@@ -184,10 +187,13 @@ func (s *BuilderTestSuite) TestBuildConfig() {
 			Name:         "llama-2",
 		}
 
+		config, err := BuildModelConfig(modelConfig, []ocispec.Descriptor{})
+		s.NoError(err)
+
 		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(ocispec.Descriptor{}, errors.New("output error")).Once()
 
-		_, err := s.builder.BuildConfig(context.Background(), []ocispec.Descriptor{}, modelConfig, hooks.NewHooks())
+		_, err = s.builder.BuildConfig(context.Background(), config, hooks.NewHooks())
 		s.Error(err)
 		s.True(strings.Contains(err.Error(), "output error"))
 	})
@@ -248,7 +254,7 @@ func (s *BuilderTestSuite) TestBuildModelConfig() {
 		Name:         "llama-2",
 	}
 
-	model, err := buildModelConfig(modelConfig, []ocispec.Descriptor{
+	model, err := BuildModelConfig(modelConfig, []ocispec.Descriptor{
 		{Digest: godigest.Digest("sha256:layer-1")},
 		{Digest: godigest.Digest("sha256:layer-2")},
 	})
