@@ -61,7 +61,7 @@ type Builder interface {
 	BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// BuildConfig builds the config blob of the artifact.
-	BuildConfig(ctx context.Context, layers []ocispec.Descriptor, modelConfig *buildconfig.Model, hooks hooks.Hooks) (ocispec.Descriptor, error)
+	BuildConfig(ctx context.Context, config modelspec.Model, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// BuildManifest builds the manifest blob of the artifact.
 	BuildManifest(ctx context.Context, layers []ocispec.Descriptor, config ocispec.Descriptor, annotations map[string]string, hooks hooks.Hooks) (ocispec.Descriptor, error)
@@ -202,12 +202,7 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 	return desc, nil
 }
 
-func (ab *abstractBuilder) BuildConfig(ctx context.Context, layers []ocispec.Descriptor, modelConfig *buildconfig.Model, hooks hooks.Hooks) (ocispec.Descriptor, error) {
-	config, err := buildModelConfig(modelConfig, layers)
-	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to build model config: %w", err)
-	}
-
+func (ab *abstractBuilder) BuildConfig(ctx context.Context, config modelspec.Model, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal config: %w", err)
@@ -242,10 +237,10 @@ func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.D
 	return ab.strategy.OutputManifest(ctx, manifest.MediaType, digest, int64(len(manifestJSON)), bytes.NewReader(manifestJSON), hooks)
 }
 
-// buildModelConfig builds the model config.
-func buildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descriptor) (*modelspec.Model, error) {
+// BuildModelConfig builds the model config.
+func BuildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descriptor) (modelspec.Model, error) {
 	if modelConfig == nil {
-		return nil, fmt.Errorf("model config is nil")
+		return modelspec.Model{}, fmt.Errorf("model config is nil")
 	}
 
 	config := modelspec.ModelConfig{
@@ -275,7 +270,7 @@ func buildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descripto
 		DiffIDs: diffIDs,
 	}
 
-	return &modelspec.Model{
+	return modelspec.Model{
 		Config:     config,
 		Descriptor: descriptor,
 		ModelFS:    fs,
