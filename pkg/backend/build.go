@@ -106,7 +106,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		revision += "-dirty"
 	}
 	// Build the model config.
-	modelConfig := &buildconfig.Model{
+	config, err := build.BuildModelConfig(&buildconfig.Model{
 		Architecture:   modelfile.GetArch(),
 		Format:         modelfile.GetFormat(),
 		Precision:      modelfile.GetPrecision(),
@@ -116,14 +116,17 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		Name:           modelfile.GetName(),
 		SourceURL:      sourceInfo.URL,
 		SourceRevision: revision,
+	}, layers)
+	if err != nil {
+		return fmt.Errorf("failed to build model config: %w", err)
 	}
 
-	logrus.Infof("build: built model config [family: %s, name: %s, format: %s]", modelConfig.Family, modelConfig.Name, modelConfig.Format)
+	logrus.Infof("build: built model config [config: %+v]", config)
 
 	var configDesc ocispec.Descriptor
 	// Build the model config.
 	if err := retry.Do(func() error {
-		configDesc, err = builder.BuildConfig(ctx, layers, modelConfig, hooks.NewHooks(
+		configDesc, err = builder.BuildConfig(ctx, config, hooks.NewHooks(
 			hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 				return pb.Add(internalpb.NormalizePrompt("Building config"), name, size, reader)
 			}),
