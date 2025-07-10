@@ -57,6 +57,8 @@ type InspectedModelArtifact struct {
 
 // InspectedModelArtifactLayer is the data structure for model artifact layer that has been inspected.
 type InspectedModelArtifactLayer struct {
+	// MediaType is the media type of the model artifact layer.
+	MediaType string `json:"MediaType"`
 	// Digest is the digest of the model artifact layer.
 	Digest string `json:"Digest"`
 	// Size is the size of the model artifact layer.
@@ -114,9 +116,10 @@ func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspec
 
 	for _, layer := range manifest.Layers {
 		inspectedModelArtifact.Layers = append(inspectedModelArtifact.Layers, InspectedModelArtifactLayer{
-			Digest:   layer.Digest.String(),
-			Size:     layer.Size,
-			Filepath: layer.Annotations[modelspec.AnnotationFilepath],
+			MediaType: layer.MediaType,
+			Digest:    layer.Digest.String(),
+			Size:      layer.Size,
+			Filepath:  layer.Annotations[modelspec.AnnotationFilepath],
 		})
 	}
 
