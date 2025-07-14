@@ -24,7 +24,7 @@ require (
 	github.com/vbauerster/mpb/v8 v8.10.2
 	golang.org/x/crypto v0.39.0
 	golang.org/x/sync v0.15.0
-	golang.org/x/sys v0.33.0
+	golang.org/x/sys v0.34.0
 	google.golang.org/grpc v1.73.0
 	oras.land/oras-go/v2 v2.6.0
 )
