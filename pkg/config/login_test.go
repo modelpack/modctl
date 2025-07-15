@@ -31,6 +31,9 @@ func TestNewLogin(t *testing.T) {
 	if login.PasswordStdin != true {
 		t.Errorf("expected PasswordStdin to be true, got %v", login.PasswordStdin)
 	}
+	if login.AuthFilePath != "" {
+		t.Errorf("expected empty authFilePath, got %s", login.AuthFilePath)
+	}
 }
 
 func TestLogin_Validate(t *testing.T) {
@@ -63,6 +66,13 @@ func TestLogin_Validate(t *testing.T) {
 			login: &Login{
 				Username: "username",
 				Password: "password",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid login through --authfile",
+			login: &Login{
+				AuthFilePath: "dockerconfigjson",
 			},
 			wantErr: false,
 		},
