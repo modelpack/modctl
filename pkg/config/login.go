@@ -22,8 +22,21 @@ type Login struct {
 	Username      string
 	Password      string
 	PasswordStdin bool
+	AuthFilePath  string
 	PlainHTTP     bool
 	Insecure      bool
+}
+
+// AuthConfigEntry holds authentication credentials for a registry.
+type AuthConfigEntry struct {
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Auth     string `json:"auth,omitempty"`
+}
+
+// AuthConfig is a structure for dockerconfigjson‑style files.
+type AuthConfig struct {
+	Auths map[string]AuthConfigEntry `json:"auths"`
 }
 
 func NewLogin() *Login {
@@ -31,12 +44,20 @@ func NewLogin() *Login {
 		Username:      "",
 		Password:      "",
 		PasswordStdin: true,
+		AuthFilePath:  "",
 		PlainHTTP:     false,
 		Insecure:      false,
 	}
 }
 
 func (l *Login) Validate() error {
+	if len(l.AuthFilePath) != 0 {
+		if len(l.Username) != 0 || len(l.Password) != 0 {
+			return fmt.Errorf("--authfile cannot be used with --username or --password")
+		}
+		return nil
+	}
+
 	if len(l.Username) == 0 {
 		return fmt.Errorf("missing username")
 	}

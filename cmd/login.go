@@ -62,6 +62,7 @@ func init() {
 	flags.StringVarP(&loginConfig.Username, "username", "u", "", "Username for login")
 	flags.StringVarP(&loginConfig.Password, "password", "p", "", "Password for login")
 	flags.BoolVar(&loginConfig.PasswordStdin, "password-stdin", true, "Take the password from stdin by default")
+	flags.StringVar(&loginConfig.AuthFilePath, "authfile", "", "Path of the registry credentials file")
 	flags.BoolVar(&loginConfig.PlainHTTP, "plain-http", false, "Allow http connections to registry")
 	flags.BoolVar(&loginConfig.Insecure, "insecure", false, "Allow insecure connections to registry")
 
@@ -77,8 +78,12 @@ func runLogin(ctx context.Context, registry string) error {
 		return err
 	}
 
-	// read password from stdin if password-stdin is set
-	if loginConfig.PasswordStdin && loginConfig.Password == "" {
+	if loginConfig.AuthFilePath != "" {
+		loginConfig.Username, loginConfig.Password, err = config.ParseAuthFile(loginConfig.AuthFilePath, registry)
+		if err != nil {
+			return err
+		}
+	} else if loginConfig.PasswordStdin && loginConfig.Password == "" {
 		fmt.Print("Enter password: ")
 		password, err := terminal.ReadPassword(syscall.Stdin)
 		if err != nil {
