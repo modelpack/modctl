@@ -10,6 +10,10 @@ It offers commands such as `build`, `pull`, `push`, and more, making it easy for
 
 You can find the full documentation on the [getting started](./docs/getting-started.md).
 
+## Copyright
+
+Copyright © contributors to ModelPack, established as ModelPack a Series of LF Projects, LLC.
+
 ## LICENSE
 
 Apache 2.0 License. Please see [LICENSE](LICENSE) for more information.
