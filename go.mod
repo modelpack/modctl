@@ -3,7 +3,7 @@ module github.com/CloudNativeAI/modctl
 go 1.24.1
 
 require (
-	d7y.io/api/v2 v2.1.41
+	d7y.io/api/v2 v2.1.44
 	github.com/CloudNativeAI/model-spec v0.0.6
 	github.com/antgroup/hugescm v0.18.3
 	github.com/avast/retry-go/v4 v4.6.1
