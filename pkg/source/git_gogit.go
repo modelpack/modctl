@@ -1,4 +1,4 @@
-//go:build disable_libgit2
+//go:build !enable_libgit2
 
 /*
  *     Copyright 2025 The CNAI Authors
