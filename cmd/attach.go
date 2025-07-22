@@ -19,9 +19,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -79,22 +77,6 @@ func runAttach(ctx context.Context, filepath string) error {
 	}
 
 	fmt.Printf("Successfully attached model artifact: %s\n", attachConfig.Target)
-
-	// nydusify the model artifact if needed.
-	if attachConfig.Nydusify {
-		sp := spinner.New(spinner.CharSets[39], 100*time.Millisecond, spinner.WithSuffix("Nydusifying..."))
-		sp.Start()
-		defer sp.Stop()
-
-		nydusName, err := b.Nydusify(ctx, attachConfig.Target)
-		if err != nil {
-			err = fmt.Errorf("failed to nydusify %s: %w", attachConfig.Target, err)
-			sp.FinalMSG = err.Error()
-			return err
-		}
-
-		sp.FinalMSG = fmt.Sprintf("Successfully nydusify model artifact: %s", nydusName)
-	}
 
 	return nil
 }
