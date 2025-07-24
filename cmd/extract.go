@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend"
-	"github.com/CloudNativeAI/modctl/pkg/config"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/modelpack/modctl/pkg/backend"
+	"github.com/modelpack/modctl/pkg/config"
 )
 
 var extractConfig = config.NewExtract()

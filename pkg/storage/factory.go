@@ -19,7 +19,7 @@ package storage
 import (
 	"path/filepath"
 
-	"github.com/CloudNativeAI/modctl/pkg/storage/distribution"
+	"github.com/modelpack/modctl/pkg/storage/distribution"
 )
 
 const (

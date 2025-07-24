@@ -22,7 +22,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/CloudNativeAI/modctl/pkg/modelfile/command"
+	"github.com/modelpack/modctl/pkg/modelfile/command"
 )
 
 // Parse parses the modelfile and returns the root node of the AST,

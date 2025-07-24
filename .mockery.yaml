@@ -4,22 +4,22 @@ outpkg: "{{.PackageName}}"
 mockname: "{{.InterfaceName}}"
 filename: "{{.InterfaceName | snakecase}}.go"
 packages:
-  github.com/CloudNativeAI/modctl/pkg/backend:
+  github.com/modelpack/modctl/pkg/backend:
     interfaces:
       Backend:
         config:
           dir: test/mocks/backend
-  github.com/CloudNativeAI/modctl/pkg/storage:
+  github.com/modelpack/modctl/pkg/storage:
     interfaces:
       Storage:
         config:
           dir: test/mocks/storage
-  github.com/CloudNativeAI/modctl/pkg/modelfile:
+  github.com/modelpack/modctl/pkg/modelfile:
     interfaces:
       Modelfile:
         config:
           dir: test/mocks/modelfile
-  github.com/CloudNativeAI/modctl/pkg/backend/build:
+  github.com/modelpack/modctl/pkg/backend/build:
     interfaces:
       Builder:
         config:

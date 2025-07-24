@@ -30,19 +30,19 @@ import (
 	"syscall"
 	"time"
 
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	sha256 "github.com/minio/sha256-simd"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
-	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/interceptor"
-	pkgcodec "github.com/CloudNativeAI/modctl/pkg/codec"
-	"github.com/CloudNativeAI/modctl/pkg/storage"
+	buildconfig "github.com/modelpack/modctl/pkg/backend/build/config"
+	"github.com/modelpack/modctl/pkg/backend/build/hooks"
+	"github.com/modelpack/modctl/pkg/backend/build/interceptor"
+	pkgcodec "github.com/modelpack/modctl/pkg/codec"
+	"github.com/modelpack/modctl/pkg/storage"
 )
 
 // OutputType defines the type of output to generate.
@@ -249,6 +249,12 @@ func BuildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descripto
 		Precision:    modelConfig.Precision,
 		Quantization: modelConfig.Quantization,
 		ParamSize:    modelConfig.ParamSize,
+	}
+
+	if modelConfig.Reasoning {
+		config.Capabilities = &modelspec.ModelCapabilities{
+			Reasoning: &modelConfig.Reasoning,
+		}
 	}
 
 	createdAt := time.Now()

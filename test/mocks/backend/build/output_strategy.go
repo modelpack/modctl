@@ -22,7 +22,7 @@ import (
 	context "context"
 	io "io"
 
-	hooks "github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
+	hooks "github.com/modelpack/modctl/pkg/backend/build/hooks"
 
 	mock "github.com/stretchr/testify/mock"
 

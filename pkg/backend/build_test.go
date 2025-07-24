@@ -19,8 +19,8 @@ package backend
 import (
 	"testing"
 
-	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/test/mocks/modelfile"
+	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/test/mocks/modelfile"
 
 	"github.com/stretchr/testify/assert"
 )

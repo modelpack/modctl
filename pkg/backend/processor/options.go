@@ -21,7 +21,7 @@ import (
 
 	retry "github.com/avast/retry-go/v4"
 
-	"github.com/CloudNativeAI/modctl/internal/pb"
+	"github.com/modelpack/modctl/internal/pb"
 )
 
 type ProcessOption func(*processOptions)

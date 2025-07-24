@@ -22,7 +22,7 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend"
+	"github.com/modelpack/modctl/pkg/backend"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"

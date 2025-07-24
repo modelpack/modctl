@@ -21,7 +21,7 @@ import (
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	"github.com/CloudNativeAI/modctl/pkg/archiver"
+	"github.com/modelpack/modctl/pkg/archiver"
 )
 
 // tar is a codec for tar files.

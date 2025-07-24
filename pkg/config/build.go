@@ -34,6 +34,7 @@ type Build struct {
 	SourceURL      string
 	SourceRevision string
 	Raw            bool
+	Reasoning      bool
 }
 
 func NewBuild() *Build {
@@ -48,6 +49,7 @@ func NewBuild() *Build {
 		SourceURL:      "",
 		SourceRevision: "",
 		Raw:            false,
+		Reasoning:      false,
 	}
 }
 

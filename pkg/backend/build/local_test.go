@@ -23,14 +23,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
-	storagemock "github.com/CloudNativeAI/modctl/test/mocks/storage"
-
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/modelpack/modctl/pkg/backend/build/hooks"
+	storagemock "github.com/modelpack/modctl/test/mocks/storage"
 )
 
 type LocalOutputTestSuite struct {

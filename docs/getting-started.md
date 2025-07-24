@@ -5,13 +5,13 @@
 ### Binary
 
 ```shell
-$ go install github.com/CloudNativeAI/modctl@latest
+$ go install github.com/modelpack/modctl@latest
 ```
 
 ### Build from source
 
 ```shell
-$ git clone https://github.com/CloudNativeAI/modctl.git
+$ git clone https://github.com/modelpack/modctl.git
 $ make
 $ ./output/modctl -h
 ```

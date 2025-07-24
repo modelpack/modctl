@@ -22,7 +22,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/CloudNativeAI/modctl/test/mocks/storage"
+	"github.com/modelpack/modctl/test/mocks/storage"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
