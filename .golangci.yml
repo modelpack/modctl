@@ -46,7 +46,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/CloudNativeAI/modctl)
+        - prefix(github.com/modelpack/modctl)
   exclusions:
     generated: lax
     paths:

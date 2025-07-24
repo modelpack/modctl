@@ -23,12 +23,12 @@ import (
 	"reflect"
 	"testing"
 
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/CloudNativeAI/modctl/pkg/config"
-	mockstore "github.com/CloudNativeAI/modctl/test/mocks/storage"
+	"github.com/modelpack/modctl/pkg/config"
+	mockstore "github.com/modelpack/modctl/test/mocks/storage"
 )
 
 func TestBackendGetManifest(t *testing.T) {

@@ -23,16 +23,16 @@ import (
 	"fmt"
 	"io"
 
-	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
-	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
-	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/pkg/storage"
-	"github.com/sirupsen/logrus"
-
 	retry "github.com/avast/retry-go/v4"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
+
+	internalpb "github.com/modelpack/modctl/internal/pb"
+	"github.com/modelpack/modctl/pkg/backend/remote"
+	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/storage"
 )
 
 // Push pushes the image to the registry.
@@ -178,7 +178,7 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		}
 
 		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
-		// resolve issue: https://github.com/CloudNativeAI/modctl/issues/50
+		// resolve issue: https://github.com/modelpack/modctl/issues/50
 		// wrap the content to the NopCloser, because the implementation of the distribution will
 		// always return the error when Close() is called.
 		// refer: https://github.com/distribution/distribution/blob/63d3892315c817c931b88779399a8e9142899a8e/registry/storage/filereader.go#L105

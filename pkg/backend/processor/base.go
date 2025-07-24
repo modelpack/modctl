@@ -26,16 +26,16 @@ import (
 	"strings"
 	"sync"
 
-	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
-	"github.com/CloudNativeAI/modctl/pkg/backend/build"
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
-	"github.com/CloudNativeAI/modctl/pkg/storage"
-	"github.com/sirupsen/logrus"
-
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/avast/retry-go/v4"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
+
+	internalpb "github.com/modelpack/modctl/internal/pb"
+	"github.com/modelpack/modctl/pkg/backend/build"
+	"github.com/modelpack/modctl/pkg/backend/build/hooks"
+	"github.com/modelpack/modctl/pkg/storage"
 )
 
 type base struct {

@@ -23,7 +23,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/CloudNativeAI/modctl/test/mocks/storage"
+	"github.com/modelpack/modctl/test/mocks/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 

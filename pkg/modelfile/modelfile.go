@@ -25,9 +25,9 @@ import (
 	"strings"
 	"time"
 
-	configmodelfile "github.com/CloudNativeAI/modctl/pkg/config/modelfile"
-	modefilecommand "github.com/CloudNativeAI/modctl/pkg/modelfile/command"
-	"github.com/CloudNativeAI/modctl/pkg/modelfile/parser"
+	configmodelfile "github.com/modelpack/modctl/pkg/config/modelfile"
+	modefilecommand "github.com/modelpack/modctl/pkg/modelfile/command"
+	"github.com/modelpack/modctl/pkg/modelfile/parser"
 
 	"github.com/emirpasic/gods/sets/hashset"
 )

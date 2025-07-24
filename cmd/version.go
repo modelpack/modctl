@@ -19,7 +19,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/CloudNativeAI/modctl/pkg/version"
+	"github.com/modelpack/modctl/pkg/version"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

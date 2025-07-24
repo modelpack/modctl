@@ -22,11 +22,12 @@ import (
 	"fmt"
 	"time"
 
+	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 
-	"github.com/CloudNativeAI/modctl/pkg/config"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	"github.com/modelpack/modctl/pkg/config"
 )
 
 // InspectedModelArtifact is the data structure for model artifact that has been inspected.
@@ -115,11 +116,16 @@ func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspec
 	}
 
 	for _, layer := range manifest.Layers {
+		filepath := layer.Annotations[modelspec.AnnotationFilepath]
+		if filepath == "" {
+			filepath = layer.Annotations[legacymodelspec.AnnotationFilepath]
+		}
+
 		inspectedModelArtifact.Layers = append(inspectedModelArtifact.Layers, InspectedModelArtifactLayer{
 			MediaType: layer.MediaType,
 			Digest:    layer.Digest.String(),
 			Size:      layer.Size,
-			Filepath:  layer.Annotations[modelspec.AnnotationFilepath],
+			Filepath:  filepath,
 		})
 	}
 

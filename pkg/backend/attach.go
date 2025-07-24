@@ -26,19 +26,20 @@ import (
 	"slices"
 	"sort"
 
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 
-	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
-	"github.com/CloudNativeAI/modctl/pkg/backend/build"
-	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
-	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
-	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
-	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/pkg/modelfile"
+	internalpb "github.com/modelpack/modctl/internal/pb"
+	"github.com/modelpack/modctl/pkg/backend/build"
+	buildconfig "github.com/modelpack/modctl/pkg/backend/build/config"
+	"github.com/modelpack/modctl/pkg/backend/build/hooks"
+	"github.com/modelpack/modctl/pkg/backend/processor"
+	"github.com/modelpack/modctl/pkg/backend/remote"
+	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/modelfile"
 )
 
 const (
@@ -93,7 +94,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		var foundLayer *ocispec.Descriptor
 		for _, layer := range srcManifest.Layers {
 			if anno := layer.Annotations; anno != nil {
-				if anno[modelspec.AnnotationFilepath] == filepath {
+				if anno[modelspec.AnnotationFilepath] == filepath || anno[legacymodelspec.AnnotationFilepath] == filepath {
 					if !cfg.Force {
 						return fmt.Errorf("file %s already exists, please use --force to overwrite if you want to attach it forcibly", filepath)
 					}
@@ -138,6 +139,11 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 
 	var config modelspec.Model
 	if !cfg.Config {
+		var reasoning bool
+		if srcModelConfig.Config.Capabilities != nil && srcModelConfig.Config.Capabilities.Reasoning != nil {
+			reasoning = *srcModelConfig.Config.Capabilities.Reasoning
+		}
+
 		config, err = build.BuildModelConfig(&buildconfig.Model{
 			Architecture:   srcModelConfig.Config.Architecture,
 			Format:         srcModelConfig.Config.Format,
@@ -148,6 +154,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 			Name:           srcModelConfig.Descriptor.Name,
 			SourceURL:      srcModelConfig.Descriptor.SourceURL,
 			SourceRevision: srcModelConfig.Descriptor.Revision,
+			Reasoning:      reasoning,
 		}, layers)
 		if err != nil {
 			return fmt.Errorf("failed to build model config: %w", err)
@@ -370,10 +377,20 @@ func sortLayers(layers []ocispec.Descriptor) {
 		// Sort by the filepath if the priority is same.
 		var filepathI, filepathJ string
 		if layers[i].Annotations != nil {
-			filepathI = layers[i].Annotations[modelspec.AnnotationFilepath]
+			if layers[i].Annotations[modelspec.AnnotationFilepath] != "" {
+				filepathI = layers[i].Annotations[modelspec.AnnotationFilepath]
+			} else {
+				filepathI = layers[i].Annotations[legacymodelspec.AnnotationFilepath]
+			}
+
 		}
 		if layers[j].Annotations != nil {
-			filepathJ = layers[j].Annotations[modelspec.AnnotationFilepath]
+			if layers[j].Annotations[modelspec.AnnotationFilepath] != "" {
+				filepathJ = layers[j].Annotations[modelspec.AnnotationFilepath]
+			} else {
+				filepathJ = layers[j].Annotations[legacymodelspec.AnnotationFilepath]
+			}
+
 		}
 		return filepathI < filepathJ
 	})

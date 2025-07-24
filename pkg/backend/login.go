@@ -27,7 +27,7 @@ import (
 	"oras.land/oras-go/v2/registry/remote/credentials"
 	"oras.land/oras-go/v2/registry/remote/retry"
 
-	"github.com/CloudNativeAI/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/config"
 )
 
 // Login logs into a registry.

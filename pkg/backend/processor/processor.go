@@ -19,8 +19,9 @@ package processor
 import (
 	"context"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend/build"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/modelpack/modctl/pkg/backend/build"
 )
 
 // Processor is the interface to recognize and process the identified file.

@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
-	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
-
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/modelpack/modctl/pkg/backend/build/hooks"
+	"github.com/modelpack/modctl/pkg/backend/remote"
 )
 
 func NewRemoteOutput(cfg *config, repo, tag string) (OutputStrategy, error) {

@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"os"
 
-	configmodelfile "github.com/CloudNativeAI/modctl/pkg/config/modelfile"
-	"github.com/CloudNativeAI/modctl/pkg/modelfile"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	configmodelfile "github.com/modelpack/modctl/pkg/config/modelfile"
+	"github.com/modelpack/modctl/pkg/modelfile"
 )
 
 var generateConfig = configmodelfile.NewGenerateConfig()

@@ -21,8 +21,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/CloudNativeAI/modctl/pkg/config"
-	mocks "github.com/CloudNativeAI/modctl/test/mocks/backend"
+	"github.com/modelpack/modctl/pkg/config"
+	mocks "github.com/modelpack/modctl/test/mocks/backend"
 
 	"github.com/stretchr/testify/assert"
 )
