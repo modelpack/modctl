@@ -58,7 +58,21 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 
 	manifestDesc, manifestReader, err := src.Manifests().FetchReference(ctx, tag)
 	if err != nil {
-		return fmt.Errorf("failed to fetch the manifest: %w", err)
+		// fallback to fetch the manifest without proxy.
+		if cfg.Proxy != "" {
+			fmt.Printf("Failed to fetch the manifest with proxy, fallback to fetch without proxy, error: %v\n", err)
+			cfg.Proxy = ""
+			src, err = remote.New(repo, remote.WithPlainHTTP(cfg.PlainHTTP), remote.WithInsecure(cfg.Insecure), remote.WithProxy(cfg.Proxy))
+			if err != nil {
+				return fmt.Errorf("failed to create the remote client: %w", err)
+			}
+			manifestDesc, manifestReader, err = src.Manifests().FetchReference(ctx, tag)
+			if err != nil {
+				return fmt.Errorf("failed to fetch the manifest: %w", err)
+			}
+		} else {
+			return fmt.Errorf("failed to fetch the manifest: %w", err)
+		}
 	}
 
 	defer manifestReader.Close()
