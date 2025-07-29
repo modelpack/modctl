@@ -26,10 +26,11 @@ import (
 	"strings"
 	"testing"
 
-	configmodelfile "github.com/CloudNativeAI/modctl/pkg/config/modelfile"
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	configmodelfile "github.com/modelpack/modctl/pkg/config/modelfile"
 )
 
 func TestNewModelfile(t *testing.T) {

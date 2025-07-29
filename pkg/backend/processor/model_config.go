@@ -19,8 +19,8 @@ package processor
 import (
 	"context"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend/build"
-	"github.com/CloudNativeAI/modctl/pkg/storage"
+	"github.com/modelpack/modctl/pkg/backend/build"
+	"github.com/modelpack/modctl/pkg/storage"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )

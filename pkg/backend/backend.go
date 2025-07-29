@@ -19,8 +19,8 @@ package backend
 import (
 	"context"
 
-	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/pkg/storage"
+	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/storage"
 )
 
 // Backend is the interface to represent the backend.

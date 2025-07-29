@@ -17,7 +17,7 @@
 package main
 
 import (
-	"github.com/CloudNativeAI/modctl/cmd"
+	"github.com/modelpack/modctl/cmd"
 )
 
 func main() {

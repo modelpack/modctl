@@ -34,4 +34,4 @@ Flags:
 
 # BUGS
 
-See GitHub Issues: <https://github.com/CloudNativeAI/modctl/issues>
+See GitHub Issues: <https://github.com/modelpack/modctl/issues>

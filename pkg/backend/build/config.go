@@ -17,7 +17,7 @@
 package build
 
 import (
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/interceptor"
+	"github.com/modelpack/modctl/pkg/backend/build/interceptor"
 )
 
 type Option func(*config)

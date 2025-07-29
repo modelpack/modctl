@@ -19,8 +19,8 @@
 package backend
 
 import (
-	backend "github.com/CloudNativeAI/modctl/pkg/backend"
-	config "github.com/CloudNativeAI/modctl/pkg/config"
+	backend "github.com/modelpack/modctl/pkg/backend"
+	config "github.com/modelpack/modctl/pkg/config"
 
 	context "context"
 
