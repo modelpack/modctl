@@ -29,17 +29,17 @@ import (
 	"testing"
 	"time"
 
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
-	buildmock "github.com/CloudNativeAI/modctl/test/mocks/backend/build"
-	storagemock "github.com/CloudNativeAI/modctl/test/mocks/storage"
+	buildconfig "github.com/modelpack/modctl/pkg/backend/build/config"
+	"github.com/modelpack/modctl/pkg/backend/build/hooks"
+	buildmock "github.com/modelpack/modctl/test/mocks/backend/build"
+	storagemock "github.com/modelpack/modctl/test/mocks/storage"
 )
 
 type BuilderTestSuite struct {

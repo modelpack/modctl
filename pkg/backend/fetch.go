@@ -22,14 +22,15 @@ import (
 	"fmt"
 	"path/filepath"
 
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
-	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
-	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
-	"github.com/CloudNativeAI/modctl/pkg/config"
+	internalpb "github.com/modelpack/modctl/internal/pb"
+	"github.com/modelpack/modctl/pkg/backend/remote"
+	"github.com/modelpack/modctl/pkg/config"
 )
 
 // Fetch fetches partial files to the output.
@@ -66,7 +67,11 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	for _, layer := range manifest.Layers {
 		for _, pattern := range cfg.Patterns {
 			if anno := layer.Annotations; anno != nil {
-				matched, err := filepath.Match(pattern, anno[modelspec.AnnotationFilepath])
+				path := anno[modelspec.AnnotationFilepath]
+				if path == "" {
+					path = anno[legacymodelspec.AnnotationFilepath]
+				}
+				matched, err := filepath.Match(pattern, path)
 				if err != nil {
 					return fmt.Errorf("failed to match pattern: %w", err)
 				}

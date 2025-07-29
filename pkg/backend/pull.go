@@ -28,10 +28,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
-	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
-	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
-	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/pkg/storage"
+	internalpb "github.com/modelpack/modctl/internal/pb"
+	"github.com/modelpack/modctl/pkg/backend/remote"
+	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/storage"
 )
 
 // Pull pulls an artifact from a registry.

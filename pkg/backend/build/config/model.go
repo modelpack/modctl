@@ -27,4 +27,5 @@ type Model struct {
 	Name           string
 	SourceURL      string
 	SourceRevision string
+	Reasoning      bool
 }

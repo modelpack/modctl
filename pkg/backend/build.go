@@ -23,19 +23,19 @@ import (
 	"os"
 	"path/filepath"
 
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	retry "github.com/avast/retry-go/v4"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 
-	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
-	"github.com/CloudNativeAI/modctl/pkg/backend/build"
-	buildconfig "github.com/CloudNativeAI/modctl/pkg/backend/build/config"
-	"github.com/CloudNativeAI/modctl/pkg/backend/build/hooks"
-	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
-	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/pkg/modelfile"
-	"github.com/CloudNativeAI/modctl/pkg/source"
+	internalpb "github.com/modelpack/modctl/internal/pb"
+	"github.com/modelpack/modctl/pkg/backend/build"
+	buildconfig "github.com/modelpack/modctl/pkg/backend/build/config"
+	"github.com/modelpack/modctl/pkg/backend/build/hooks"
+	"github.com/modelpack/modctl/pkg/backend/processor"
+	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/modelfile"
+	"github.com/modelpack/modctl/pkg/source"
 )
 
 const (
@@ -112,6 +112,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		Name:           modelfile.GetName(),
 		SourceURL:      sourceInfo.URL,
 		SourceRevision: revision,
+		Reasoning:      cfg.Reasoning,
 	}, layers)
 	if err != nil {
 		return fmt.Errorf("failed to build model config: %w", err)

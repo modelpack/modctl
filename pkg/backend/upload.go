@@ -22,10 +22,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
-	"github.com/CloudNativeAI/modctl/pkg/backend/build"
-	"github.com/CloudNativeAI/modctl/pkg/backend/processor"
-	"github.com/CloudNativeAI/modctl/pkg/config"
+	internalpb "github.com/modelpack/modctl/internal/pb"
+	"github.com/modelpack/modctl/pkg/backend/build"
+	"github.com/modelpack/modctl/pkg/backend/processor"
+	"github.com/modelpack/modctl/pkg/config"
 )
 
 // Upload uploads the file to a model artifact repository in advance, but will not push config and manifest.

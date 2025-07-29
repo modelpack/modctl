@@ -22,7 +22,8 @@ import (
 	"os"
 	"path/filepath"
 
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -65,8 +66,13 @@ func (r *raw) Decode(outputDir, filePath string, reader io.Reader, desc ocispec.
 	var fileMetadata *modelspec.FileMetadata
 	// Try to retrieve the file metadata from annotation for raw file.
 	if desc.Annotations != nil {
-		if fm := desc.Annotations[modelspec.AnnotationFileMetadata]; fm != "" {
-			if err := json.Unmarshal([]byte(fm), &fileMetadata); err != nil {
+		fileMetadataStr := desc.Annotations[modelspec.AnnotationFileMetadata]
+		if fileMetadataStr == "" {
+			fileMetadataStr = desc.Annotations[legacymodelspec.AnnotationFileMetadata]
+		}
+
+		if fileMetadataStr != "" {
+			if err := json.Unmarshal([]byte(fileMetadataStr), &fileMetadata); err != nil {
 				return err
 			}
 		}

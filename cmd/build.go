@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CloudNativeAI/modctl/pkg/backend"
-	"github.com/CloudNativeAI/modctl/pkg/config"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/modelpack/modctl/pkg/backend"
+	"github.com/modelpack/modctl/pkg/config"
 )
 
 var buildConfig = config.NewBuild()
@@ -61,6 +61,7 @@ func init() {
 	flags.StringVar(&buildConfig.SourceRevision, "source-revision", "", "source revision")
 	// TODO: set the raw flag to true by default in future.
 	flags.BoolVar(&buildConfig.Raw, "raw", false, "turning on this flag will build model artifact layers in raw format")
+	flags.BoolVar(&buildConfig.Reasoning, "reasoning", false, "turning on this flag will mark this model as reasoning model in the config")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))

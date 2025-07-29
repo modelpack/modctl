@@ -23,14 +23,15 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/CloudNativeAI/modctl/pkg/codec"
-	"github.com/CloudNativeAI/modctl/pkg/config"
-	"github.com/CloudNativeAI/modctl/pkg/storage"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
+	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/modelpack/modctl/pkg/codec"
+	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/storage"
 )
 
 const (
@@ -109,7 +110,12 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 func extractLayer(desc ocispec.Descriptor, outputDir string, reader io.Reader) error {
 	var filepath string
 	if desc.Annotations != nil && desc.Annotations[modelspec.AnnotationFilepath] != "" {
-		filepath = desc.Annotations[modelspec.AnnotationFilepath]
+		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
+			filepath = desc.Annotations[modelspec.AnnotationFilepath]
+		} else {
+			filepath = desc.Annotations[legacymodelspec.AnnotationFilepath]
+		}
+
 	}
 
 	codec, err := codec.New(codec.TypeFromMediaType(desc.MediaType))

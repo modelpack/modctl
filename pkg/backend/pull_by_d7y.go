@@ -27,8 +27,9 @@ import (
 
 	common "d7y.io/api/v2/pkg/apis/common/v2"
 	dfdaemon "d7y.io/api/v2/pkg/apis/dfdaemon/v2"
-	modelspec "github.com/CloudNativeAI/model-spec/specs-go/v1"
 	"github.com/avast/retry-go/v4"
+	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -36,10 +37,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"oras.land/oras-go/v2/registry/remote/auth"
 
-	internalpb "github.com/CloudNativeAI/modctl/internal/pb"
-	"github.com/CloudNativeAI/modctl/pkg/archiver"
-	"github.com/CloudNativeAI/modctl/pkg/backend/remote"
-	"github.com/CloudNativeAI/modctl/pkg/config"
+	internalpb "github.com/modelpack/modctl/internal/pb"
+	"github.com/modelpack/modctl/pkg/archiver"
+	"github.com/modelpack/modctl/pkg/backend/remote"
+	"github.com/modelpack/modctl/pkg/config"
 )
 
 const (
@@ -189,8 +190,16 @@ func downloadAndExtractLayer(ctx context.Context, pb *internalpb.ProgressBar, cl
 		return fmt.Errorf("failed to resolve extract dir: %w", err)
 	}
 
-	annoFilepath, ok := desc.Annotations[modelspec.AnnotationFilepath]
-	if !ok || annoFilepath == "" {
+	var annoFilepath string
+	if desc.Annotations != nil {
+		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
+			annoFilepath = desc.Annotations[modelspec.AnnotationFilepath]
+		} else {
+			annoFilepath = desc.Annotations[legacymodelspec.AnnotationFilepath]
+		}
+	}
+
+	if annoFilepath == "" {
 		return fmt.Errorf("missing annotation filepath")
 	}
 

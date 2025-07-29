@@ -78,9 +78,9 @@ jobs:
       run: |
         go build \
           -tags "static system_libgit2 enable_libgit2" \
-          -ldflags "-X github.com/CloudNativeAI/modctl/pkg/version.GitVersion=${{ github.ref_name }} \
-                    -X github.com/CloudNativeAI/modctl/pkg/version.GitCommit=$(git rev-parse --short HEAD) \
-                    -X github.com/CloudNativeAI/modctl/pkg/version.BuildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+          -ldflags "-X github.com/modelpack/modctl/pkg/version.GitVersion=${{ github.ref_name }} \
+                    -X github.com/modelpack/modctl/pkg/version.GitCommit=$(git rev-parse --short HEAD) \
+                    -X github.com/modelpack/modctl/pkg/version.BuildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
                     -extldflags '-static'" \
           -o modctl \
           main.go
@@ -95,9 +95,9 @@ jobs:
       run: |
         go build \
           -tags "static system_libgit2 enable_libgit2" \
-          -ldflags "-X github.com/CloudNativeAI/modctl/pkg/version.GitVersion=${{ github.ref_name }} \
-                    -X github.com/CloudNativeAI/modctl/pkg/version.GitCommit=$(git rev-parse --short HEAD) \
-                    -X github.com/CloudNativeAI/modctl/pkg/version.BuildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+          -ldflags "-X github.com/modelpack/modctl/pkg/version.GitVersion=${{ github.ref_name }} \
+                    -X github.com/modelpack/modctl/pkg/version.GitCommit=$(git rev-parse --short HEAD) \
+                    -X github.com/modelpack/modctl/pkg/version.BuildTime=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
           -o modctl \
           main.go
 

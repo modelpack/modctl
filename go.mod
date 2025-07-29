@@ -1,10 +1,9 @@
-module github.com/CloudNativeAI/modctl
+module github.com/modelpack/modctl
 
 go 1.24.1
 
 require (
 	d7y.io/api/v2 v2.1.44
-	github.com/CloudNativeAI/model-spec v0.0.6
 	github.com/antgroup/hugescm v0.18.3
 	github.com/avast/retry-go/v4 v4.6.1
 	github.com/distribution/distribution/v3 v3.0.0
@@ -14,6 +13,7 @@ require (
 	github.com/go-git/go-git/v5 v5.16.2
 	github.com/libgit2/git2go/v34 v34.0.0
 	github.com/minio/sha256-simd v1.0.1
+	github.com/modelpack/model-spec v0.0.7
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/sirupsen/logrus v1.9.3
@@ -44,6 +44,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
+	github.com/dragonflyoss/model-spec v0.0.6 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
