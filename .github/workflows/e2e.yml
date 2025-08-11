@@ -1,0 +1,171 @@
+name: E2E Test
+
+on:
+  push:
+    branches: [main, release-*]
+    paths-ignore: ["**.md", "**.png", "**.jpg", "**.svg", "**/docs/**"]
+  pull_request:
+    branches: [main, release-*]
+    paths-ignore: ["**.md", "**.png", "**.jpg", "**.svg", "**/docs/**"]
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Model to test"
+        required: false
+        default: "Qwen/Qwen3-0.6B"
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  ORGANIZATION: ${{ github.repository }}
+  MODEL: ${{ github.event.inputs.model || 'Qwen/Qwen3-0.6B' }}
+  MODEL_DIR: modctl-test-model
+
+jobs:
+  build-modctl:
+    name: Build modctl
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    env:
+      PACKAGE_DIR: modctl-test-package
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Create Cache Dir
+        run: |
+          mkdir -p ${{ env.PACKAGE_DIR }}
+
+      - name: Cache Package
+        id: cache-package
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PACKAGE_DIR }}
+          key: modctl-test-packages
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config
+          sudo DEBIAN_FRONTEND=noninteractive apt install -y build-essential \
+            cmake pkg-config libssl-dev libssh2-1-dev zlib1g-dev \
+            libhttp-parser-dev python3 wget tar git
+          mkdir -p ${{ env.PACKAGE_DIR }}
+          if [ ! -f "${{ env.PACKAGE_DIR }}/libgit2-v1.5.1.tar.gz" ]; then
+            wget https://github.com/libgit2/libgit2/archive/refs/tags/v1.5.1.tar.gz -O ${{ env.PACKAGE_DIR }}/libgit2-v1.5.1.tar.gz
+          fi
+          tar -xzf ${{ env.PACKAGE_DIR }}/libgit2-v1.5.1.tar.gz
+          cd libgit2-1.5.1 && mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+        env:
+          LIBGIT2_SYS_USE_PKG_CONFIG: "1"
+
+      - name: Build modctl
+        run: |
+          go build -tags "static system_libgit2 enable_libgit2"
+
+      - name: Upload modctl
+        uses: actions/upload-artifact@v4
+        with:
+          name: modctl-artifact
+          path: modctl
+
+  download-model:
+    name: Download Model
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache model
+        uses: actions/cache@v4
+        id: cache-model
+        with:
+          path: ${{ env.MODEL_DIR }}
+          key: modctl-test-model-${{ env.MODEL }}
+
+      - name: Set up Python
+        if: steps.cache-model.outputs.cache-hit != 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Download HF Model
+        if: steps.cache-model.outputs.cache-hit != 'true'
+        run: |
+          pip install 'huggingface_hub'
+          hf auth login --token ${{ secrets.HF_TOKEN }}
+          hf download ${{ env.MODEL }} --local-dir ${{ env.MODEL_DIR }}
+
+      - name: Upload model
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifact
+          path: ${{ env.MODEL_DIR }}
+
+  test-modctl:
+    name: Run modctl test
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    needs: [build-modctl, download-model]
+    steps:
+      - name: Download modctl artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: modctl-artifact
+          path: modctl
+      - name: Download model artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: model-artifact
+          path: ${{ env.MODEL_DIR }}
+
+      - name: Setup modctl
+        run: |
+          echo "Setting up modctl"
+          sudo cp modctl/modctl /bin/modctl
+          sudo chmod +x /bin/modctl
+          modctl version
+          modctl login -u ${{ github.actor }} \
+                       -p ${{ secrets.GITHUB_TOKEN }} \
+                       ${{ env.REGISTRY }}
+
+      - name: Test modctl E2E
+        run: |
+          echo "generating modelfile for ${{ env.MODEL_DIR }}"
+          modctl modelfile generate \
+            --arch transformer \
+            --family qwen3 \
+            --format safetensors \
+            --param-size 0.6B \
+            .
+          echo "modelfile generated"
+          url=${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/$(basename ${{ env.MODEL }}):latest
+          url_lower=$(echo "${url,,}")
+          echo "Building and pushing model to $url_lower"
+          modctl build -f Modelfile \
+            -t $url_lower \
+            --raw --output-remote --log-level debug \
+            .
+          echo "build/push completed"
+          mkdir download
+          echo "Pulling model from $url_lower"
+          modctl pull $url_lower \
+            --extract-dir download \
+            --log-level debug
+          echo "pull completed"
