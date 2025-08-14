@@ -29,7 +29,7 @@ import (
 // tagCmd represents the modctl command for tag.
 var tagCmd = &cobra.Command{
 	Use:                "tag [flags] <source> <target>",
-	Short:              "A command line tool for modctl tag",
+	Short:              "Tag can tag one model artifact to another one without rebuiding.",
 	Args:               cobra.ExactArgs(2),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,

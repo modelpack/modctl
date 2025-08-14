@@ -32,7 +32,7 @@ var fetchConfig = config.NewFetch()
 // fetchCmd represents the modctl command for fetch.
 var fetchCmd = &cobra.Command{
 	Use:                "fetch [flags] <target>",
-	Short:              "A command line tool for modctl fetch, please note that this command is designed for remote model fetching only.",
+	Short:              "Fetch can retrieve files from the remote model repository, enabling selective download of partial model files by filtering based on file path patterns.",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
