@@ -33,7 +33,7 @@ var inspectConfig = config.NewInspect()
 // inspectCmd represents the modctl command for inspect.
 var inspectCmd = &cobra.Command{
 	Use:                "inspect [flags] <target>",
-	Short:              "A command line tool for modctl inspect",
+	Short:              "Inspect can help to analyze the composition of model artifact.",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,

@@ -32,7 +32,7 @@ var pullConfig = config.NewPull()
 // pullCmd represents the modctl command for pull.
 var pullCmd = &cobra.Command{
 	Use:                "pull [flags] <target>",
-	Short:              "A command line tool for modctl pull",
+	Short:              "Pull a model artifact from the remote registry.",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,

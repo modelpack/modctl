@@ -29,7 +29,7 @@ import (
 // rmCmd represents the modctl command for rm.
 var rmCmd = &cobra.Command{
 	Use:                "rm [flags] <target>",
-	Short:              "A command line tool for modctl rm",
+	Short:              "Remove a model artifact from the local storage.",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
