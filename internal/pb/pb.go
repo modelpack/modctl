@@ -53,8 +53,9 @@ type ProgressBar struct {
 
 type progressBar struct {
 	*mpbv8.Bar
-	size int64
-	msg  string
+	size      int64
+	msg       string
+	startTime time.Time
 }
 
 // NewProgressBar creates a new progress bar.
@@ -97,7 +98,11 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 		oldBar.Abort(true)
 	}
 
-	newBar := &progressBar{size: size, msg: fmt.Sprintf("%s %s", prompt, name)}
+	newBar := &progressBar{
+		size:      size,
+		msg:       fmt.Sprintf("%s %s", prompt, name),
+		startTime: time.Now(),
+	}
 	// Create a new bar if it does not exist.
 	newBar.Bar = p.mpb.New(size,
 		mpbv8.BarStyle(),
@@ -110,8 +115,12 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 		mpbv8.AppendDecorators(
 			decor.OnComplete(decor.Counters(decor.SizeB1024(0), "% .2f / % .2f"), humanize.Bytes(uint64(size))),
 			decor.OnComplete(decor.Name(" | ", decor.WCSyncWidthR), " | "),
-			decor.OnComplete(
-				decor.AverageSpeed(decor.SizeB1024(0), "% .2f", decor.WCSyncWidthR), "done",
+			decor.OnCompleteMeta(
+				decor.AverageSpeed(decor.SizeB1024(0), "% .2f", decor.WCSyncWidthR),
+				func(_ string) string {
+					duration := time.Since(newBar.startTime).Seconds()
+					return fmt.Sprintf("done(%.1fs)", duration)
+				},
 			),
 		),
 	)
