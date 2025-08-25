@@ -35,7 +35,7 @@ var loginConfig = config.NewLogin()
 // loginCmd represents the modctl command for login.
 var loginCmd = &cobra.Command{
 	Use:   "login [flags] <registry>",
-	Short: "A command line tool for modctl login",
+	Short: "Login to a registry.",
 	Example: `
 # login to docker hub:
 modctl login -u foo registry-1.docker.io

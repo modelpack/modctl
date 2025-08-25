@@ -32,7 +32,7 @@ var pushConfig = config.NewPush()
 // pushCmd represents the modctl command for push.
 var pushCmd = &cobra.Command{
 	Use:                "push [flags] <target>",
-	Short:              "A command line tool for modctl push",
+	Short:              "Push a model artifact to the remote registry.",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
