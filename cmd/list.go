@@ -32,7 +32,7 @@ import (
 // listCmd represents the modctl command for list.
 var listCmd = &cobra.Command{
 	Use:                "ls",
-	Short:              "A command line tool for modctl list",
+	Short:              "List will lists the current built model artifacts from local storage.",
 	Args:               cobra.NoArgs,
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,

@@ -32,7 +32,7 @@ var extractConfig = config.NewExtract()
 // extractCmd represents the modctl command for extract.
 var extractCmd = &cobra.Command{
 	Use:                "extract <target> --output <output>",
-	Short:              "A command line tool for modctl extract",
+	Short:              "Extract the model artifact to the output path, which can restore the initial state of the model files.",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,

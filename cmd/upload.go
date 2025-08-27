@@ -32,7 +32,7 @@ var uploadConfig = config.NewUpload()
 // uploadCmd represents the modctl command for upload.
 var uploadCmd = &cobra.Command{
 	Use:                "upload [flags] <file>",
-	Short:              "A command line tool for modctl upload",
+	Short:              "Upload a file to the remote end in advance to save time in the later build, applicable to the scenario of uploading while downloading, this function needs to be used together with build.",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
