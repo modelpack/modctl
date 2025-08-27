@@ -32,7 +32,7 @@ var attachConfig = config.NewAttach()
 // attachCmd represents the modctl command for attach.
 var attachCmd = &cobra.Command{
 	Use:                "attach [flags] <file>",
-	Short:              "A command line tool for modctl attach",
+	Short:              "Attach the file to an existing model artifact.",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,

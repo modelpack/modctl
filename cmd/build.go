@@ -32,7 +32,7 @@ var buildConfig = config.NewBuild()
 // buildCmd represents the modctl command for build.
 var buildCmd = &cobra.Command{
 	Use:                "build [flags] <path>",
-	Short:              "A command line tool for modctl build",
+	Short:              "Build the model artifact with the context by specified path.",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,

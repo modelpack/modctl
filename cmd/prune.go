@@ -32,7 +32,7 @@ var pruneConfig = config.NewPrune()
 // pruneCmd represents the modctl command for prune.
 var pruneCmd = &cobra.Command{
 	Use:                "prune [flags]",
-	Short:              "A command line tool for modctl prune",
+	Short:              "Prune can help to cleanup useless manifests and blobs in the local storage.",
 	Args:               cobra.NoArgs,
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,

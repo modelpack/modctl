@@ -29,7 +29,7 @@ import (
 // logoutCmd represents the modctl command for logout.
 var logoutCmd = &cobra.Command{
 	Use:                "logout [flags]",
-	Short:              "A command line tool for modctl logout",
+	Short:              "Logout from a registry.",
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
