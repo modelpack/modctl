@@ -20,6 +20,10 @@ func TestIsFileType(t *testing.T) {
 		{"script.py", []string{"*.py", "*.sh"}, true},
 		{"script.sh", []string{"*.py", "*.sh"}, true},
 		{"script.bash", []string{"*.py", "*.sh"}, false},
+		{"folder/config.json", []string{"*.json", "*.yaml"}, true},
+		{"FOLDER/config.json", []string{"*.json", "*.yaml"}, true},
+		{"folder/CONFIG.JSON", []string{"*.json", "*.yaml"}, true},
+		{"folder\\config.json", []string{"*.json", "*.yaml"}, true},
 	}
 
 	assert := assert.New(t)
