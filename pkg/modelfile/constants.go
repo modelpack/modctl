@@ -434,7 +434,7 @@ func IsFileType(filename string, patterns []string) bool {
 	lowerFilename := strings.ToLower(filename)
 	for _, pattern := range patterns {
 		// Convert pattern to lowercase for case-insensitive comparison
-		matched, err := filepath.Match(strings.ToLower(pattern), lowerFilename)
+		matched, err := filepath.Match(strings.ToLower(pattern), filepath.Base(lowerFilename))
 		if err == nil && matched {
 			return true
 		}
