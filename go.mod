@@ -1,10 +1,10 @@
 module github.com/modelpack/modctl
 
-go 1.24.1
+go 1.25
 
 require (
 	d7y.io/api/v2 v2.1.62
-	github.com/antgroup/hugescm v0.18.3
+	github.com/antgroup/hugescm v0.19.1
 	github.com/avast/retry-go/v4 v4.6.1
 	github.com/distribution/distribution/v3 v3.0.0
 	github.com/distribution/reference v0.6.0
@@ -22,9 +22,9 @@ require (
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.11.1
 	github.com/vbauerster/mpb/v8 v8.10.2
-	golang.org/x/crypto v0.41.0
-	golang.org/x/sync v0.16.0
-	golang.org/x/sys v0.35.0
+	golang.org/x/crypto v0.42.0
+	golang.org/x/sync v0.17.0
+	golang.org/x/sys v0.36.0
 	google.golang.org/grpc v1.75.0
 	oras.land/oras-go/v2 v2.6.0
 )
@@ -43,7 +43,7 @@ require (
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/danieljoos/wincred v1.2.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
+	github.com/dgraph-io/ristretto/v2 v2.3.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
@@ -110,9 +110,9 @@ require (
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.42.0 // indirect
-	golang.org/x/term v0.34.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/term v0.35.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/protobuf v1.36.7 // indirect
