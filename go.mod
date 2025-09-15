@@ -3,7 +3,7 @@ module github.com/modelpack/modctl
 go 1.24.1
 
 require (
-	d7y.io/api/v2 v2.1.62
+	d7y.io/api/v2 v2.1.65
 	github.com/antgroup/hugescm v0.18.3
 	github.com/avast/retry-go/v4 v4.6.1
 	github.com/distribution/distribution/v3 v3.0.0
@@ -115,7 +115,7 @@ require (
 	golang.org/x/text v0.28.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
-	google.golang.org/protobuf v1.36.7 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
