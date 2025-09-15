@@ -35,6 +35,7 @@ type Build struct {
 	SourceRevision string
 	Raw            bool
 	Reasoning      bool
+	NoCreationTime bool
 }
 
 func NewBuild() *Build {
@@ -50,6 +51,7 @@ func NewBuild() *Build {
 		SourceRevision: "",
 		Raw:            false,
 		Reasoning:      false,
+		NoCreationTime: false,
 	}
 }
 

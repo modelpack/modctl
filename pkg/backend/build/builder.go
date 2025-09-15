@@ -257,13 +257,16 @@ func BuildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descripto
 		}
 	}
 
-	createdAt := time.Now()
 	descriptor := modelspec.ModelDescriptor{
-		CreatedAt: &createdAt,
 		Family:    modelConfig.Family,
 		Name:      modelConfig.Name,
 		SourceURL: modelConfig.SourceURL,
 		Revision:  modelConfig.SourceRevision,
+	}
+
+	if !modelConfig.NoCreationTime {
+		createdAt := time.Now()
+		descriptor.CreatedAt = &createdAt
 	}
 
 	diffIDs := make([]godigest.Digest, 0, len(layers))
