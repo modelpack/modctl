@@ -4,9 +4,6 @@ on:
   push:
     branches: [main, release-*]
     paths-ignore: ["**.md", "**.png", "**.jpg", "**.svg", "**/docs/**"]
-  pull_request:
-    branches: [main, release-*]
-    paths-ignore: ["**.md", "**.png", "**.jpg", "**.svg", "**/docs/**"]
   schedule:
     - cron: "0 1 * * *"
   workflow_dispatch:
@@ -141,18 +138,9 @@ jobs:
           sudo cp modctl/modctl /bin/modctl
           sudo chmod +x /bin/modctl
           modctl version
-
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "Login using PAT for Pull Request"
-            modctl login -u ${{ github.actor }} \
-                         -p ${{ secrets.CR_PAT }} \
-                         ${{ env.REGISTRY }}
-          else
-            echo "Login using GITHUB_TOKEN"
-            modctl login -u ${{ github.actor }} \
-                         -p ${{ secrets.GITHUB_TOKEN }} \
-                         ${{ env.REGISTRY }}
-          fi
+          modctl login -u ${{ github.actor }} \
+                       -p ${{ secrets.GITHUB_TOKEN }} \
+                       ${{ env.REGISTRY }}
 
       - name: Test modctl E2E
         run: |
