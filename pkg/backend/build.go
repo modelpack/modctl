@@ -113,6 +113,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		SourceURL:      sourceInfo.URL,
 		SourceRevision: revision,
 		Reasoning:      cfg.Reasoning,
+		NoCreationTime: cfg.NoCreationTime,
 	}, layers)
 	if err != nil {
 		return fmt.Errorf("failed to build model config: %w", err)
