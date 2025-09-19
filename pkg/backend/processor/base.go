@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/avast/retry-go/v4"
+	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -171,11 +172,19 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		// Sort by filepath by default.
 		var pathI, pathJ string
 		if descriptors[i].Annotations != nil {
-			pathI = descriptors[i].Annotations[modelspec.AnnotationFilepath]
+			if descriptors[i].Annotations[modelspec.AnnotationFilepath] != "" {
+				pathI = descriptors[i].Annotations[modelspec.AnnotationFilepath]
+			} else {
+				pathI = descriptors[i].Annotations[legacymodelspec.AnnotationFilepath]
+			}
 		}
 
 		if descriptors[j].Annotations != nil {
-			pathJ = descriptors[j].Annotations[modelspec.AnnotationFilepath]
+			if descriptors[i].Annotations[modelspec.AnnotationFilepath] != "" {
+				pathJ = descriptors[i].Annotations[modelspec.AnnotationFilepath]
+			} else {
+				pathJ = descriptors[i].Annotations[legacymodelspec.AnnotationFilepath]
+			}
 		}
 
 		return pathI < pathJ

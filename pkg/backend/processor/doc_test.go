@@ -25,7 +25,7 @@ import (
 	buildmock "github.com/modelpack/modctl/test/mocks/backend/build"
 	"github.com/modelpack/modctl/test/mocks/storage"
 
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
+	modelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
