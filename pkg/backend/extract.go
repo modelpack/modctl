@@ -109,7 +109,7 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 // extractLayer extracts the layer to the output directory.
 func extractLayer(desc ocispec.Descriptor, outputDir string, reader io.Reader) error {
 	var filepath string
-	if desc.Annotations != nil && desc.Annotations[modelspec.AnnotationFilepath] != "" {
+	if desc.Annotations != nil {
 		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
 			filepath = desc.Annotations[modelspec.AnnotationFilepath]
 		} else {
