@@ -28,4 +28,5 @@ type Model struct {
 	SourceURL      string
 	SourceRevision string
 	Reasoning      bool
+	NoCreationTime bool
 }
