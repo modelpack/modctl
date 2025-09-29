@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/modelpack/modctl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/modelpack/modctl/actions/workflows/ci.yml)
 [![GoDoc](https://godoc.org/github.com/modelpack/modctl?status.svg)](https://godoc.org/github.com/modelpack/modctl)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/modelpack/modctl)
 
 Modctl is a user-friendly CLI tool for managing OCI model artifacts, which are bundled based on [Model Spec](https://github.com/modelpack/model-spec).
 It offers commands such as `build`, `pull`, `push`, and more, making it easy for users to convert their AI models into OCI artifacts.
