@@ -18,18 +18,24 @@ package parser
 
 import (
 	"errors"
+	"strings"
 )
 
 // parseStringArgs parses the string type of args and returns a Node, for example:
 // "MODEL foo" args' value is "foo".
+// If multiple args are provided (due to unquoted spaces), they are joined with spaces.
+// This handles cases like: CONFIG path with spaces/file.json
 func parseStringArgs(args []string, start, end int) (Node, error) {
-	if len(args) != 1 {
-		return nil, errors.New("invalid args")
-	}
-
-	if args[0] == "" {
+	if len(args) == 0 {
 		return nil, errors.New("empty args")
 	}
 
-	return NewNode(args[0], start, end), nil
+	// Join all arguments with spaces to handle unquoted file paths with spaces
+	joined := strings.Join(args, " ")
+
+	if joined == "" {
+		return nil, errors.New("empty args")
+	}
+
+	return NewNode(joined, start, end), nil
 }

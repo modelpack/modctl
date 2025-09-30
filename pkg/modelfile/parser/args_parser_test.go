@@ -33,8 +33,11 @@ func TestParseStringArgs(t *testing.T) {
 		{[]string{"foo"}, 1, 2, false, "foo"},
 		{[]string{"bar"}, 3, 4, false, "bar"},
 		{[]string{}, 5, 6, true, ""},
-		{[]string{"foo", "bar"}, 7, 8, true, ""},
+		{[]string{"foo", "bar"}, 7, 8, false, "foo bar"}, // Now handles multiple args by joining
 		{[]string{""}, 9, 10, true, ""},
+		// Additional test cases for spaces in file paths
+		{[]string{"path", "with", "spaces/file.json"}, 11, 12, false, "path with spaces/file.json"},
+		{[]string{"example", "workflows_Wan2.1/image_to_video_wan_480p_example.json"}, 13, 14, false, "example workflows_Wan2.1/image_to_video_wan_480p_example.json"},
 	}
 
 	assert := assert.New(t)
