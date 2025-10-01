@@ -33,7 +33,7 @@ func parseStringArgs(args []string, start, end int) (Node, error) {
 	// Join all arguments with spaces to handle unquoted file paths with spaces
 	joined := strings.Join(args, " ")
 
-	if joined == "" {
+	if strings.TrimSpace(joined) == "" {
 		return nil, errors.New("empty args")
 	}
 
