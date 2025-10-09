@@ -11,7 +11,7 @@ require (
 	github.com/dragonflyoss/model-spec v0.0.6
 	github.com/dustin/go-humanize v1.0.1
 	github.com/emirpasic/gods v1.18.1
-	github.com/go-git/go-git/v5 v5.16.2
+	github.com/go-git/go-git/v5 v5.16.3
 	github.com/libgit2/git2go/v34 v34.0.0
 	github.com/minio/sha256-simd v1.0.1
 	github.com/modelpack/model-spec v0.0.7
