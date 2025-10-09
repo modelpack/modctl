@@ -1,5 +1,5 @@
-d7y.io/api/v2 v2.1.68 h1:Hs7vKhursyvhQz4CCTIxS3Ct3cck3hWVkXKUK0+uRSY=
-d7y.io/api/v2 v2.1.68/go.mod h1:Zd/KrYRZ1saG0c+n+G5/6HqIFKTHHLKrZzOpqi3nmLw=
+d7y.io/api/v2 v2.1.71 h1:U9nZAwe2hwVTJg63F+yFTN8pr+TE2u1Kumz5loM2rXs=
+d7y.io/api/v2 v2.1.71/go.mod h1:Zd/KrYRZ1saG0c+n+G5/6HqIFKTHHLKrZzOpqi3nmLw=
 dario.cat/mergo v1.0.0 h1:AGCNq9Evsj31mOgNPcLyXc+4PNABt905YmuqPYYpBWk=
 dario.cat/mergo v1.0.0/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
 github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg=
