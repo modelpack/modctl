@@ -5,7 +5,7 @@ go 1.24.1
 require (
 	d7y.io/api/v2 v2.1.80
 	github.com/antgroup/hugescm v0.18.3
-	github.com/avast/retry-go/v4 v4.6.1
+	github.com/avast/retry-go/v4 v4.7.0
 	github.com/distribution/distribution/v3 v3.0.0
 	github.com/distribution/reference v0.6.0
 	github.com/dragonflyoss/model-spec v0.0.6
