@@ -163,7 +163,8 @@ func getAuthToken(ctx context.Context, src *remote.Repository, registry, repo st
 		return "", fmt.Errorf("failed to empty token from cache")
 	}
 
-	return token, nil
+	// Assemble the full authorization token by prepending the scheme (e.g., "Bearer" or "Basic").
+	return fmt.Sprintf("%s %s", scheme, token), nil
 }
 
 // buildBlobURL constructs the URL for a blob.
@@ -232,7 +233,7 @@ func downloadAndExtractLayer(ctx context.Context, pb *internalpb.ProgressBar, cl
 			Type:     common.TaskType_STANDARD,
 			Priority: common.Priority_LEVEL6,
 			RequestHeader: map[string]string{
-				"Authorization": fmt.Sprintf("Bearer %s", authToken),
+				"Authorization": authToken,
 			},
 			OutputPath:    &outputPath,
 			ForceHardLink: false,
