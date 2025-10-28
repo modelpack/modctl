@@ -141,8 +141,20 @@ func getAuthToken(ctx context.Context, src *remote.Repository, registry, repo st
 		return "", fmt.Errorf("failed to get scheme: %w", err)
 	}
 
-	repo = strings.TrimPrefix(repo, registry+"/")
-	token, err := client.Cache.GetToken(ctx, registry, scheme, fmt.Sprintf("repository:%s:pull", repo))
+	// Auth key in client cache is different for basic and bearer authentication,
+	// it is empty for basic but with scope repository:{repo_name}:pull for bearer.
+	var authKey string
+	switch scheme {
+	case auth.SchemeBasic:
+		authKey = ""
+	case auth.SchemeBearer:
+		repo = strings.TrimPrefix(repo, registry+"/")
+		authKey = fmt.Sprintf("repository:%s:pull", repo)
+	default:
+		return "", fmt.Errorf("unsupported scheme: %s", scheme)
+	}
+
+	token, err := client.Cache.GetToken(ctx, registry, scheme, authKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to get token: %w", err)
 	}
