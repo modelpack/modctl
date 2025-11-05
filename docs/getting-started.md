@@ -5,7 +5,7 @@
 ### Binary
 
 ```shell
-$ go install github.com/modelpack/modctl@latest
+$ go install github.com/modelpack/modctl@main
 ```
 
 ### Build from source
