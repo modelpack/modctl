@@ -26,6 +26,8 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 	"oras.land/oras-go/v2/registry/remote/retry"
+
+	"github.com/modelpack/modctl/pkg/version"
 )
 
 type Repository = remote.Repository
@@ -78,10 +80,15 @@ func New(repo string, opts ...Option) (*remote.Repository, error) {
 		return nil, fmt.Errorf("failed to create credential store: %w", err)
 	}
 
+	// Add custom headers to the request.
+	header := make(http.Header)
+	header.Set("User-Agent", fmt.Sprintf("modctl/%s", version.GitVersion))
+
 	repository.Client = &auth.Client{
 		Cache:      auth.NewCache(),
 		Credential: credentials.Credential(credStore),
 		Client:     httpClient,
+		Header:     header,
 	}
 
 	repository.PlainHTTP = client.plainHTTP
