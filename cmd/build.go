@@ -59,8 +59,7 @@ func init() {
 	flags.MarkHidden("nydusify")
 	flags.StringVar(&buildConfig.SourceURL, "source-url", "", "source URL")
 	flags.StringVar(&buildConfig.SourceRevision, "source-revision", "", "source revision")
-	// TODO: set the raw flag to true by default in future.
-	flags.BoolVar(&buildConfig.Raw, "raw", false, "turning on this flag will build model artifact layers in raw format")
+	flags.BoolVar(&buildConfig.Raw, "raw", true, "turning on this flag will build model artifact layers in raw format")
 	flags.BoolVar(&buildConfig.Reasoning, "reasoning", false, "turning on this flag will mark this model as reasoning model in the config")
 	flags.BoolVar(&buildConfig.NoCreationTime, "no-creation-time", false, "turning on this flag will not set createdAt in the config, which will be helpful for repeated builds")
 
