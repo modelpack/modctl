@@ -52,7 +52,7 @@ func init() {
 	flags.StringVarP(&uploadConfig.Repo, "repo", "", "", "target model artifact repository name")
 	flags.BoolVarP(&uploadConfig.PlainHTTP, "plain-http", "", false, "turning on this flag will use plain HTTP instead of HTTPS")
 	flags.BoolVarP(&uploadConfig.Insecure, "insecure", "", false, "turning on this flag will disable TLS verification")
-	flags.BoolVar(&uploadConfig.Raw, "raw", false, "turning on this flag will upload model artifact layer in raw format")
+	flags.BoolVar(&uploadConfig.Raw, "raw", true, "turning on this flag will upload model artifact layer in raw format")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
