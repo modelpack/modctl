@@ -103,13 +103,9 @@ func DownloadModel(ctx context.Context, modelURL, destDir string) (string, error
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	fmt.Printf("Downloading model %s to %s...\n", repoID, downloadPath)
-
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("failed to download model using huggingface-cli: %w", err)
 	}
-
-	fmt.Printf("Successfully downloaded model to %s\n", downloadPath)
 
 	return downloadPath, nil
 }
@@ -136,6 +132,8 @@ func CheckHuggingFaceAuth() error {
 	// Try using whoami command
 	if _, err := exec.LookPath("huggingface-cli"); err == nil {
 		cmd := exec.Command("huggingface-cli", "whoami")
+		cmd.Stdout = io.Discard
+		cmd.Stderr = io.Discard
 		if err := cmd.Run(); err == nil {
 			return nil
 		}

@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -66,8 +65,11 @@ Alternatively, use --model_url to download a model from Hugging Face Hub.`,
 		}
 
 		// Validate that either path or model_url is provided
+		if generateConfig.ModelURL != "" && len(args) > 0 {
+			return fmt.Errorf("the <path> argument and the --model_url flag are mutually exclusive")
+		}
 		if generateConfig.ModelURL == "" && len(args) == 0 {
-			return fmt.Errorf("either <path> argument or --model_url flag must be provided")
+			return fmt.Errorf("either a <path> argument or the --model_url flag must be provided")
 		}
 
 		if err := generateConfig.Convert(workspace); err != nil {
@@ -118,10 +120,12 @@ func runGenerate(ctx context.Context) error {
 		}
 
 		// Create a temporary directory for downloading the model
-		tmpDir := filepath.Join(os.TempDir(), "modctl-hf-downloads")
-		if err := os.MkdirAll(tmpDir, 0755); err != nil {
+		// Clean up the temporary directory after the function returns
+		tmpDir, err := os.MkdirTemp("", "modctl-hf-downloads-*")
+		if err != nil {
 			return fmt.Errorf("failed to create temporary directory: %w", err)
 		}
+		defer os.RemoveAll(tmpDir)
 
 		// Download the model
 		downloadPath, err := hfhub.DownloadModel(ctx, generateConfig.ModelURL, tmpDir)

@@ -17,6 +17,7 @@
 package hfhub
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -93,7 +94,7 @@ func TestParseModelURL(t *testing.T) {
 					t.Errorf("ParseModelURL() expected error but got nil")
 					return
 				}
-				if tt.errContains != "" && err.Error() != tt.errContains && !contains(err.Error(), tt.errContains) {
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("ParseModelURL() error = %v, want error containing %v", err, tt.errContains)
 				}
 				return
@@ -113,19 +114,4 @@ func TestParseModelURL(t *testing.T) {
 			}
 		})
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
-		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		findInString(s, substr)))
-}
-
-func findInString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
