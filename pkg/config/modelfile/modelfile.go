@@ -39,6 +39,7 @@ type GenerateConfig struct {
 	ParamSize                   string
 	Precision                   string
 	Quantization                string
+	ModelURL                    string
 }
 
 func NewGenerateConfig() *GenerateConfig {
@@ -55,6 +56,7 @@ func NewGenerateConfig() *GenerateConfig {
 		ParamSize:                   "",
 		Precision:                   "",
 		Quantization:                "",
+		ModelURL:                    "",
 	}
 }
 
