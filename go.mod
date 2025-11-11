@@ -23,7 +23,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/vbauerster/mpb/v8 v8.10.2
 	golang.org/x/crypto v0.43.0
-	golang.org/x/sync v0.17.0
+	golang.org/x/sync v0.18.0
 	golang.org/x/sys v0.37.0
 	google.golang.org/grpc v1.76.0
 	oras.land/oras-go/v2 v2.6.0
