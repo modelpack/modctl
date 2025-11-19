@@ -36,13 +36,13 @@ import (
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
 
 	buildconfig "github.com/modelpack/modctl/pkg/backend/build/config"
 	"github.com/modelpack/modctl/pkg/backend/build/hooks"
 	"github.com/modelpack/modctl/pkg/backend/build/interceptor"
 	pkgcodec "github.com/modelpack/modctl/pkg/codec"
 	"github.com/modelpack/modctl/pkg/storage"
+	"github.com/modelpack/modctl/pkg/xattr"
 )
 
 // OutputType defines the type of output to generate.
@@ -288,71 +288,78 @@ func BuildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descripto
 
 // computeDigestAndSize computes the digest and size for the encoded content, using xattrs if available.
 func computeDigestAndSize(mediaType, path, workDirPath string, info os.FileInfo, reader io.Reader, codec pkgcodec.Codec) (io.Reader, string, int64, error) {
-	var digest string
-	var size int64
-
+	// Try to retrieve valid digest from xattrs cache.
 	if pkgcodec.IsRawMediaType(mediaType) {
-		// By default let's assume the mtime and size has changed.
-		mtimeChanged := true
-		sizeChanged := true
-
-		if mtime, err := getXattr(path, xattrMtimeKey(mediaType)); err == nil {
-			if string(mtime) == fmt.Sprintf("%d", info.ModTime().UnixNano()) {
-				mtimeChanged = false
-			}
-		}
-
-		if sizeBytes, err := getXattr(path, xattrSizeKey(mediaType)); err == nil {
-			if parsedSize, err := strconv.ParseInt(string(sizeBytes), 10, 64); err == nil {
-				if parsedSize == info.Size() {
-					sizeChanged = false
-				}
-			}
-		}
-
-		if !mtimeChanged && !sizeChanged {
-			// Check xattrs for cached digest and size.
-			if sha256, err := getXattr(path, xattrSha256Key(mediaType)); err == nil {
-				digest = string(sha256)
-				logrus.Infof("builder: retrieved sha256 hash from xattr for file %s [digest: %s]", path, digest)
-			}
-
-			if sizeBytes, err := getXattr(path, xattrSizeKey(mediaType)); err == nil {
-				if parsedSize, err := strconv.ParseInt(string(sizeBytes), 10, 64); err == nil {
-					size = parsedSize
-					logrus.Infof("builder: retrieved size from xattr for file %s [size: %d]", path, size)
-				}
-			}
+		if digest, size, ok := retrieveCachedDigest(path, info); ok {
+			return reader, digest, size, nil
 		}
 	}
 
-	// Compute digest and size if not retrieved from xattrs.
-	if digest == "" {
-		logrus.Infof("builder: calculating digest for file %s", path)
-		var err error
-		hash := sha256.New()
-		size, err = io.Copy(hash, reader)
-		if err != nil {
-			return reader, "", 0, fmt.Errorf("failed to copy content to hash: %w", err)
-		}
-		digest = fmt.Sprintf("sha256:%x", hash.Sum(nil))
-		logrus.Infof("builder: calculated digest for file %s [digest: %s]", path, digest)
+	logrus.Infof("builder: calculating digest for file %s", path)
 
-		// Reset reader
-		reader, err = resetReader(reader, path, workDirPath, codec)
-		if err != nil {
-			return reader, "", 0, err
-		}
+	hash := sha256.New()
+	size, err := io.Copy(hash, reader)
+	if err != nil {
+		return reader, "", 0, fmt.Errorf("failed to copy content to hash: %w", err)
+	}
+	digest := fmt.Sprintf("sha256:%x", hash.Sum(nil))
 
-		// Store xattrs if raw media type.
-		if pkgcodec.IsRawMediaType(mediaType) {
-			setXattr(path, xattrMtimeKey(mediaType), fmt.Appendf([]byte{}, "%d", info.ModTime().UnixNano()))
-			setXattr(path, xattrSha256Key(mediaType), []byte(digest))
-			setXattr(path, xattrSizeKey(mediaType), fmt.Appendf([]byte{}, "%d", size))
+	logrus.Infof("builder: calculated digest for file %s [digest: %s]", path, digest)
+
+	// Reset reader for subsequent use.
+	reader, err = resetReader(reader, path, workDirPath, codec)
+	if err != nil {
+		return reader, "", 0, err
+	}
+
+	// Update xattrs cache.
+	if pkgcodec.IsRawMediaType(mediaType) {
+		if err := updateCachedDigest(path, info.ModTime().UnixNano(), size, digest); err != nil {
+			logrus.Warnf("builder: failed to update xattrs for file %s: %s", path, err)
 		}
 	}
 
 	return reader, digest, size, nil
+}
+
+// retrieveCachedDigest checks if mtime and size match, then returns the cached digest.
+func retrieveCachedDigest(path string, info os.FileInfo) (string, int64, bool) {
+	mtimeData, err := xattr.Get(path, xattr.MakeKey(xattr.KeyMtime))
+	if err != nil || string(mtimeData) != strconv.FormatInt(info.ModTime().UnixNano(), 10) {
+		return "", 0, false
+	}
+
+	sizeData, err := xattr.Get(path, xattr.MakeKey(xattr.KeySize))
+	if err != nil {
+		return "", 0, false
+	}
+	cachedSize, err := strconv.ParseInt(string(sizeData), 10, 64)
+	if err != nil || cachedSize != info.Size() {
+		return "", 0, false
+	}
+
+	digestData, err := xattr.Get(path, xattr.MakeKey(xattr.KeySha256))
+	if err != nil {
+		return "", 0, false
+	}
+
+	digest := string(digestData)
+	logrus.Infof("builder: retrieved from xattr cache for file %s [digest: %s]", path, digest)
+	return digest, cachedSize, true
+}
+
+// updateCachedDigest writes mtime, size, and digest to xattrs.
+func updateCachedDigest(path string, mtime, size int64, digest string) error {
+	if err := xattr.Set(path, xattr.MakeKey(xattr.KeyMtime), []byte(strconv.FormatInt(mtime, 10))); err != nil {
+		return err
+	}
+	if err := xattr.Set(path, xattr.MakeKey(xattr.KeySha256), []byte(digest)); err != nil {
+		return err
+	}
+	if err := xattr.Set(path, xattr.MakeKey(xattr.KeySize), []byte(strconv.FormatInt(size, 10))); err != nil {
+		return err
+	}
+	return nil
 }
 
 // resetReader resets the reader to the beginning or re-encodes if not seekable.
@@ -441,53 +448,4 @@ func getFileMetadata(path string) (modelspec.FileMetadata, error) {
 	}
 
 	return metadata, nil
-}
-
-func xattrSha256Key(mediaType string) string {
-	// Uniformity between linux and mac platforms is simplified by adding the prefix 'user.',
-	// because the key may be unlimited under mac,
-	// but on linux, in some cases, the user can only manipulate the user space.
-	return fmt.Sprintf("user.%s.sha256", mediaType)
-}
-
-func xattrSizeKey(mediaType string) string {
-	// Uniformity between linux and mac platforms is simplified by adding the prefix 'user.',
-	// because the key may be unlimited under mac,
-	// but on linux, in some cases, the user can only manipulate the user space.
-	return fmt.Sprintf("user.%s.size", mediaType)
-}
-
-func xattrMtimeKey(mediaType string) string {
-	// Uniformity between linux and mac platforms is simplified by adding the prefix 'user.',
-	// because the key may be unlimited under mac,
-	// but on linux, in some cases, the user can only manipulate the user space.
-	return fmt.Sprintf("user.%s.mtime", mediaType)
-}
-
-// getXattr retrieves an xattr value for a given key.
-func getXattr(path, key string) ([]byte, error) {
-	var value []byte
-	sz, err := unix.Getxattr(path, key, value)
-	if err != nil {
-		logrus.Warnf("builder: failed to get xattr %s for file %s: %v", key, path, err)
-		return nil, err
-	}
-
-	value = make([]byte, sz)
-	_, err = unix.Getxattr(path, key, value)
-	if err != nil {
-		logrus.Warnf("builder: failed to get xattr %s for file %s: %v", key, path, err)
-		return nil, err
-	}
-
-	return value, nil
-}
-
-// setXattr sets an xattr value for a given key.
-func setXattr(path, key string, value []byte) {
-	if err := unix.Setxattr(path, key, value, 0); err != nil {
-		logrus.Warnf("builder: failed to set xattr %s for file %s: %v", key, path, err)
-	} else {
-		logrus.Infof("builder: set xattr %s for file %s: %s", key, path, string(value))
-	}
 }

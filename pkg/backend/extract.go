@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
@@ -29,7 +30,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/modelpack/modctl/pkg/codec"
+	pkgcodec "github.com/modelpack/modctl/pkg/codec"
 	"github.com/modelpack/modctl/pkg/config"
 	"github.com/modelpack/modctl/pkg/storage"
 )
@@ -89,6 +90,11 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 
 			bufferedReader := bufio.NewReaderSize(reader, defaultBufferSize)
 			if err := extractLayer(layer, cfg.Output, bufferedReader); err != nil {
+				if errors.Is(err, pkgcodec.ErrAlreadyUpToDate) {
+					logrus.Debugf("extract: skipped layer %s because target is up-to-date", layer.Digest.String())
+					return nil
+				}
+
 				return fmt.Errorf("failed to extract layer %s: %w", layer.Digest.String(), err)
 			}
 
@@ -118,12 +124,16 @@ func extractLayer(desc ocispec.Descriptor, outputDir string, reader io.Reader) e
 
 	}
 
-	codec, err := codec.New(codec.TypeFromMediaType(desc.MediaType))
+	codec, err := pkgcodec.New(pkgcodec.TypeFromMediaType(desc.MediaType))
 	if err != nil {
 		return fmt.Errorf("failed to create codec for media type %s: %w", desc.MediaType, err)
 	}
 
 	if err := codec.Decode(outputDir, filepath, reader, desc); err != nil {
+		if errors.Is(err, pkgcodec.ErrAlreadyUpToDate) {
+			return err
+		}
+
 		return fmt.Errorf("failed to decode the layer %s to output directory: %w", desc.Digest.String(), err)
 	}
 

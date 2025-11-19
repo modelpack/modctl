@@ -19,6 +19,7 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
@@ -30,6 +31,7 @@ import (
 
 	internalpb "github.com/modelpack/modctl/internal/pb"
 	"github.com/modelpack/modctl/pkg/backend/remote"
+	"github.com/modelpack/modctl/pkg/codec"
 	"github.com/modelpack/modctl/pkg/config"
 	"github.com/modelpack/modctl/pkg/storage"
 )
@@ -255,9 +257,15 @@ func pullAndExtractFromRemote(ctx context.Context, pb *internalpb.ProgressBar, p
 	reader = io.TeeReader(reader, hash)
 
 	if err := extractLayer(desc, outputDir, reader); err != nil {
-		err = fmt.Errorf("failed to extract the blob %s to output directory: %w", desc.Digest.String(), err)
-		pb.Abort(desc.Digest.String(), err)
-		return err
+		if errors.Is(err, codec.ErrAlreadyUpToDate) {
+			logrus.Debugf("pull: skipped extracting blob %s because target is up-to-date", desc.Digest.String())
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
+			return nil
+		}
+
+		wrapped := fmt.Errorf("failed to extract the blob %s to output directory: %w", desc.Digest.String(), err)
+		pb.Abort(desc.Digest.String(), wrapped)
+		return wrapped
 	}
 
 	// validate the digest of the blob.
