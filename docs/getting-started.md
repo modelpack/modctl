@@ -31,6 +31,14 @@ directory(workspace).
 $ modctl modelfile generate .
 ```
 
+If you want to exclude specific files from the model artifact (such as checkpoint directories),
+you can use the `--exclude` option to specify the file path glob pattern.
+Note that only basic glob syntax (`*`, `?`, `[]`) is supported; advanced features like `**` for recursive matching are not.
+
+```shell
+$ modctl modelfile generate . --exclude 'checkpoint-*'
+```
+
 ### Build
 
 Build the model artifact you need to prepare a Modelfile describe your expected layout of the model artifact in your model repo.
