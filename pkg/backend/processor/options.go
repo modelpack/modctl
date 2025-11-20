@@ -46,8 +46,8 @@ func WithProgressTracker(tracker *pb.ProgressBar) ProcessOption {
 }
 
 var defaultRetryOpts = []retry.Option{
-	retry.Attempts(4),
+	retry.Attempts(6),
 	retry.DelayType(retry.BackOffDelay),
-	retry.Delay(10 * time.Second),
-	retry.MaxDelay(20 * time.Second),
+	retry.Delay(5 * time.Second),
+	retry.MaxDelay(60 * time.Second),
 }
