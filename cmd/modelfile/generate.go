@@ -25,8 +25,8 @@ import (
 	"github.com/spf13/viper"
 
 	configmodelfile "github.com/modelpack/modctl/pkg/config/modelfile"
-	"github.com/modelpack/modctl/pkg/hfhub"
 	"github.com/modelpack/modctl/pkg/modelfile"
+	"github.com/modelpack/modctl/pkg/modelprovider"
 )
 
 var generateConfig = configmodelfile.NewGenerateConfig()
@@ -34,11 +34,11 @@ var generateConfig = configmodelfile.NewGenerateConfig()
 // generateCmd represents the modelfile tools command for generating modelfile.
 var generateCmd = &cobra.Command{
 	Use:   "generate [flags] [<path>]",
-	Short: "Generate a modelfile from a local workspace or Hugging Face model",
-	Long: `Generate a modelfile from either a local directory containing model files or by downloading a model from Hugging Face.
+	Short: "Generate a modelfile from a local workspace or remote model provider",
+	Long: `Generate a modelfile from either a local directory containing model files or by downloading a model from a supported provider.
 
 The workspace must be a directory including model files and model configuration files.
-Alternatively, use --model_url to download a model from Hugging Face Hub.`,
+Alternatively, use --model_url to download a model from a supported provider (e.g., HuggingFace, ModelScope).`,
 	Example: `  # Generate from local directory
   modctl modelfile generate ./my-model-dir
 
@@ -47,6 +47,9 @@ Alternatively, use --model_url to download a model from Hugging Face Hub.`,
 
   # Generate from Hugging Face using short form
   modctl modelfile generate --model_url meta-llama/Llama-2-7b-hf
+
+  # Generate from ModelScope
+  modctl modelfile generate --model_url https://modelscope.cn/models/qwen/Qwen-7B
 
   # Generate with custom output path
   modctl modelfile generate ./my-model-dir --output ./output/modelfile.yaml
@@ -97,7 +100,7 @@ func init() {
 	flags.StringVarP(&generateConfig.Output, "output", "O", ".", "specify the output path of modelfilem, must be a directory")
 	flags.BoolVar(&generateConfig.IgnoreUnrecognizedFileTypes, "ignore-unrecognized-file-types", false, "ignore the unrecognized file types in the workspace")
 	flags.BoolVar(&generateConfig.Overwrite, "overwrite", false, "overwrite the existing modelfile")
-	flags.StringVar(&generateConfig.ModelURL, "model_url", "", "download model from Hugging Face (format: owner/repo or full URL)")
+	flags.StringVar(&generateConfig.ModelURL, "model_url", "", "download model from a supported provider (HuggingFace: owner/repo or full URL, ModelScope: full URL)")
 
 	// Mark the ignore-unrecognized-file-types flag as deprecated and hidden
 	flags.MarkDeprecated("ignore-unrecognized-file-types", "this flag will be removed in the next release")
@@ -114,23 +117,32 @@ func runGenerate(ctx context.Context) error {
 	if generateConfig.ModelURL != "" {
 		fmt.Printf("Model URL provided: %s\n", generateConfig.ModelURL)
 
-		// Check if user is authenticated with Hugging Face
-		if err := hfhub.CheckHuggingFaceAuth(); err != nil {
-			return fmt.Errorf("authentication check failed: %w", err)
+		// Get the appropriate provider for this URL
+		registry := modelprovider.NewRegistry()
+		provider, err := registry.GetProvider(generateConfig.ModelURL)
+		if err != nil {
+			return fmt.Errorf("unsupported model URL: %w", err)
+		}
+
+		fmt.Printf("Using provider: %s\n", provider.Name())
+
+		// Check if user is authenticated with the provider
+		if err := provider.CheckAuth(); err != nil {
+			return fmt.Errorf("%s authentication check failed: %w", provider.Name(), err)
 		}
 
 		// Create a temporary directory for downloading the model
 		// Clean up the temporary directory after the function returns
-		tmpDir, err := os.MkdirTemp("", "modctl-hf-downloads-*")
+		tmpDir, err := os.MkdirTemp("", "modctl-model-downloads-*")
 		if err != nil {
 			return fmt.Errorf("failed to create temporary directory: %w", err)
 		}
 		defer os.RemoveAll(tmpDir)
 
 		// Download the model
-		downloadPath, err := hfhub.DownloadModel(ctx, generateConfig.ModelURL, tmpDir)
+		downloadPath, err := provider.DownloadModel(ctx, generateConfig.ModelURL, tmpDir)
 		if err != nil {
-			return fmt.Errorf("failed to download model: %w", err)
+			return fmt.Errorf("failed to download model from %s: %w", provider.Name(), err)
 		}
 
 		// Update workspace to the downloaded model path

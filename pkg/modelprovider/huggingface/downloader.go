@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package hfhub
+package huggingface
 
 import (
 	"context"
@@ -29,11 +29,11 @@ import (
 )
 
 const (
-	HuggingFaceBaseURL = "https://huggingface.co"
+	huggingFaceBaseURL = "https://huggingface.co"
 )
 
-// ParseModelURL parses a Hugging Face model URL and extracts the owner and repository name
-func ParseModelURL(modelURL string) (owner, repo string, err error) {
+// parseModelURL parses a HuggingFace model URL and extracts the owner and repository name
+func parseModelURL(modelURL string) (owner, repo string, err error) {
 	// Handle both full URLs and short-form repo names
 	modelURL = strings.TrimSpace(modelURL)
 
@@ -50,7 +50,7 @@ func ParseModelURL(modelURL string) (owner, repo string, err error) {
 		// Expected format: https://huggingface.co/owner/repo
 		parts := strings.Split(strings.Trim(u.Path, "/"), "/")
 		if len(parts) < 2 {
-			return "", "", fmt.Errorf("invalid Hugging Face URL format, expected https://huggingface.co/owner/repo")
+			return "", "", fmt.Errorf("invalid HuggingFace URL format, expected https://huggingface.co/owner/repo")
 		}
 
 		owner = parts[0]
@@ -73,45 +73,8 @@ func ParseModelURL(modelURL string) (owner, repo string, err error) {
 	return owner, repo, nil
 }
 
-// DownloadModel downloads a model from Hugging Face using the huggingface-cli
-// It assumes the user is already logged in via `huggingface-cli login`
-func DownloadModel(ctx context.Context, modelURL, destDir string) (string, error) {
-	owner, repo, err := ParseModelURL(modelURL)
-	if err != nil {
-		return "", err
-	}
-
-	repoID := fmt.Sprintf("%s/%s", owner, repo)
-
-	// Check if huggingface-cli is available
-	if _, err := exec.LookPath("huggingface-cli"); err != nil {
-		return "", fmt.Errorf("huggingface-cli not found in PATH. Please install it using: pip install huggingface_hub[cli]")
-	}
-
-	// Create destination directory if it doesn't exist
-	if err := os.MkdirAll(destDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create destination directory: %w", err)
-	}
-
-	// Construct the download path
-	downloadPath := filepath.Join(destDir, repo)
-
-	// Use huggingface-cli to download the model
-	// The --local-dir-use-symlinks=False flag ensures files are copied, not symlinked
-	cmd := exec.CommandContext(ctx, "huggingface-cli", "download", repoID, "--local-dir", downloadPath, "--local-dir-use-symlinks", "False")
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to download model using huggingface-cli: %w", err)
-	}
-
-	return downloadPath, nil
-}
-
-// CheckHuggingFaceAuth checks if the user is authenticated with Hugging Face
-func CheckHuggingFaceAuth() error {
+// checkHuggingFaceAuth checks if the user is authenticated with HuggingFace
+func checkHuggingFaceAuth() error {
 	// Try to find the HF token
 	token := os.Getenv("HF_TOKEN")
 	if token != "" {
@@ -139,11 +102,11 @@ func CheckHuggingFaceAuth() error {
 		}
 	}
 
-	return fmt.Errorf("not authenticated with Hugging Face. Please run: huggingface-cli login")
+	return fmt.Errorf("not authenticated with HuggingFace. Please run: huggingface-cli login")
 }
 
-// GetToken retrieves the Hugging Face token from environment or token file
-func GetToken() (string, error) {
+// getToken retrieves the HuggingFace token from environment or token file
+func getToken() (string, error) {
 	// First check environment variable
 	token := os.Getenv("HF_TOKEN")
 	if token != "" {
@@ -165,16 +128,16 @@ func GetToken() (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
-// DownloadFile downloads a single file from Hugging Face
-func DownloadFile(ctx context.Context, owner, repo, filename, destPath string) error {
-	token, err := GetToken()
+// downloadFile downloads a single file from HuggingFace
+func downloadFile(ctx context.Context, owner, repo, filename, destPath string) error {
+	token, err := getToken()
 	if err != nil {
-		return fmt.Errorf("failed to get Hugging Face token: %w", err)
+		return fmt.Errorf("failed to get HuggingFace token: %w", err)
 	}
 
 	// Construct the download URL
 	// Format: https://huggingface.co/{owner}/{repo}/resolve/main/{filename}
-	fileURL := fmt.Sprintf("%s/%s/%s/resolve/main/%s", HuggingFaceBaseURL, owner, repo, filename)
+	fileURL := fmt.Sprintf("%s/%s/%s/resolve/main/%s", huggingFaceBaseURL, owner, repo, filename)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", fileURL, nil)
 	if err != nil {
