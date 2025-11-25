@@ -209,7 +209,7 @@ func NewModelfileByWorkspace(workspace string, config *configmodelfile.GenerateC
 		return nil, err
 	}
 
-	if err := mf.generateByWorkspace(); err != nil {
+	if err := mf.generateByWorkspace(config); err != nil {
 		return nil, err
 	}
 
@@ -252,10 +252,16 @@ func (mf *modelfile) validateWorkspace() error {
 }
 
 // generateByWorkspace generates the modelfile by the workspace's files.
-func (mf *modelfile) generateByWorkspace() error {
+func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig) error {
 	// Initialize counters for workspace limits validation
 	var fileCount int
 	var totalSize int64
+
+	// Initialize exclude patterns
+	filter, err := NewPathFilter(config.ExcludePatterns...)
+	if err != nil {
+		return err
+	}
 
 	// Walk the path and get the files.
 	if err := filepath.Walk(mf.workspace, func(path string, info os.FileInfo, err error) error {
@@ -265,8 +271,14 @@ func (mf *modelfile) generateByWorkspace() error {
 
 		filename := info.Name()
 
-		// Skip hidden and skippable files/directories.
-		if isSkippable(filename) {
+		// Get relative path from the base directory.
+		relPath, err := filepath.Rel(mf.workspace, path)
+		if err != nil {
+			return err
+		}
+
+		// Skip hidden, skippable, and excluded files/directories.
+		if isSkippable(filename) || filter.Match(relPath) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
@@ -296,12 +308,6 @@ func (mf *modelfile) generateByWorkspace() error {
 		// Check total workspace size limit
 		if totalSize > MaxTotalWorkspaceSize {
 			return fmt.Errorf("workspace exceeds maximum total size limit of %d bytes (%s)", MaxTotalWorkspaceSize, formatBytes(MaxTotalWorkspaceSize))
-		}
-
-		// Get relative path from the base directory.
-		relPath, err := filepath.Rel(mf.workspace, path)
-		if err != nil {
-			return err
 		}
 
 		switch {

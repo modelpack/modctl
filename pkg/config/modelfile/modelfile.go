@@ -39,6 +39,7 @@ type GenerateConfig struct {
 	ParamSize                   string
 	Precision                   string
 	Quantization                string
+	ExcludePatterns             []string
 }
 
 func NewGenerateConfig() *GenerateConfig {
@@ -55,6 +56,7 @@ func NewGenerateConfig() *GenerateConfig {
 		ParamSize:                   "",
 		Precision:                   "",
 		Quantization:                "",
+		ExcludePatterns:             []string{},
 	}
 }
 
