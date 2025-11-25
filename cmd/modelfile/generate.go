@@ -64,6 +64,7 @@ func init() {
 	flags.StringVarP(&generateConfig.Output, "output", "O", ".", "specify the output path of modelfilem, must be a directory")
 	flags.BoolVar(&generateConfig.IgnoreUnrecognizedFileTypes, "ignore-unrecognized-file-types", false, "ignore the unrecognized file types in the workspace")
 	flags.BoolVar(&generateConfig.Overwrite, "overwrite", false, "overwrite the existing modelfile")
+	flags.StringArrayVar(&generateConfig.ExcludePatterns, "exclude", []string{}, "specify glob patterns to exclude files/directories (e.g. *.log, checkpoints/*)")
 
 	// Mark the ignore-unrecognized-file-types flag as deprecated and hidden
 	flags.MarkDeprecated("ignore-unrecognized-file-types", "this flag will be removed in the next release")
