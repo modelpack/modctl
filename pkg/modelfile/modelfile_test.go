@@ -1308,8 +1308,8 @@ MODEL model weights.bin
 CODE inference script.py
 DOC README file.md
 `,
-			expectError: true,
-			description: "Unquoted paths with spaces should cause parsing errors",
+			expectError: false,
+			description: "Unquoted paths with spaces are now handled correctly by joining arguments",
 		},
 		{
 			name: "quoted_paths_with_spaces",
