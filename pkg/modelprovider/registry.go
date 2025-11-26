@@ -18,6 +18,7 @@ package modelprovider
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/modelpack/modctl/pkg/modelprovider/huggingface"
 	"github.com/modelpack/modctl/pkg/modelprovider/modelscope"
@@ -29,28 +30,57 @@ type Registry struct {
 	providers []Provider
 }
 
-// NewRegistry creates a new provider registry with all available providers
-func NewRegistry() *Registry {
-	return &Registry{
-		providers: []Provider{
-			huggingface.New(),
-			modelscope.New(),
-			// Future providers can be added here:
-			// civitai.New(),
-		},
-	}
+var (
+	instance *Registry
+	once     sync.Once
+)
+
+// GetRegistry returns the singleton instance of the registry
+// This is thread-safe and will only create the instance once
+func GetRegistry() *Registry {
+	once.Do(func() {
+		instance = &Registry{
+			providers: []Provider{
+				huggingface.New(),
+				modelscope.New(),
+				// Future providers can be added here:
+				// civitai.New(),
+			},
+		}
+	})
+	return instance
+}
+
+// ResetRegistry resets the singleton instance
+// This should only be used in tests to ensure isolation between test cases
+func ResetRegistry() {
+	once = sync.Once{}
+	instance = nil
 }
 
 // GetProvider returns the appropriate provider for the given model URL
 // It iterates through all registered providers and returns the first one
-// that supports the URL
+// that supports the URL. This only works for full URLs with domain names.
+// For short-form URLs (owner/repo), use GetProviderByName with an explicit provider
 func (r *Registry) GetProvider(modelURL string) (Provider, error) {
 	for _, p := range r.providers {
 		if p.SupportsURL(modelURL) {
 			return p, nil
 		}
 	}
-	return nil, fmt.Errorf("no provider found for URL: %s", modelURL)
+	return nil, fmt.Errorf("no provider found for URL: %s. For short-form URLs (owner/repo), use --provider flag to specify the provider explicitly", modelURL)
+}
+
+// SelectProvider returns the appropriate provider based on the URL and explicit provider name
+// If providerName is specified, it uses GetProviderByName for short-form URLs
+// Otherwise, it uses GetProvider for auto-detection with full URLs
+func (r *Registry) SelectProvider(modelURL, providerName string) (Provider, error) {
+	if providerName != "" {
+		// Explicit provider specified, use it
+		return r.GetProviderByName(providerName)
+	}
+	// No explicit provider, try auto-detection
+	return r.GetProvider(modelURL)
 }
 
 // GetProviderByName returns a specific provider by its name

@@ -21,7 +21,8 @@ import (
 )
 
 func TestRegistry_GetProvider(t *testing.T) {
-	registry := NewRegistry()
+	ResetRegistry() // Ensure clean state for test
+	registry := GetRegistry()
 
 	tests := []struct {
 		name         string
@@ -36,10 +37,9 @@ func TestRegistry_GetProvider(t *testing.T) {
 			wantErr:      false,
 		},
 		{
-			name:         "HuggingFace short form",
-			modelURL:     "meta-llama/Llama-2-7b-hf",
-			wantProvider: "huggingface",
-			wantErr:      false,
+			name:     "HuggingFace short form (requires explicit provider)",
+			modelURL: "meta-llama/Llama-2-7b-hf",
+			wantErr:  true,
 		},
 		{
 			name:         "ModelScope full URL",
@@ -89,7 +89,8 @@ func TestRegistry_GetProvider(t *testing.T) {
 }
 
 func TestRegistry_GetProviderByName(t *testing.T) {
-	registry := NewRegistry()
+	ResetRegistry() // Ensure clean state for test
+	registry := GetRegistry()
 
 	tests := []struct {
 		name         string
@@ -137,7 +138,8 @@ func TestRegistry_GetProviderByName(t *testing.T) {
 }
 
 func TestRegistry_ListProviders(t *testing.T) {
-	registry := NewRegistry()
+	ResetRegistry() // Ensure clean state for test
+	registry := GetRegistry()
 	providers := registry.ListProviders()
 
 	if len(providers) != 2 {
@@ -160,5 +162,81 @@ func TestRegistry_ListProviders(t *testing.T) {
 		if !found {
 			t.Errorf("ListProviders() missing expected provider: %s", name)
 		}
+	}
+}
+
+func TestRegistry_SelectProvider(t *testing.T) {
+	ResetRegistry() // Ensure clean state for test
+	registry := GetRegistry()
+
+	tests := []struct {
+		name         string
+		modelURL     string
+		providerName string
+		wantProvider string
+		wantErr      bool
+	}{
+		{
+			name:         "Full URL with auto-detection (HuggingFace)",
+			modelURL:     "https://huggingface.co/meta-llama/Llama-2-7b-hf",
+			providerName: "",
+			wantProvider: "huggingface",
+			wantErr:      false,
+		},
+		{
+			name:         "Full URL with auto-detection (ModelScope)",
+			modelURL:     "https://modelscope.cn/models/qwen/Qwen-7B",
+			providerName: "",
+			wantProvider: "modelscope",
+			wantErr:      false,
+		},
+		{
+			name:         "Short-form with explicit provider (HuggingFace)",
+			modelURL:     "meta-llama/Llama-2-7b-hf",
+			providerName: "huggingface",
+			wantProvider: "huggingface",
+			wantErr:      false,
+		},
+		{
+			name:         "Short-form with explicit provider (ModelScope)",
+			modelURL:     "qwen/Qwen-7B",
+			providerName: "modelscope",
+			wantProvider: "modelscope",
+			wantErr:      false,
+		},
+		{
+			name:         "Short-form without explicit provider (should fail)",
+			modelURL:     "owner/repo",
+			providerName: "",
+			wantErr:      true,
+		},
+		{
+			name:         "Invalid provider name",
+			modelURL:     "owner/repo",
+			providerName: "invalid-provider",
+			wantErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider, err := registry.SelectProvider(tt.modelURL, tt.providerName)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("SelectProvider() expected error but got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("SelectProvider() unexpected error = %v", err)
+				return
+			}
+
+			if provider.Name() != tt.wantProvider {
+				t.Errorf("SelectProvider() provider name = %v, want %v", provider.Name(), tt.wantProvider)
+			}
+		})
 	}
 }

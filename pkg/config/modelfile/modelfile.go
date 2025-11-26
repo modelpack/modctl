@@ -40,6 +40,7 @@ type GenerateConfig struct {
 	Precision                   string
 	Quantization                string
 	ModelURL                    string
+	Provider                    string // Explicit provider for short-form URLs (e.g., "huggingface", "modelscope")
 }
 
 func NewGenerateConfig() *GenerateConfig {
@@ -57,6 +58,7 @@ func NewGenerateConfig() *GenerateConfig {
 		Precision:                   "",
 		Quantization:                "",
 		ModelURL:                    "",
+		Provider:                    "",
 	}
 }
 

@@ -39,19 +39,13 @@ func (p *Provider) Name() string {
 }
 
 // SupportsURL checks if this provider can handle the given URL
-// It supports both full ModelScope URLs and short-form repo identifiers
+// It only supports full ModelScope URLs with the modelscope.cn domain
+// For short-form repo identifiers (owner/repo), users must explicitly specify --provider modelscope
 func (p *Provider) SupportsURL(url string) bool {
 	url = strings.TrimSpace(url)
 
-	// Check for full ModelScope URLs
-	if strings.Contains(url, "modelscope.cn") {
-		return true
-	}
-
-	// Note: We don't auto-detect short-form for ModelScope to avoid conflicts with HuggingFace
-	// Users should use full URLs or explicitly specify the provider
-
-	return false
+	// Only support full ModelScope URLs
+	return strings.Contains(url, "modelscope.cn")
 }
 
 // DownloadModel downloads a model from ModelScope using the modelscope CLI

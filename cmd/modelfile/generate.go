@@ -38,18 +38,24 @@ var generateCmd = &cobra.Command{
 	Long: `Generate a modelfile from either a local directory containing model files or by downloading a model from a supported provider.
 
 The workspace must be a directory including model files and model configuration files.
-Alternatively, use --model_url to download a model from a supported provider (e.g., HuggingFace, ModelScope).`,
+Alternatively, use --model-url to download a model from a supported provider (e.g., HuggingFace, ModelScope).
+
+For short-form URLs (owner/repo), you must explicitly specify the provider using --provider flag.
+Full URLs with domain names will auto-detect the provider.`,
 	Example: `  # Generate from local directory
   modctl modelfile generate ./my-model-dir
 
-  # Generate from Hugging Face model URL
-  modctl modelfile generate --model_url https://huggingface.co/meta-llama/Llama-2-7b-hf
+  # Generate from Hugging Face using full URL (auto-detects provider)
+  modctl modelfile generate --model-url https://huggingface.co/meta-llama/Llama-2-7b-hf
 
-  # Generate from Hugging Face using short form
-  modctl modelfile generate --model_url meta-llama/Llama-2-7b-hf
+  # Generate from Hugging Face using short form (requires --provider)
+  modctl modelfile generate --model-url meta-llama/Llama-2-7b-hf --provider huggingface
 
-  # Generate from ModelScope
-  modctl modelfile generate --model_url https://modelscope.cn/models/qwen/Qwen-7B
+  # Generate from ModelScope using full URL (auto-detects provider)
+  modctl modelfile generate --model-url https://modelscope.cn/models/qwen/Qwen-7B
+
+  # Generate from ModelScope using short form (requires --provider)
+  modctl modelfile generate --model-url qwen/Qwen-7B --provider modelscope
 
   # Generate with custom output path
   modctl modelfile generate ./my-model-dir --output ./output/modelfile.yaml
@@ -61,18 +67,18 @@ Alternatively, use --model_url to download a model from a supported provider (e.
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// If model_url is provided, path is optional
+		// If model-url is provided, path is optional
 		workspace := "."
 		if len(args) > 0 {
 			workspace = args[0]
 		}
 
-		// Validate that either path or model_url is provided
+		// Validate that either path or model-url is provided
 		if generateConfig.ModelURL != "" && len(args) > 0 {
-			return fmt.Errorf("the <path> argument and the --model_url flag are mutually exclusive")
+			return fmt.Errorf("the <path> argument and the --model-url flag are mutually exclusive")
 		}
 		if generateConfig.ModelURL == "" && len(args) == 0 {
-			return fmt.Errorf("either a <path> argument or the --model_url flag must be provided")
+			return fmt.Errorf("either a <path> argument or the --model-url flag must be provided")
 		}
 
 		if err := generateConfig.Convert(workspace); err != nil {
@@ -100,7 +106,8 @@ func init() {
 	flags.StringVarP(&generateConfig.Output, "output", "O", ".", "specify the output path of modelfilem, must be a directory")
 	flags.BoolVar(&generateConfig.IgnoreUnrecognizedFileTypes, "ignore-unrecognized-file-types", false, "ignore the unrecognized file types in the workspace")
 	flags.BoolVar(&generateConfig.Overwrite, "overwrite", false, "overwrite the existing modelfile")
-	flags.StringVar(&generateConfig.ModelURL, "model_url", "", "download model from a supported provider (HuggingFace: owner/repo or full URL, ModelScope: full URL)")
+	flags.StringVar(&generateConfig.ModelURL, "model-url", "", "download model from a supported provider (full URL or short-form with --provider)")
+	flags.StringVarP(&generateConfig.Provider, "provider", "p", "", "explicitly specify the provider for short-form URLs (huggingface, modelscope)")
 
 	// Mark the ignore-unrecognized-file-types flag as deprecated and hidden
 	flags.MarkDeprecated("ignore-unrecognized-file-types", "this flag will be removed in the next release")
@@ -118,10 +125,10 @@ func runGenerate(ctx context.Context) error {
 		fmt.Printf("Model URL provided: %s\n", generateConfig.ModelURL)
 
 		// Get the appropriate provider for this URL
-		registry := modelprovider.NewRegistry()
-		provider, err := registry.GetProvider(generateConfig.ModelURL)
+		registry := modelprovider.GetRegistry()
+		provider, err := registry.SelectProvider(generateConfig.ModelURL, generateConfig.Provider)
 		if err != nil {
-			return fmt.Errorf("unsupported model URL: %w", err)
+			return fmt.Errorf("failed to select provider: %w", err)
 		}
 
 		fmt.Printf("Using provider: %s\n", provider.Name())

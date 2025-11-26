@@ -27,7 +27,8 @@ type Provider interface {
 	Name() string
 
 	// SupportsURL checks if this provider can handle the given model URL
-	// This enables automatic provider detection based on URL patterns
+	// This enables automatic provider detection based on full URL patterns (with domain)
+	// Short-form URLs (owner/repo) require explicit provider specification via GetProviderByName
 	SupportsURL(url string) bool
 
 	// DownloadModel downloads a model from the provider and returns the local path

@@ -130,9 +130,9 @@ func TestProvider_SupportsURL(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "short form repo",
+			name: "short form repo (requires explicit --provider)",
 			url:  "meta-llama/Llama-2-7b-hf",
-			want: true,
+			want: false,
 		},
 		{
 			name: "ModelScope URL",

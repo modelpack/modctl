@@ -17,10 +17,8 @@
 package huggingface
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -126,56 +124,4 @@ func getToken() (string, error) {
 	}
 
 	return strings.TrimSpace(string(data)), nil
-}
-
-// downloadFile downloads a single file from HuggingFace
-func downloadFile(ctx context.Context, owner, repo, filename, destPath string) error {
-	token, err := getToken()
-	if err != nil {
-		return fmt.Errorf("failed to get HuggingFace token: %w", err)
-	}
-
-	// Construct the download URL
-	// Format: https://huggingface.co/{owner}/{repo}/resolve/main/{filename}
-	fileURL := fmt.Sprintf("%s/%s/%s/resolve/main/%s", huggingFaceBaseURL, owner, repo, filename)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", fileURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Add authorization header
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to download file: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download file, status code: %d", resp.StatusCode)
-	}
-
-	// Create destination directory
-	destDir := filepath.Dir(destPath)
-	if err := os.MkdirAll(destDir, 0755); err != nil {
-		return fmt.Errorf("failed to create destination directory: %w", err)
-	}
-
-	// Create the destination file
-	outFile, err := os.Create(destPath)
-	if err != nil {
-		return fmt.Errorf("failed to create destination file: %w", err)
-	}
-	defer outFile.Close()
-
-	// Copy the content
-	_, err = io.Copy(outFile, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-
-	return nil
 }

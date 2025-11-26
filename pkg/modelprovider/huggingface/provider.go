@@ -39,22 +39,13 @@ func (p *Provider) Name() string {
 }
 
 // SupportsURL checks if this provider can handle the given URL
-// It supports both full HuggingFace URLs and short-form repo identifiers
+// It only supports full HuggingFace URLs with the huggingface.co domain
+// For short-form repo identifiers (owner/repo), users must explicitly specify --provider huggingface
 func (p *Provider) SupportsURL(url string) bool {
 	url = strings.TrimSpace(url)
 
-	// Check for full HuggingFace URLs
-	if strings.Contains(url, "huggingface.co") {
-		return true
-	}
-
-	// Check for short-form repo identifiers (owner/repo)
-	// Must have exactly one slash and no protocol
-	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		return strings.Count(url, "/") == 1
-	}
-
-	return false
+	// Only support full HuggingFace URLs
+	return strings.Contains(url, "huggingface.co")
 }
 
 // DownloadModel downloads a model from HuggingFace using the huggingface-cli
