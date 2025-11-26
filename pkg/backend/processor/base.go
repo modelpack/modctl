@@ -131,7 +131,13 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		}
 
 		eg.Go(func() error {
-			return retry.Do(func() error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			if err := retry.Do(func() error {
 				logrus.Debugf("processor: processing %s file %s", b.name, path)
 
 				desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, hooks.NewHooks(
@@ -146,10 +152,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 					}),
 				))
 				if err != nil {
-					err = fmt.Errorf("processor: failed to build layer for %s file %s: %w", b.name, path, err)
-					logrus.Error(err)
-					cancel()
-					return err
+					return fmt.Errorf("processor: failed to build layer for %s file %s: %w", b.name, path, err)
 				}
 
 				logrus.Debugf("processor: successfully built %s layer for file %s [digest: %s, size: %d]", b.name, path, desc.Digest, desc.Size)
@@ -158,7 +161,15 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 				mu.Unlock()
 
 				return nil
-			}, append(defaultRetryOpts, retry.Context(ctx))...)
+			}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
+				logrus.Error(err)
+				// Cancel manually to abort other tasks because if one fails,
+				// we should abort all to avoid useless waiting.
+				cancel()
+				return err
+			}
+
+			return nil
 		})
 	}
 
@@ -180,10 +191,10 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		}
 
 		if descriptors[j].Annotations != nil {
-			if descriptors[i].Annotations[modelspec.AnnotationFilepath] != "" {
-				pathJ = descriptors[i].Annotations[modelspec.AnnotationFilepath]
+			if descriptors[j].Annotations[modelspec.AnnotationFilepath] != "" {
+				pathJ = descriptors[j].Annotations[modelspec.AnnotationFilepath]
 			} else {
-				pathJ = descriptors[i].Annotations[legacymodelspec.AnnotationFilepath]
+				pathJ = descriptors[j].Annotations[legacymodelspec.AnnotationFilepath]
 			}
 		}
 
