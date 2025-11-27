@@ -41,6 +41,7 @@ type GenerateConfig struct {
 	Quantization                string
 	ModelURL                    string
 	Provider                    string // Explicit provider for short-form URLs (e.g., "huggingface", "modelscope")
+	ExcludePatterns             []string
 }
 
 func NewGenerateConfig() *GenerateConfig {
@@ -59,6 +60,7 @@ func NewGenerateConfig() *GenerateConfig {
 		Quantization:                "",
 		ModelURL:                    "",
 		Provider:                    "",
+		ExcludePatterns:             []string{},
 	}
 }
 

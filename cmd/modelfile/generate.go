@@ -108,6 +108,7 @@ func init() {
 	flags.BoolVar(&generateConfig.Overwrite, "overwrite", false, "overwrite the existing modelfile")
 	flags.StringVar(&generateConfig.ModelURL, "model-url", "", "download model from a supported provider (full URL or short-form with --provider)")
 	flags.StringVarP(&generateConfig.Provider, "provider", "p", "", "explicitly specify the provider for short-form URLs (huggingface, modelscope)")
+	flags.StringArrayVar(&generateConfig.ExcludePatterns, "exclude", []string{}, "specify glob patterns to exclude files/directories (e.g. *.log, checkpoints/*)")
 
 	// Mark the ignore-unrecognized-file-types flag as deprecated and hidden
 	flags.MarkDeprecated("ignore-unrecognized-file-types", "this flag will be removed in the next release")
