@@ -39,7 +39,7 @@ jobs:
             LIBGIT2_SYS_USE_PKG_CONFIG: "1"
 
       - name: Golangci lint
-        uses: golangci/golangci-lint-action@v9.1.0
+        uses: golangci/golangci-lint-action@v9.2.0
         with:
           version: v2.4
           args: --verbose --timeout=10m
