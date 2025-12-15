@@ -1,0 +1,31 @@
+# Generated at 2025-12-15T17:44:58+05:30
+
+# Model name
+NAME Qwen3-0.6B
+
+# Model architecture (Generated from transformers_version in config.json)
+ARCH transformer
+
+# Model family (Generated from model_type in config.json)
+FAMILY qwen3
+
+# Model precision (Generated from torch_dtype in config.json)
+PRECISION bfloat16
+
+# Config files (Generated from the files in the workspace directory)
+# Supported file types: *.json, *.jsonl, *.json5, *.jsonc, *.yaml, *.yml, *.toml, *.ini, *.config, *.cfg, *.conf, *.properties, *.props, *.prop, *.xml, *.xsd, *.rng, *.modelcard, *.meta, *tokenizer.model*, config.json.*, *.hparams, *.params, *.hyperparams, *.wandb, *.mlflow, *.tensorboard
+CONFIG config.json
+CONFIG generation_config.json
+CONFIG tokenizer.json
+CONFIG tokenizer_config.json
+CONFIG vocab.json
+
+# Model files (Generated from the files in the workspace directory)
+# Supported file types: *.safetensors, *.bin, *.pt, *.pth, *.mar, *.pte, *.pt2, *.ptl, *.tflite, *.h5, *.hdf, *.hdf5, *.pb, *.meta, *.data-*, *.index, *.gguf, *.ggml, *.ggmf, *.ggjt, *.q4_0, *.q4_1, *.q5_0, *.q5_1, *.q8_0, *.f16, *.f32, *.ckpt, *.checkpoint, *.dist_ckpt, *.tensor, *.weights, *.state, *.embedding, *.vocab, *.ot, *.engine, *.trt, *.onnx, *.msgpack, *.model, *.pkl, *.pickle, *.keras, *.joblib, *.npy, *.npz, *.nc, *.mlmodel, *.coreml, *.mleap, *.surml, *.llamafile, *.caffemodel, *.prototxt, *.dlc, *.circle, *.nb
+MODEL model.safetensors
+
+# Documentation files (Generated from the files in the workspace directory)
+# Supported file types: *.txt, *.md, *.pdf, LICENSE*, README*, SETUP*, *requirements*, *.log, *.doc, *.docx, *.docm, *.dot, *.dotx, *.dotm, *.rtf, *.odt, *.ott, *.fodt, *.pages, *.wpd, *.xls, *.xlsx, *.xlsm, *.xlsb, *.xlt, *.xltx, *.xltm, *.ods, *.ots, *.fods, *.numbers, *.csv, *.ppt, *.pptx, *.pptm, *.pps, *.ppsx, *.ppsm, *.pot, *.potx, *.potm, *.odp, *.otp, *.fodp, *.key, *.epub, *.mobi, *.azw, *.azw3, *.fb2, *.fb3, *.lit, *.pdb, *.djvu, *.djv, *.html, *.htm, *.xhtml, *.mhtml, *.mht, *.xml, *.xsl, *.xslt, *.tex, *.latex, *.ltx, *.bib, *.rst, *.asciidoc, *.adoc, *.textile, *.wiki, *.mediawiki, *.org, *.texi, *.texinfo, *.info, *.man, *.chm, *.hlp, *.xps, *.jpg, *.jpeg, *.png, *.gif, *.bmp, *.tiff, *.ico, *.webp, *.heic, *.heif, *.hevc, *.svg, *.mp4, *.mov, *.avi, *.mkv, *.webm, *.m4v, *.flv, *.wmv, *.mpg, *.mpeg
+DOC LICENSE
+DOC README.md
+DOC merges.txt
