@@ -122,12 +122,12 @@ jobs:
     needs: [build-modctl, download-model]
     steps:
       - name: Download modctl artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: modctl-artifact
           path: modctl
       - name: Download model artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: model-artifact
           path: ${{ env.MODEL_DIR }}
