@@ -11,10 +11,11 @@ based on modctl compatibility criteria:
 """
 
 import json
+import re
 import sys
 import argparse
 from typing import List, Dict, Optional
-from huggingface_hub import HfApi, list_repo_files
+from huggingface_hub import HfApi
 
 # Try to import ModelFilter, fall back to dict if not available
 try:
@@ -52,49 +53,48 @@ KNOWN_FAMILIES = [
 ]
 
 
-def get_model_size_gb(api: HfApi, model_id: str) -> Optional[float]:
-    """Estimate model size in GB from repo files."""
+def get_model_size_gb(model_info) -> Optional[float]:
+    """Estimate model size in GB from model info."""
     try:
-        files = list_repo_files(model_id)
         total_size = 0
-
-        # Get repo info which includes file sizes
-        repo_info = api.repo_info(model_id, files_metadata=True)
-        if hasattr(repo_info, 'siblings') and repo_info.siblings:
-            for file in repo_info.siblings:
+        if hasattr(model_info, 'siblings') and model_info.siblings:
+            for file in model_info.siblings:
                 if hasattr(file, 'size') and file.size:
                     total_size += file.size
-
         return total_size / (1024 ** 3)  # Convert to GB
-    except Exception as e:
-        print(f"Warning: Could not get size for {model_id}: {e}", file=sys.stderr)
+    except Exception:
         return None
 
 
-def has_config_json(model_id: str) -> bool:
+def has_config_json(model_info) -> bool:
     """Check if model has config.json for auto-detection."""
     try:
-        files = list_repo_files(model_id)
-        return "config.json" in files
+        if hasattr(model_info, 'siblings') and model_info.siblings:
+            filenames = [f.rfilename for f in model_info.siblings]
+            return "config.json" in filenames
+        return False
     except Exception:
         return False
 
 
-def get_model_format(model_id: str) -> Optional[str]:
+def get_model_format(model_info) -> Optional[str]:
     """Detect model format from repository files."""
     try:
-        files = list_repo_files(model_id)
+        if not hasattr(model_info, 'siblings') or not model_info.siblings:
+            return None
 
         # Check for each supported format
-        for file in files:
-            file_lower = file.lower()
-            if file_lower.endswith('.safetensors'):
+        for file in model_info.siblings:
+            filename = file.rfilename.lower()
+            if filename.endswith('.safetensors'):
                 return "safetensors"
-            elif file_lower.endswith('.gguf'):
+            elif filename.endswith('.gguf'):
                 return "gguf"
-            elif file_lower.endswith('.bin') and 'pytorch_model' in file_lower:
+            elif filename.endswith('.onnx'):
+                return "onnx"
+            elif filename.endswith('.bin') and 'pytorch_model' in filename:
                 return "bin"
-            elif file_lower.endswith('.pt') or file_lower.endswith('.pth'):
+            elif filename.endswith('.pt') or filename.endswith('.pth'):
                 return "pt"
 
         return None
@@ -102,10 +102,8 @@ def get_model_format(model_id: str) -> Optional[str]:
         return None
 
 
-def extract_param_size(model_id: str, model_info) -> Optional[str]:
+def extract_param_size(model_id: str) -> Optional[str]:
     """Extract parameter size from model name or metadata."""
-    import re
-
     # Common patterns: 7B, 8B, 13B, 0.5B, 1.1B, etc.
     patterns = [
         r'(\d+\.?\d*[BM])',  # 7B, 8B, 0.5B
@@ -124,11 +122,9 @@ def extract_param_size(model_id: str, model_info) -> Optional[str]:
     return None
 
 
-def detect_family(api: HfApi, model_id: str) -> Optional[str]:
-    """Detect model family from config.json."""
+def detect_family(model_info, model_id: str) -> Optional[str]:
+    """Detect model family from model info."""
     try:
-        model_info = api.model_info(model_id)
-
         # Try to get from config
         if hasattr(model_info, 'config') and model_info.config:
             model_type = model_info.config.get('model_type')
@@ -159,35 +155,35 @@ def is_compatible_model(api: HfApi, model_id: str, max_size_gb: float = 20.0) ->
     Returns:
         (is_compatible, model_metadata) tuple
     """
+    # Get all model information
+    try:
+        model_info = api.model_info(model_id, files_metadata=True)
+    except Exception as e:
+        print(f"Skipping {model_id}: Could not fetch model info: {e}", file=sys.stderr)
+        return False, None
+
     # Check for config.json
-    if not has_config_json(model_id):
+    if not has_config_json(model_info):
         print(f"Skipping {model_id}: No config.json", file=sys.stderr)
         return False, None
 
     # Check format
-    format_type = get_model_format(model_id)
+    format_type = get_model_format(model_info)
     if not format_type:
         print(f"Skipping {model_id}: No supported model format found", file=sys.stderr)
         return False, None
 
     # Check size
-    size_gb = get_model_size_gb(api, model_id)
+    size_gb = get_model_size_gb(model_info)
     if size_gb and size_gb > max_size_gb:
         print(f"Skipping {model_id}: Too large ({size_gb:.2f}GB > {max_size_gb}GB)", file=sys.stderr)
         return False, None
 
-    # Get model info
-    try:
-        model_info = api.model_info(model_id)
-    except Exception as e:
-        print(f"Skipping {model_id}: Could not fetch model info: {e}", file=sys.stderr)
-        return False, None
-
     # Detect family
-    family = detect_family(api, model_id)
+    family = detect_family(model_info, model_id)
 
     # Extract param size
-    param_size = extract_param_size(model_id, model_info)
+    param_size = extract_param_size(model_id)
 
     metadata = {
         "id": model_id,
