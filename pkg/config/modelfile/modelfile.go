@@ -41,6 +41,7 @@ type GenerateConfig struct {
 	Quantization                string
 	ModelURL                    string
 	Provider                    string // Explicit provider for short-form URLs (e.g., "huggingface", "modelscope")
+	DownloadDir                 string // Custom directory for downloading models (optional)
 	ExcludePatterns             []string
 }
 
@@ -60,6 +61,7 @@ func NewGenerateConfig() *GenerateConfig {
 		Quantization:                "",
 		ModelURL:                    "",
 		Provider:                    "",
+		DownloadDir:                 "",
 		ExcludePatterns:             []string{},
 	}
 }

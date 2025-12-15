@@ -57,6 +57,9 @@ Full URLs with domain names will auto-detect the provider.`,
   # Generate from ModelScope using short form (requires --provider)
   modctl modelfile generate --model-url qwen/Qwen-7B --provider modelscope
 
+  # Generate with custom download directory
+  modctl modelfile generate --model-url meta-llama/Llama-2-7b-hf --provider huggingface --download-dir $HOME/models
+
   # Generate with custom output path
   modctl modelfile generate ./my-model-dir --output ./output/modelfile.yaml
 
@@ -108,6 +111,7 @@ func init() {
 	flags.BoolVar(&generateConfig.Overwrite, "overwrite", false, "overwrite the existing modelfile")
 	flags.StringVar(&generateConfig.ModelURL, "model-url", "", "download model from a supported provider (full URL or short-form with --provider)")
 	flags.StringVarP(&generateConfig.Provider, "provider", "p", "", "explicitly specify the provider for short-form URLs (huggingface, modelscope)")
+	flags.StringVar(&generateConfig.DownloadDir, "download-dir", "", "custom directory for downloading models (default: system temp directory)")
 	flags.StringArrayVar(&generateConfig.ExcludePatterns, "exclude", []string{}, "specify glob patterns to exclude files/directories (e.g. *.log, checkpoints/*)")
 
 	// Mark the ignore-unrecognized-file-types flag as deprecated and hidden
@@ -139,16 +143,37 @@ func runGenerate(ctx context.Context) error {
 			return fmt.Errorf("%s authentication check failed: %w", provider.Name(), err)
 		}
 
-		// Create a temporary directory for downloading the model
-		// Clean up the temporary directory after the function returns
-		tmpDir, err := os.MkdirTemp("", "modctl-model-downloads-*")
-		if err != nil {
-			return fmt.Errorf("failed to create temporary directory: %w", err)
+		// Determine the download directory
+		var downloadDir string
+		var cleanupDir bool
+
+		if generateConfig.DownloadDir != "" {
+			// Use user-specified directory
+			downloadDir = generateConfig.DownloadDir
+			cleanupDir = false
+
+			// Create the directory if it doesn't exist
+			if err := os.MkdirAll(downloadDir, 0755); err != nil {
+				return fmt.Errorf("failed to create download directory: %w", err)
+			}
+			fmt.Printf("Using custom download directory: %s\n", downloadDir)
+		} else {
+			// Create a temporary directory for downloading the model
+			tmpDir, err := os.MkdirTemp("", "modctl-model-downloads-*")
+			if err != nil {
+				return fmt.Errorf("failed to create temporary directory: %w", err)
+			}
+			downloadDir = tmpDir
+			cleanupDir = true
 		}
-		defer os.RemoveAll(tmpDir)
+
+		// Clean up the directory only if it was a temporary directory
+		if cleanupDir {
+			defer os.RemoveAll(downloadDir)
+		}
 
 		// Download the model
-		downloadPath, err := provider.DownloadModel(ctx, generateConfig.ModelURL, tmpDir)
+		downloadPath, err := provider.DownloadModel(ctx, generateConfig.ModelURL, downloadDir)
 		if err != nil {
 			return fmt.Errorf("failed to download model from %s: %w", provider.Name(), err)
 		}
