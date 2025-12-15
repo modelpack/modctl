@@ -125,7 +125,7 @@ jobs:
         nfpm pkg --packager rpm --config hack/nfpm.yaml --target dist/modctl-${TAG}-${{ matrix.goos }}-${{ matrix.goarch }}.rpm
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: modctl-${{ matrix.goos }}-${{ matrix.goarch }}
         path: dist/

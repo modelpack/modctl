@@ -79,7 +79,7 @@ jobs:
           go build -tags "static system_libgit2 enable_libgit2"
 
       - name: Upload modctl
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: modctl-artifact
           path: modctl
@@ -110,7 +110,7 @@ jobs:
           hf download ${{ env.MODEL }} --local-dir ${{ env.MODEL_DIR }}
 
       - name: Upload model
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: model-artifact
           path: ${{ env.MODEL_DIR }}
