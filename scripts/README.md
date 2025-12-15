@@ -15,7 +15,7 @@ The script filters models based on:
    - `safetensors` (preferred)
    - `gguf`
    - `bin` (PyTorch)
-   - `pt/pth` (PyTorch)
+   - `pt`, `pth` (PyTorch)
    - `onnx`
 3. **Size limit** - Configurable maximum size (default: 20GB)
 4. **Metadata** - Attempts to extract:
