@@ -26,20 +26,65 @@ import (
 
 	configmodelfile "github.com/modelpack/modctl/pkg/config/modelfile"
 	"github.com/modelpack/modctl/pkg/modelfile"
+	"github.com/modelpack/modctl/pkg/modelprovider"
 )
 
 var generateConfig = configmodelfile.NewGenerateConfig()
 
 // generateCmd represents the modelfile tools command for generating modelfile.
 var generateCmd = &cobra.Command{
-	Use:                "generate [flags] <path>",
-	Short:              "A command line tool for generating modelfile in the workspace, the workspace must be a directory including model files and model configuration files",
-	Args:               cobra.ExactArgs(1),
+	Use:   "generate [flags] [<path>]",
+	Short: "Generate a modelfile from a local workspace or remote model provider",
+	Long: `Generate a modelfile from either a local directory containing model files or by downloading a model from a supported provider.
+
+The workspace must be a directory including model files and model configuration files.
+Alternatively, use --model-url to download a model from a supported provider (e.g., HuggingFace, ModelScope).
+
+For short-form URLs (owner/repo), you must explicitly specify the provider using --provider flag.
+Full URLs with domain names will auto-detect the provider.`,
+	Example: `  # Generate from local directory
+  modctl modelfile generate ./my-model-dir
+
+  # Generate from Hugging Face using full URL (auto-detects provider)
+  modctl modelfile generate --model-url https://huggingface.co/meta-llama/Llama-2-7b-hf
+
+  # Generate from Hugging Face using short form (requires --provider)
+  modctl modelfile generate --model-url meta-llama/Llama-2-7b-hf --provider huggingface
+
+  # Generate from ModelScope using full URL (auto-detects provider)
+  modctl modelfile generate --model-url https://modelscope.cn/models/qwen/Qwen-7B
+
+  # Generate from ModelScope using short form (requires --provider)
+  modctl modelfile generate --model-url qwen/Qwen-7B --provider modelscope
+
+  # Generate with custom download directory
+  modctl modelfile generate --model-url meta-llama/Llama-2-7b-hf --provider huggingface --download-dir $HOME/models
+
+  # Generate with custom output path
+  modctl modelfile generate ./my-model-dir --output ./output/modelfile.yaml
+
+  # Generate with metadata overrides
+  modctl modelfile generate ./my-model-dir --name my-custom-model --family llama3`,
+	Args:               cobra.MaximumNArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := generateConfig.Convert(args[0]); err != nil {
+		// If model-url is provided, path is optional
+		workspace := "."
+		if len(args) > 0 {
+			workspace = args[0]
+		}
+
+		// Validate that either path or model-url is provided
+		if generateConfig.ModelURL != "" && len(args) > 0 {
+			return fmt.Errorf("the <path> argument and the --model-url flag are mutually exclusive")
+		}
+		if generateConfig.ModelURL == "" && len(args) == 0 {
+			return fmt.Errorf("either a <path> argument or the --model-url flag must be provided")
+		}
+
+		if err := generateConfig.Convert(workspace); err != nil {
 			return err
 		}
 
@@ -64,6 +109,9 @@ func init() {
 	flags.StringVarP(&generateConfig.Output, "output", "O", ".", "specify the output path of modelfilem, must be a directory")
 	flags.BoolVar(&generateConfig.IgnoreUnrecognizedFileTypes, "ignore-unrecognized-file-types", false, "ignore the unrecognized file types in the workspace")
 	flags.BoolVar(&generateConfig.Overwrite, "overwrite", false, "overwrite the existing modelfile")
+	flags.StringVar(&generateConfig.ModelURL, "model-url", "", "download model from a supported provider (full URL or short-form with --provider)")
+	flags.StringVarP(&generateConfig.Provider, "provider", "p", "", "explicitly specify the provider for short-form URLs (huggingface, modelscope)")
+	flags.StringVar(&generateConfig.DownloadDir, "download-dir", "", "custom directory for downloading models (default: system temp directory)")
 	flags.StringArrayVar(&generateConfig.ExcludePatterns, "exclude", []string{}, "specify glob patterns to exclude files/directories (e.g. *.log, checkpoints/*)")
 
 	// Mark the ignore-unrecognized-file-types flag as deprecated and hidden
@@ -76,7 +124,65 @@ func init() {
 }
 
 // runGenerate runs the generate modelfile.
-func runGenerate(_ context.Context) error {
+func runGenerate(ctx context.Context) error {
+	// If model URL is provided, download the model first
+	if generateConfig.ModelURL != "" {
+		fmt.Printf("Model URL provided: %s\n", generateConfig.ModelURL)
+
+		// Get the appropriate provider for this URL
+		registry := modelprovider.GetRegistry()
+		provider, err := registry.SelectProvider(generateConfig.ModelURL, generateConfig.Provider)
+		if err != nil {
+			return fmt.Errorf("failed to select provider: %w", err)
+		}
+
+		fmt.Printf("Using provider: %s\n", provider.Name())
+
+		// Check if user is authenticated with the provider
+		if err := provider.CheckAuth(); err != nil {
+			return fmt.Errorf("%s authentication check failed: %w", provider.Name(), err)
+		}
+
+		// Determine the download directory
+		var downloadDir string
+		var cleanupDir bool
+
+		if generateConfig.DownloadDir != "" {
+			// Use user-specified directory
+			downloadDir = generateConfig.DownloadDir
+			cleanupDir = false
+
+			// Create the directory if it doesn't exist
+			if err := os.MkdirAll(downloadDir, 0755); err != nil {
+				return fmt.Errorf("failed to create download directory: %w", err)
+			}
+			fmt.Printf("Using custom download directory: %s\n", downloadDir)
+		} else {
+			// Create a temporary directory for downloading the model
+			tmpDir, err := os.MkdirTemp("", "modctl-model-downloads-*")
+			if err != nil {
+				return fmt.Errorf("failed to create temporary directory: %w", err)
+			}
+			downloadDir = tmpDir
+			cleanupDir = true
+		}
+
+		// Clean up the directory only if it was a temporary directory
+		if cleanupDir {
+			defer os.RemoveAll(downloadDir)
+		}
+
+		// Download the model
+		downloadPath, err := provider.DownloadModel(ctx, generateConfig.ModelURL, downloadDir)
+		if err != nil {
+			return fmt.Errorf("failed to download model from %s: %w", provider.Name(), err)
+		}
+
+		// Update workspace to the downloaded model path
+		generateConfig.Workspace = downloadPath
+		fmt.Printf("Using downloaded model at: %s\n", downloadPath)
+	}
+
 	fmt.Printf("Generating modelfile for %s\n", generateConfig.Workspace)
 	modelfile, err := modelfile.NewModelfileByWorkspace(generateConfig.Workspace, generateConfig)
 	if err != nil {
