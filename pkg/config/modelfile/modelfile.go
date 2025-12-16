@@ -39,6 +39,9 @@ type GenerateConfig struct {
 	ParamSize                   string
 	Precision                   string
 	Quantization                string
+	ModelURL                    string
+	Provider                    string // Explicit provider for short-form URLs (e.g., "huggingface", "modelscope")
+	DownloadDir                 string // Custom directory for downloading models (optional)
 	ExcludePatterns             []string
 }
 
@@ -56,6 +59,9 @@ func NewGenerateConfig() *GenerateConfig {
 		ParamSize:                   "",
 		Precision:                   "",
 		Quantization:                "",
+		ModelURL:                    "",
+		Provider:                    "",
+		DownloadDir:                 "",
 		ExcludePatterns:             []string{},
 	}
 }
