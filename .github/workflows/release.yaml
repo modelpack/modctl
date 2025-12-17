@@ -27,12 +27,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8    # v6.0.1
       with:
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c    # v6.1.0
       with:
         go-version: '1.24' # Adjust to your Go version
 
@@ -125,7 +125,7 @@ jobs:
         nfpm pkg --packager rpm --config hack/nfpm.yaml --target dist/modctl-${TAG}-${{ matrix.goos }}-${{ matrix.goarch }}.rpm
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
       with:
         name: modctl-${{ matrix.goos }}-${{ matrix.goarch }}
         path: dist/
@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131    # v7.0.0
       with:
         path: artifacts
 
@@ -145,7 +145,7 @@ jobs:
           find . -type f \( -name "modctl-*.tar.gz" -o -name "modctl-*.deb" -o -name "modctl-*.rpm" \) -exec shasum -a 256 {} \; > ../checksums.txt
 
     - name: Create draft release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b    # v2.5.0
       with:
         draft: true
         files: |
