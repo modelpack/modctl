@@ -51,6 +51,7 @@ func init() {
 	flags := attachCmd.Flags()
 	flags.StringVarP(&attachConfig.Source, "source", "s", "", "source model artifact name")
 	flags.StringVarP(&attachConfig.Target, "target", "t", "", "target model artifact name")
+	flags.StringVarP(&attachConfig.DestinationDir, "destination-dir", "d", "", "destination directory for the attached file should be specified as a relative path; by default, it will match the original directory of the attachment")
 	flags.BoolVarP(&attachConfig.OutputRemote, "output-remote", "", false, "turning on this flag will output model artifact to remote registry directly")
 	flags.BoolVarP(&attachConfig.PlainHTTP, "plain-http", "", false, "turning on this flag will use plain HTTP instead of HTTPS")
 	flags.BoolVarP(&attachConfig.Insecure, "insecure", "", false, "turning on this flag will disable TLS verification")

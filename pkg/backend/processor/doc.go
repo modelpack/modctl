@@ -30,13 +30,14 @@ const (
 )
 
 // NewDocProcessor creates a new doc processor.
-func NewDocProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
+func NewDocProcessor(store storage.Storage, mediaType string, patterns []string, destDir string) Processor {
 	return &docProcessor{
 		base: &base{
 			name:      docProcessorName,
 			store:     store,
 			mediaType: mediaType,
 			patterns:  patterns,
+			destDir:   destDir,
 		},
 	}
 }

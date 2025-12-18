@@ -16,27 +16,40 @@
 
 package config
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"path/filepath"
+)
 
 type Upload struct {
-	Repo      string
-	PlainHTTP bool
-	Insecure  bool
-	Raw       bool
+	Repo           string
+	PlainHTTP      bool
+	Insecure       bool
+	Raw            bool
+	DestinationDir string
 }
 
 func NewUpload() *Upload {
 	return &Upload{
-		Repo:      "",
-		PlainHTTP: false,
-		Insecure:  false,
-		Raw:       false,
+		Repo:           "",
+		PlainHTTP:      false,
+		Insecure:       false,
+		Raw:            false,
+		DestinationDir: "",
 	}
 }
 
 func (u *Upload) Validate() error {
 	if u.Repo == "" {
 		return errors.New("repo is required")
+	}
+
+	// Check if destination directory is relative path.
+	if u.DestinationDir != "" {
+		if filepath.IsAbs(u.DestinationDir) {
+			return fmt.Errorf("destination directory must be relative path")
+		}
 	}
 
 	return nil
