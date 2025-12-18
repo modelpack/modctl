@@ -226,6 +226,14 @@ jobs:
 
           echo "✅ Successfully pushed ${IMAGE_URL}"
 
+      - name: Cleanup HuggingFace Model Files
+        run: |
+          echo "Cleaning up HuggingFace model files to free disk space..."
+          du -sh ${{ env.MODEL_DIR }} || true
+          rm -rf ${{ env.MODEL_DIR }}
+          echo "✅ Cleanup complete"
+          df -h
+
       - name: Verify Pull
         run: |
           # Convert model ID to valid image name
