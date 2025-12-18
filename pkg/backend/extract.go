@@ -17,12 +17,15 @@
 package backend
 
 import (
+	"archive/tar"
 	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
@@ -114,14 +117,49 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 
 // extractLayer extracts the layer to the output directory.
 func extractLayer(desc ocispec.Descriptor, outputDir string, reader io.Reader) error {
-	var filepath string
+	var filePath string
 	if desc.Annotations != nil {
 		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
-			filepath = desc.Annotations[modelspec.AnnotationFilepath]
+			filePath = desc.Annotations[modelspec.AnnotationFilepath]
 		} else {
-			filepath = desc.Annotations[legacymodelspec.AnnotationFilepath]
+			filePath = desc.Annotations[legacymodelspec.AnnotationFilepath]
 		}
 
+	}
+
+	// load symlink from annotation if exists
+	var fileMetadata *modelspec.FileMetadata
+	// Try to retrieve the file metadata from annotation for raw file.
+	if desc.Annotations != nil {
+		fileMetadataStr := desc.Annotations[modelspec.AnnotationFileMetadata]
+		if fileMetadataStr == "" {
+			fileMetadataStr = desc.Annotations[legacymodelspec.AnnotationFileMetadata]
+		}
+
+		if fileMetadataStr != "" {
+			if err := json.Unmarshal([]byte(fileMetadataStr), &fileMetadata); err != nil {
+				return err
+			}
+		}
+	}
+	if fileMetadata != nil {
+		if fileMetadata.Typeflag == tar.TypeSymlink && len(fileMetadata.DstLinkPath) > 0 {
+			// handle file metadata
+
+			dstFullPath := filepath.Join(outputDir, fileMetadata.DstLinkPath)
+			if err := os.MkdirAll(dstFullPath, 0755); err != nil && !os.IsExist(err) {
+				return fmt.Errorf("failed to create directory %s: %w", dstFullPath, err)
+			}
+			fullPath := filepath.Join(outputDir, filePath)
+			if err := os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("failed to remove file %s: %w", fullPath, err)
+			}
+			if err := os.Symlink(fileMetadata.DstLinkPath, fullPath); err != nil {
+				return fmt.Errorf("failed to create symlink from %s to %s: %w", fullPath, dstFullPath, err)
+			}
+			logrus.Debugf("extract: created symlink from %s to %s", fullPath, dstFullPath)
+			return nil
+		}
 	}
 
 	codec, err := pkgcodec.New(pkgcodec.TypeFromMediaType(desc.MediaType))
@@ -129,7 +167,7 @@ func extractLayer(desc ocispec.Descriptor, outputDir string, reader io.Reader) e
 		return fmt.Errorf("failed to create codec for media type %s: %w", desc.MediaType, err)
 	}
 
-	if err := codec.Decode(outputDir, filepath, reader, desc); err != nil {
+	if err := codec.Decode(outputDir, filePath, reader, desc); err != nil {
 		if errors.Is(err, pkgcodec.ErrAlreadyUpToDate) {
 			return err
 		}

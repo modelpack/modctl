@@ -17,6 +17,7 @@
 package build
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -26,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -123,12 +125,56 @@ type abstractBuilder struct {
 }
 
 func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+	logrus.Debugf("BuildLayer:  mediaType %s, workDir %s, path %s", mediaType, workDir, path)
 	info, err := os.Stat(path)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to get file info: %w", err)
 	}
 
 	if info.IsDir() {
+		lInfo, err := os.Lstat(path)
+		if err != nil {
+			return ocispec.Descriptor{}, fmt.Errorf("failed to get file info: %w", err)
+		}
+		isSymlink := lInfo.Mode()&os.ModeSymlink != 0
+		if isSymlink {
+			// 对于符号链接，获取其指向的目标信息
+			dstLinkPath, err := os.Readlink(path)
+			if err != nil {
+				return ocispec.Descriptor{}, fmt.Errorf("failed to read symlink: %w", err)
+			}
+
+			workDirPath, err := filepath.Abs(workDir)
+			if err != nil {
+				return ocispec.Descriptor{}, fmt.Errorf("failed to get absolute path of workDir: %w", err)
+			}
+
+			// Gets the relative path of the file as annotation.
+			//nolint:typecheck
+			relPath, err := filepath.Rel(workDirPath, path)
+			if err != nil {
+				return ocispec.Descriptor{}, fmt.Errorf("failed to get relative path: %w", err)
+			}
+			logrus.Debugf("builder: starting build layer for synlink %s, target path %s", relPath, dstLinkPath)
+
+			// build layer for the target of symbolic link.
+			reader := strings.NewReader("")
+			hash := sha256.New()
+			size, err := io.Copy(hash, reader)
+			if err != nil {
+				return ocispec.Descriptor{}, fmt.Errorf("failed to copy content to hash: %w", err)
+			}
+			digest := fmt.Sprintf("sha256:%x", hash.Sum(nil))
+			desc, err := ab.strategy.OutputLayer(ctx, mediaType, relPath, digest, size, reader, hooks)
+			if err != nil {
+				return desc, err
+			}
+			// Add file metadata to descriptor.
+			if err := addFileMetadata(&desc, path, relPath); err != nil {
+				return desc, err
+			}
+			return desc, nil
+		}
 		return ocispec.Descriptor{}, fmt.Errorf("%s is a directory and not supported yet", path)
 	}
 
@@ -432,11 +478,27 @@ func getFileMetadata(path string) (modelspec.FileMetadata, error) {
 	// Set Typeflag.
 	switch {
 	case info.Mode().IsRegular():
-		metadata.Typeflag = 0 // Regular file
+		metadata.Typeflag = tar.TypeReg // Regular file
 	case info.Mode().IsDir():
-		metadata.Typeflag = 5 // Directory
+		metadata.Typeflag = tar.TypeDir // Directory
+		lInfo, err := os.Lstat(path)
+		if err != nil {
+			return metadata, fmt.Errorf("failed to get file info: %w", err)
+		}
+		isSymlink := lInfo.Mode()&os.ModeSymlink != 0
+		if isSymlink {
+			// 对于符号链接，获取其指向的目标信息
+			dstLinkPath, err := os.Readlink(path)
+			if err != nil {
+				return metadata, fmt.Errorf("failed to read symlink: %w", err)
+			}
+			logrus.Debugf("builder: symlink detected for file %s -> %s", path, dstLinkPath)
+			metadata.Typeflag = tar.TypeSymlink // Symlink
+			metadata.DstLinkPath = dstLinkPath
+		}
+
 	case info.Mode()&os.ModeSymlink != 0:
-		metadata.Typeflag = 2 // Symlink
+		metadata.Typeflag = tar.TypeSymlink // Symlink
 	default:
 		return metadata, errors.New("unknown file typeflag")
 	}
