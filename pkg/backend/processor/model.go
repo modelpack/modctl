@@ -30,13 +30,14 @@ const (
 )
 
 // NewModelProcessor creates a new model processor.
-func NewModelProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
+func NewModelProcessor(store storage.Storage, mediaType string, patterns []string, destDir string) Processor {
 	return &modelProcessor{
 		base: &base{
 			name:      modelProcessorName,
 			store:     store,
 			mediaType: mediaType,
 			patterns:  patterns,
+			destDir:   destDir,
 		},
 	}
 }

@@ -58,7 +58,7 @@ const (
 // Builder is an interface for building artifacts.
 type Builder interface {
 	// BuildLayer builds the layer blob from the given file path.
-	BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error)
+	BuildLayer(ctx context.Context, mediaType, workDir, path, destPath string, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// BuildConfig builds the config blob of the artifact.
 	BuildConfig(ctx context.Context, config modelspec.Model, hooks hooks.Hooks) (ocispec.Descriptor, error)
@@ -69,7 +69,7 @@ type Builder interface {
 
 type OutputStrategy interface {
 	// OutputLayer outputs the layer blob to the storage (local or remote).
-	OutputLayer(ctx context.Context, mediaType, relPath, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error)
+	OutputLayer(ctx context.Context, mediaType, relPath, destPath, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error)
 
 	// OutputConfig outputs the config blob to the storage (local or remote).
 	OutputConfig(ctx context.Context, mediaType, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error)
@@ -122,7 +122,7 @@ type abstractBuilder struct {
 	interceptor interceptor.Interceptor
 }
 
-func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, path string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, path, destPath string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to get file info: %w", err)
@@ -179,7 +179,7 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		}()
 	}
 
-	desc, err := ab.strategy.OutputLayer(ctx, mediaType, relPath, digest, size, reader, hooks)
+	desc, err := ab.strategy.OutputLayer(ctx, mediaType, relPath, destPath, digest, size, reader, hooks)
 	if err != nil {
 		return desc, err
 	}
