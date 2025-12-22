@@ -51,14 +51,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r scripts/requirements.txt
+          pip install -r contrib/scripts/requirements.txt
 
       - name: Select compatible models
         id: select-models
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          python scripts/select_top_models.py \
+          python contrib/scripts/select_top_models.py \
             --limit ${{ github.event.inputs.limit || '10' }} \
             --max-size ${{ github.event.inputs.max_size || '10' }} \
             --sort-by ${{ github.event.inputs.sort_by || 'downloads' }} \

@@ -34,13 +34,13 @@ pip install -r requirements.txt
 Basic usage (fetch top 10 models by downloads):
 
 ```bash
-python scripts/select_top_models.py
+python contrib/scripts/select_top_models.py
 ```
 
 #### Options
 
 ```bash
-python scripts/select_top_models.py \
+python contrib/scripts/select_top_models.py \
   --limit 10 \              # Number of models to select (default: 10)
   --max-size 20.0 \         # Maximum model size in GB (default: 20.0)
   --sort-by downloads \     # Sort by: downloads, likes, trending (default: downloads)
@@ -53,19 +53,19 @@ python scripts/select_top_models.py \
 Get top 5 small models (< 5GB):
 
 ```bash
-python scripts/select_top_models.py --limit 5 --max-size 5
+python contrib/scriptsselect_top_models.py --limit 5 --max-size 5
 ```
 
 Get most liked models:
 
 ```bash
-python scripts/select_top_models.py --limit 10 --sort-by likes
+python contrib/scripts/select_top_models.py --limit 10 --sort-by likes
 ```
 
 Save to file:
 
 ```bash
-python scripts/select_top_models.py --limit 20 --output top_models.json
+python contrib/scripts/select_top_models.py --limit 20 --output top_models.json
 ```
 
 ### Output Format
@@ -93,14 +93,14 @@ Some models require HuggingFace authentication. Set the `HF_TOKEN` environment v
 
 ```bash
 export HF_TOKEN="your_huggingface_token"
-python scripts/select_top_models.py
+python contrib/scripts/select_top_models.py
 ```
 
 Or use `huggingface-cli`:
 
 ```bash
 huggingface-cli login
-python scripts/select_top_models.py
+python contrib/scripts/select_top_models.py
 ```
 
 ## GitHub Workflow Integration
