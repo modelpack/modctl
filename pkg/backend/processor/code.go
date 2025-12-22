@@ -30,13 +30,14 @@ const (
 )
 
 // NewCodeProcessor creates a new code processor.
-func NewCodeProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
+func NewCodeProcessor(store storage.Storage, mediaType string, patterns []string, destDir string) Processor {
 	return &codeProcessor{
 		base: &base{
 			name:      codeProcessorName,
 			store:     store,
 			mediaType: mediaType,
 			patterns:  patterns,
+			destDir:   destDir,
 		},
 	}
 }
