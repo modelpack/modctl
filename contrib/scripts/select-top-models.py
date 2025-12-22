@@ -35,7 +35,7 @@ SUPPORTED_FORMATS = [
 ]
 
 # Model families known to work well with modctl
-KNOWN_FAMILIES = [
+KNOWN_FAMILIES = {
     "llama",
     "qwen",
     "qwen2",
@@ -50,7 +50,7 @@ KNOWN_FAMILIES = [
     "falcon",
     "mpt",
     "stablelm",
-]
+}
 
 
 def get_model_size_gb(model_info) -> Optional[float]:
@@ -62,7 +62,8 @@ def get_model_size_gb(model_info) -> Optional[float]:
                 if hasattr(file, 'size') and file.size:
                     total_size += file.size
         return total_size / (1024 ** 3)  # Convert to GB
-    except Exception:
+    except Exception as e:
+        print(f"Error: An error occurred in get_model_size_gb: {e}", file=sys.stderr)
         return None
 
 
@@ -70,11 +71,11 @@ def has_config_json(model_info) -> bool:
     """Check if model has config.json for auto-detection."""
     try:
         if hasattr(model_info, 'siblings') and model_info.siblings:
-            filenames = [f.rfilename for f in model_info.siblings]
-            return "config.json" in filenames
+            return any(f.rfilename == "config.json" for f in model_info.siblings)
         return False
-    except Exception:
-        return False
+    except Exception as e:
+        print(f"Error: An error occurred in has_config_json: {e}", file=sys.stderr)
+        return None
 
 
 def get_model_format(model_info) -> Optional[str]:
@@ -98,7 +99,8 @@ def get_model_format(model_info) -> Optional[str]:
                 return "pt"
 
         return None
-    except Exception:
+    except Exception as e:
+        print(f"Error: An error occurred in get_model_format: {e}", file=sys.stderr)
         return None
 
 
@@ -144,7 +146,8 @@ def detect_family(model_info, model_id: str) -> Optional[str]:
                 return family
 
         return None
-    except Exception:
+    except Exception as e:
+        print(f"Error: An error occurred in detect_family: {e}", file=sys.stderr)
         return None
 
 
@@ -319,7 +322,7 @@ def main():
         return 0
 
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Error: An error occurred in main: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc(file=sys.stderr)
         return 1

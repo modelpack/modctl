@@ -53,7 +53,7 @@ python contrib/scripts/select-top-models.py \
 Get top 5 small models (< 5GB):
 
 ```bash
-python contrib/scriptsselect-top-models.py --limit 5 --max-size 5
+python contrib/scripts/select-top-models.py --limit 5 --max-size 5
 ```
 
 Get most liked models:
