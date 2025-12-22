@@ -51,13 +51,17 @@ type remoteOutput struct {
 }
 
 // OutputLayer outputs the layer blob to the remote storage.
-func (ro *remoteOutput) OutputLayer(ctx context.Context, mediaType, relPath, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+func (ro *remoteOutput) OutputLayer(ctx context.Context, mediaType, relPath, destPath, digest string, size int64, reader io.Reader, hooks hooks.Hooks) (ocispec.Descriptor, error) {
+	if destPath == "" {
+		destPath = relPath
+	}
+
 	desc := ocispec.Descriptor{
 		MediaType: mediaType,
 		Digest:    godigest.Digest(digest),
 		Size:      size,
 		Annotations: map[string]string{
-			modelspec.AnnotationFilepath: relPath,
+			modelspec.AnnotationFilepath: destPath,
 		},
 	}
 

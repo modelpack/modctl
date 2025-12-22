@@ -30,13 +30,14 @@ const (
 )
 
 // NewModelConfigProcessor creates a new model config processor.
-func NewModelConfigProcessor(store storage.Storage, mediaType string, patterns []string) Processor {
+func NewModelConfigProcessor(store storage.Storage, mediaType string, patterns []string, destDir string) Processor {
 	return &modelConfigProcessor{
 		base: &base{
 			name:      modelConfigProcessorName,
 			store:     store,
 			mediaType: mediaType,
 			patterns:  patterns,
+			destDir:   destDir,
 		},
 	}
 }
