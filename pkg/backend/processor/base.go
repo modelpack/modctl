@@ -48,6 +48,10 @@ type base struct {
 	mediaType string
 	// patterns is the list of patterns to match.
 	patterns []string
+	// destDir is the destination dir for the processed content,
+	// which is used to store in the layer filepath annotation,
+	// it can be empty and by default is relative path to the workDir.
+	destDir string
 }
 
 // Process implements the Processor interface, which can be reused by other processors.
@@ -140,7 +144,12 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 			if err := retry.Do(func() error {
 				logrus.Debugf("processor: processing %s file %s", b.name, path)
 
-				desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, hooks.NewHooks(
+				var destPath string
+				if b.destDir != "" {
+					destPath = filepath.Join(b.destDir, filepath.Base(path))
+				}
+
+				desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, destPath, hooks.NewHooks(
 					hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 						return tracker.Add(internalpb.NormalizePrompt("Building layer"), name, size, reader)
 					}),

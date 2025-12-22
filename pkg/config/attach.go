@@ -16,37 +16,49 @@
 
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"path/filepath"
+)
 
 type Attach struct {
-	Source       string
-	Target       string
-	OutputRemote bool
-	PlainHTTP    bool
-	Insecure     bool
-	Nydusify     bool
-	Force        bool
-	Raw          bool
-	Config       bool
+	Source         string
+	Target         string
+	DestinationDir string
+	OutputRemote   bool
+	PlainHTTP      bool
+	Insecure       bool
+	Nydusify       bool
+	Force          bool
+	Raw            bool
+	Config         bool
 }
 
 func NewAttach() *Attach {
 	return &Attach{
-		Source:       "",
-		Target:       "",
-		OutputRemote: false,
-		PlainHTTP:    false,
-		Insecure:     false,
-		Nydusify:     false,
-		Force:        false,
-		Raw:          false,
-		Config:       false,
+		Source:         "",
+		Target:         "",
+		DestinationDir: "",
+		OutputRemote:   false,
+		PlainHTTP:      false,
+		Insecure:       false,
+		Nydusify:       false,
+		Force:          false,
+		Raw:            false,
+		Config:         false,
 	}
 }
 
 func (a *Attach) Validate() error {
 	if a.Source == "" || a.Target == "" {
 		return fmt.Errorf("source and target must be specified")
+	}
+
+	// Check if destination directory is relative path.
+	if a.DestinationDir != "" {
+		if filepath.IsAbs(a.DestinationDir) {
+			return fmt.Errorf("destination directory must be relative path")
+		}
 	}
 
 	if a.Nydusify {

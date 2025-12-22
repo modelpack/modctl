@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	pathfilepath "path/filepath"
 	"reflect"
 	"slices"
 	"sort"
@@ -74,7 +75,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 
 	logrus.Infof("attach: loaded source model config [%+v]", srcModelConfig)
 
-	proc := b.getProcessor(filepath, cfg.Raw)
+	proc := b.getProcessor(cfg.DestinationDir, filepath, cfg.Raw)
 	if proc == nil {
 		return fmt.Errorf("failed to get processor for file %s", filepath)
 	}
@@ -88,15 +89,20 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 	pb.Start()
 	defer pb.Stop()
 
+	destPath := filepath
+	if cfg.DestinationDir != "" {
+		destPath = pathfilepath.Join(cfg.DestinationDir, pathfilepath.Base(filepath))
+	}
+
 	layers := srcManifest.Layers
 	// If attach a normal file, we need to process it and create a new layer.
 	if !cfg.Config {
 		var foundLayer *ocispec.Descriptor
 		for _, layer := range srcManifest.Layers {
 			if anno := layer.Annotations; anno != nil {
-				if anno[modelspec.AnnotationFilepath] == filepath || anno[legacymodelspec.AnnotationFilepath] == filepath {
+				if anno[modelspec.AnnotationFilepath] == destPath || anno[legacymodelspec.AnnotationFilepath] == destPath {
 					if !cfg.Force {
-						return fmt.Errorf("file %s already exists, please use --force to overwrite if you want to attach it forcibly", filepath)
+						return fmt.Errorf("file %s already exists, please use --force to overwrite if you want to attach it forcibly", destPath)
 					}
 
 					foundLayer = &layer
@@ -299,13 +305,13 @@ func (b *backend) getModelConfig(ctx context.Context, reference string, desc oci
 	return &model, nil
 }
 
-func (b *backend) getProcessor(filepath string, rawMediaType bool) processor.Processor {
+func (b *backend) getProcessor(destDir, filepath string, rawMediaType bool) processor.Processor {
 	if modelfile.IsFileType(filepath, modelfile.ConfigFilePatterns) {
 		mediaType := legacymodelspec.MediaTypeModelWeightConfig
 		if rawMediaType {
 			mediaType = legacymodelspec.MediaTypeModelWeightConfigRaw
 		}
-		return processor.NewModelConfigProcessor(b.store, mediaType, []string{filepath})
+		return processor.NewModelConfigProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.ModelFilePatterns) {
@@ -313,7 +319,7 @@ func (b *backend) getProcessor(filepath string, rawMediaType bool) processor.Pro
 		if rawMediaType {
 			mediaType = legacymodelspec.MediaTypeModelWeightRaw
 		}
-		return processor.NewModelProcessor(b.store, mediaType, []string{filepath})
+		return processor.NewModelProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.CodeFilePatterns) {
@@ -321,7 +327,7 @@ func (b *backend) getProcessor(filepath string, rawMediaType bool) processor.Pro
 		if rawMediaType {
 			mediaType = legacymodelspec.MediaTypeModelCodeRaw
 		}
-		return processor.NewCodeProcessor(b.store, mediaType, []string{filepath})
+		return processor.NewCodeProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.DocFilePatterns) {
@@ -329,7 +335,7 @@ func (b *backend) getProcessor(filepath string, rawMediaType bool) processor.Pro
 		if rawMediaType {
 			mediaType = legacymodelspec.MediaTypeModelDocRaw
 		}
-		return processor.NewDocProcessor(b.store, mediaType, []string{filepath})
+		return processor.NewDocProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
 
 	return nil

@@ -103,9 +103,9 @@ func (_c *OutputStrategy_OutputConfig_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
-// OutputLayer provides a mock function with given fields: ctx, mediaType, relPath, digest, size, reader, _a6
-func (_m *OutputStrategy) OutputLayer(ctx context.Context, mediaType string, relPath string, digest string, size int64, reader io.Reader, _a6 hooks.Hooks) (v1.Descriptor, error) {
-	ret := _m.Called(ctx, mediaType, relPath, digest, size, reader, _a6)
+// OutputLayer provides a mock function with given fields: ctx, mediaType, relPath, destPath, digest, size, reader, _a7
+func (_m *OutputStrategy) OutputLayer(ctx context.Context, mediaType string, relPath string, destPath string, digest string, size int64, reader io.Reader, _a7 hooks.Hooks) (v1.Descriptor, error) {
+	ret := _m.Called(ctx, mediaType, relPath, destPath, digest, size, reader, _a7)
 
 	if len(ret) == 0 {
 		panic("no return value specified for OutputLayer")
@@ -113,17 +113,17 @@ func (_m *OutputStrategy) OutputLayer(ctx context.Context, mediaType string, rel
 
 	var r0 v1.Descriptor
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, int64, io.Reader, hooks.Hooks) (v1.Descriptor, error)); ok {
-		return rf(ctx, mediaType, relPath, digest, size, reader, _a6)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, int64, io.Reader, hooks.Hooks) (v1.Descriptor, error)); ok {
+		return rf(ctx, mediaType, relPath, destPath, digest, size, reader, _a7)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, int64, io.Reader, hooks.Hooks) v1.Descriptor); ok {
-		r0 = rf(ctx, mediaType, relPath, digest, size, reader, _a6)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, int64, io.Reader, hooks.Hooks) v1.Descriptor); ok {
+		r0 = rf(ctx, mediaType, relPath, destPath, digest, size, reader, _a7)
 	} else {
 		r0 = ret.Get(0).(v1.Descriptor)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, int64, io.Reader, hooks.Hooks) error); ok {
-		r1 = rf(ctx, mediaType, relPath, digest, size, reader, _a6)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string, int64, io.Reader, hooks.Hooks) error); ok {
+		r1 = rf(ctx, mediaType, relPath, destPath, digest, size, reader, _a7)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -140,17 +140,18 @@ type OutputStrategy_OutputLayer_Call struct {
 //   - ctx context.Context
 //   - mediaType string
 //   - relPath string
+//   - destPath string
 //   - digest string
 //   - size int64
 //   - reader io.Reader
-//   - _a6 hooks.Hooks
-func (_e *OutputStrategy_Expecter) OutputLayer(ctx interface{}, mediaType interface{}, relPath interface{}, digest interface{}, size interface{}, reader interface{}, _a6 interface{}) *OutputStrategy_OutputLayer_Call {
-	return &OutputStrategy_OutputLayer_Call{Call: _e.mock.On("OutputLayer", ctx, mediaType, relPath, digest, size, reader, _a6)}
+//   - _a7 hooks.Hooks
+func (_e *OutputStrategy_Expecter) OutputLayer(ctx interface{}, mediaType interface{}, relPath interface{}, destPath interface{}, digest interface{}, size interface{}, reader interface{}, _a7 interface{}) *OutputStrategy_OutputLayer_Call {
+	return &OutputStrategy_OutputLayer_Call{Call: _e.mock.On("OutputLayer", ctx, mediaType, relPath, destPath, digest, size, reader, _a7)}
 }
 
-func (_c *OutputStrategy_OutputLayer_Call) Run(run func(ctx context.Context, mediaType string, relPath string, digest string, size int64, reader io.Reader, _a6 hooks.Hooks)) *OutputStrategy_OutputLayer_Call {
+func (_c *OutputStrategy_OutputLayer_Call) Run(run func(ctx context.Context, mediaType string, relPath string, destPath string, digest string, size int64, reader io.Reader, _a7 hooks.Hooks)) *OutputStrategy_OutputLayer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(int64), args[5].(io.Reader), args[6].(hooks.Hooks))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string), args[5].(int64), args[6].(io.Reader), args[7].(hooks.Hooks))
 	})
 	return _c
 }
@@ -160,7 +161,7 @@ func (_c *OutputStrategy_OutputLayer_Call) Return(_a0 v1.Descriptor, _a1 error) 
 	return _c
 }
 
-func (_c *OutputStrategy_OutputLayer_Call) RunAndReturn(run func(context.Context, string, string, string, int64, io.Reader, hooks.Hooks) (v1.Descriptor, error)) *OutputStrategy_OutputLayer_Call {
+func (_c *OutputStrategy_OutputLayer_Call) RunAndReturn(run func(context.Context, string, string, string, string, int64, io.Reader, hooks.Hooks) (v1.Descriptor, error)) *OutputStrategy_OutputLayer_Call {
 	_c.Call.Return(run)
 	return _c
 }

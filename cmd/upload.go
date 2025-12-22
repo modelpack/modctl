@@ -53,6 +53,7 @@ func init() {
 	flags.BoolVarP(&uploadConfig.PlainHTTP, "plain-http", "", false, "turning on this flag will use plain HTTP instead of HTTPS")
 	flags.BoolVarP(&uploadConfig.Insecure, "insecure", "", false, "turning on this flag will disable TLS verification")
 	flags.BoolVar(&uploadConfig.Raw, "raw", true, "turning on this flag will upload model artifact layer in raw format")
+	flags.StringVar(&uploadConfig.DestinationDir, "destination-dir", "", "destination directory for the uploaded file should be specified as a relative path; by default, it will match the original directory of the uploaded file")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache list flags to viper: %w", err))

@@ -72,7 +72,7 @@ func (s *LocalOutputTestSuite) TestOutputLayer() {
 		s.mockStorage.On("PushBlob", s.ctx, "test-repo", mock.Anything, ocispec.Descriptor{}).
 			Return(expectedDigest, expectedSize, nil).Once()
 
-		desc, err := s.localOutput.OutputLayer(s.ctx, "test/mediatype", "test-file.txt", expectedDigest, expectedSize, reader, hooks.NewHooks())
+		desc, err := s.localOutput.OutputLayer(s.ctx, "test/mediatype", "test-file.txt", "", expectedDigest, expectedSize, reader, hooks.NewHooks())
 
 		s.NoError(err)
 		s.Equal("test/mediatype", desc.MediaType)
@@ -88,7 +88,7 @@ func (s *LocalOutputTestSuite) TestOutputLayer() {
 		s.mockStorage.On("PushBlob", s.ctx, "test-repo", mock.Anything, ocispec.Descriptor{}).
 			Return("", int64(0), errors.New("storage error")).Once()
 
-		_, err := s.localOutput.OutputLayer(s.ctx, "test/mediatype", "/work", "test-file.txt", int64(0), reader, hooks.NewHooks())
+		_, err := s.localOutput.OutputLayer(s.ctx, "test/mediatype", "/work", "test-file.txt", "", int64(0), reader, hooks.NewHooks())
 
 		s.Error(err)
 		s.Contains(err.Error(), "failed to push blob to storage")
