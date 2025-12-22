@@ -1,10 +1,10 @@
 module github.com/modelpack/modctl
 
-go 1.24.1
+go 1.25
 
 require (
 	d7y.io/api/v2 v2.1.94
-	github.com/antgroup/hugescm v0.18.3
+	github.com/antgroup/hugescm v0.21.0
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/distribution/distribution/v3 v3.0.0
 	github.com/distribution/reference v0.6.0
@@ -22,8 +22,8 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/vbauerster/mpb/v8 v8.11.2
-	golang.org/x/crypto v0.45.0
-	golang.org/x/sync v0.18.0
+	golang.org/x/crypto v0.46.0
+	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.39.0
 	google.golang.org/grpc v1.76.0
 	oras.land/oras-go/v2 v2.6.0
@@ -43,9 +43,9 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
-	github.com/danieljoos/wincred v1.2.2 // indirect
+	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
+	github.com/dgraph-io/ristretto/v2 v2.3.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -54,7 +54,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
-	github.com/godbus/dbus/v5 v5.1.0 // indirect
+	github.com/godbus/dbus/v5 v5.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.2-0.20240619235004-db9d1d0073d2 // indirect
@@ -63,7 +63,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -114,9 +114,9 @@ require (
 	go.opentelemetry.io/proto/otlp v1.8.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/term v0.37.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/term v0.38.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251029180050-ab9386a59fda // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
