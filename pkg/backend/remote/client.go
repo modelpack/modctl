@@ -19,9 +19,13 @@ package remote
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"runtime"
 
+	"github.com/sirupsen/logrus"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
@@ -80,15 +84,11 @@ func New(repo string, opts ...Option) (*remote.Repository, error) {
 		return nil, fmt.Errorf("failed to create credential store: %w", err)
 	}
 
-	// Add custom headers to the request.
-	header := make(http.Header)
-	header.Set("User-Agent", fmt.Sprintf("modctl/%s", version.GitVersion))
-
 	repository.Client = &auth.Client{
 		Cache:      auth.NewCache(),
 		Credential: credentials.Credential(credStore),
 		Client:     httpClient,
-		Header:     header,
+		Header:     makeHeader(),
 	}
 
 	repository.PlainHTTP = client.plainHTTP
@@ -117,4 +117,45 @@ func WithPlainHTTP(plainHTTP bool) Option {
 	return func(c *client) {
 		c.plainHTTP = plainHTTP
 	}
+}
+
+// makeHeader creates a new http.Header with default headers.
+func makeHeader() http.Header {
+	header := make(http.Header)
+	header.Set("User-Agent", fmt.Sprintf("modctl/%s", version.GitVersion))
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		logrus.Errorf("failed to get hostname: %v", err)
+	} else {
+		header.Set("X-Hostname", hostname)
+	}
+
+	ipAddr := getLocalIP()
+	if ipAddr == "" {
+		logrus.Errorf("failed to get local IP address")
+	} else {
+		header.Set("X-Host-Ip", ipAddr)
+	}
+
+	header.Set("X-Cpu-Arch", runtime.GOARCH)
+	return header
+}
+
+// getLocalIP gets the local IP address.
+func getLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+			if ipNet.IP.To4() != nil {
+				return ipNet.IP.String()
+			}
+		}
+	}
+
+	return ""
 }
