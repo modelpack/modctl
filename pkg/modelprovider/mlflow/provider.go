@@ -20,15 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
 // MlflowProvider implements the modelprovider.Provider interface for Mlflow
 type MlflowProvider struct {
-	mlfClient MlFlowClient
+	mflClient MlFlowClient
 }
 
 // New creates a new ModelScope provider instance
@@ -47,7 +46,7 @@ func (p *MlflowProvider) Name() string {
 func (p *MlflowProvider) SupportsURL(url string) bool {
 	url = strings.TrimSpace(url)
 	// TODO Mlflow API equals with Databricks Model Registry, support later
-	possibleUrls := []string{"models", "runs"}
+	possibleUrls := []string{"models"}
 
 	return hasAnyPrefix(url, possibleUrls)
 }
@@ -55,8 +54,17 @@ func (p *MlflowProvider) SupportsURL(url string) bool {
 // DownloadModel downloads a model from ModelScope using the modelscope CLI
 func (p *MlflowProvider) DownloadModel(ctx context.Context, modelURL, destDir string) (string, error) {
 	model, version, err := parseModelURL(modelURL)
-	xclient := NewMlFlowRegistry(nil)
-	xclient.PullModelByName(modelURL)
+	if err != nil {
+		return "", err
+	}
+	registryClient, err := NewMlFlowRegistry(nil)
+	if err != nil {
+		return "", err
+	}
+	downloadPath, err := registryClient.PullModelByName(ctx, model, version, destDir)
+	if err != nil {
+		return "", err
+	}
 	return downloadPath, nil
 }
 
@@ -75,6 +83,7 @@ func hasAnyPrefix(s string, subs []string) bool {
 }
 
 func checkMlflowAuth() error {
+
 	var err error
 
 	host := os.Getenv("DATABRICKS_HOST")
@@ -88,7 +97,10 @@ func checkMlflowAuth() error {
 		fmt.Println("Please set DATABRICKS_HOST environment variable.")
 		fmt.Println("Please set DATABRICKS_USERNAME environment variable.")
 		fmt.Println("Please set DATABRICKS_PASSWORD environment variable.")
-	} else if mlfhost != "" && mlfuser != "" && mlfpass != "" {
+	} else {
+		return nil
+	}
+	if mlfhost != "" && mlfuser != "" && mlfpass != "" {
 		err = os.Setenv("DATABRICKS_HOST", mlfhost)
 		if err != nil {
 			return err
@@ -108,12 +120,33 @@ func checkMlflowAuth() error {
 	return err
 }
 
-func parseModelURL(modelURL string) (name, version, error) {
-	var err error
-	var name string
-	var version string
+func parseModelURL(modelURL string) (string, string, error) {
+	if modelURL == "" {
+		return "", "", errors.New("modelUrl value missing.")
+	}
 
-	name = ""
-	version = ""
-	return
+	if strings.HasPrefix(modelURL, "models:") {
+		parse, err := url.Parse(modelURL)
+		if err != nil {
+			return "", "", err
+		}
+
+		if parse == nil {
+			return "", "", errors.New("model url is nil")
+		}
+
+		return parse.Hostname(), strings.TrimLeft(parse.Path, "/"), nil
+
+	} else if strings.Contains(modelURL, "/") {
+
+		split := strings.Split(modelURL, "/")
+
+		if len(split) != 2 {
+			return "", "", errors.New("model url is invalid, valid mask name/version")
+		}
+		return split[0], split[1], nil
+
+	} else {
+		return modelURL, "", nil
+	}
 }
