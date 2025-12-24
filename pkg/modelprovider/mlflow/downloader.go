@@ -43,12 +43,11 @@ func NewMlFlowRegistry(mlflowClient *client.DatabricksClient) (MlFlowClient, err
 		return MlFlowClient{registry: registry}, nil
 	}
 
-	//TODO Support more auth methods?
+	// TODO Support more auth methods?
 	cfg := config.Config{
-		//Credentials: config.BasicCredentials{},
+		// Credentials: config.BasicCredentials{},
 	}
 	mlClient, err := client.New(&cfg)
-
 	if err != nil {
 		return MlFlowClient{}, err
 	}
@@ -56,19 +55,26 @@ func NewMlFlowRegistry(mlflowClient *client.DatabricksClient) (MlFlowClient, err
 	return MlFlowClient{registry: registry}, nil
 }
 
-func (mlfr *MlFlowClient) PullModelByName(ctx context.Context, modelName string, modelVersion string, destSrc string) error {
-
+func (mlfr *MlFlowClient) PullModelByName(
+	ctx context.Context,
+	modelName string,
+	modelVersion string,
+	destSrc string,
+) (string, error) {
 	if mlfr == nil || mlfr.registry == nil {
-		return errors.New("Mlflow client is not initialized: registry is nil")
+		return "", errors.New("mlflow client is not initialized: registry is nil")
 	}
 
-	versions, err := mlfr.registry.GetLatestVersionsAll(ctx, ml.GetLatestVersionsRequest{Name: modelName})
+	versions, err := mlfr.registry.GetLatestVersionsAll(
+		ctx,
+		ml.GetLatestVersionsRequest{Name: modelName},
+	)
 	if err != nil {
-		return errors.Join(errors.New(fmt.Sprintf("failed to get versions for model: %s", modelName)), err)
+		return "", errors.Join(fmt.Errorf("failed to get versions for model: %s", modelName), err)
 	}
 
 	if len(versions) == 0 {
-		return errors.New(fmt.Sprintf("model %s has versions: %v", modelName, versions))
+		return "", fmt.Errorf("model %s has versions: %v", modelName, versions)
 	}
 
 	var rawVersion []string
@@ -78,9 +84,12 @@ func (mlfr *MlFlowClient) PullModelByName(ctx context.Context, modelName string,
 	contains := slices.Contains(rawVersion, modelVersion)
 	if !contains {
 		msg := fmt.Sprintf(
-			"model %s version %s not found, available version %v", modelName, modelVersion, rawVersion,
+			"model %s version %s not found, available version %v",
+			modelName,
+			modelVersion,
+			rawVersion,
 		)
-		return errors.New(msg)
+		return "", errors.New(msg)
 	}
 
 	fmt.Printf("Found versions: '%v' for model '%s'\n", rawVersion, modelName)
@@ -92,40 +101,43 @@ func (mlfr *MlFlowClient) PullModelByName(ctx context.Context, modelName string,
 		Name:    modelName,
 		Version: modelVersion,
 	})
-
 	if err != nil {
-		return err
+		return "", err
 	}
 	fmt.Printf("Try pull model from uri %s", uri.ArtifactUri)
 	parsed, err := url.Parse(uri.ArtifactUri)
 	if parsed == nil {
-		return errors.New("failed to parse artifact uri")
+		return "", errors.New("failed to parse artifact uri")
 	}
 
 	switch parsed.Scheme {
 	case "s3":
 		s3storage := storageProvider[parsed.Scheme]
+		destSrc = filepath.Join(destSrc, modelName)
 		err = s3storage.DownloadModel(ctx, uri.ArtifactUri+"/", destSrc) // it's dir
 		if err != nil {
-			return err
+			return "", err
 		}
 	default:
 		msg := fmt.Sprintf("Unsupported artifact storage type: %s", parsed.Scheme)
 		err = errors.New(msg)
-		return err
+		return "", err
 	}
 
 	fmt.Printf("✅ Model downloaded")
 
-	return nil
+	return destSrc, nil
 }
 
 type S3StorageBackend struct {
 	addressing string
 }
 
-func (s3back *S3StorageBackend) DownloadModel(ctx context.Context, path string, destPath string) error {
-
+func (s3back *S3StorageBackend) DownloadModel(
+	ctx context.Context,
+	path string,
+	destPath string,
+) error {
 	parsed, err := url.Parse(path)
 	if err != nil {
 		return err
@@ -134,12 +146,10 @@ func (s3back *S3StorageBackend) DownloadModel(ctx context.Context, path string, 
 	bucketName := parsed.Host
 	s3FolderPrefix := parsed.Path[1:]
 	fmt.Printf("Parsed s3 bucket %s, path %s from path", bucketName, s3FolderPrefix)
-	if destPath == "" {
-		destPath = "./downloads/"
-	}
+
 	cfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
-		wrap := errors.New(fmt.Sprintf("Error loading AWS config, try change envs or profile: %v\n", err))
+		wrap := fmt.Errorf("Error loading AWS config, try change envs or profile: %v\n", err)
 		return errors.Join(wrap, err)
 	}
 
@@ -179,9 +189,13 @@ func (s3back *S3StorageBackend) DownloadModel(ctx context.Context, path string, 
 			localFilePath := filepath.Join(destPath, relativePath)
 
 			// Create local directories if they don't exist
-			err = os.MkdirAll(filepath.Dir(localFilePath), 0755)
+			err = os.MkdirAll(filepath.Dir(localFilePath), 0o755)
 			if err != nil {
-				log.Printf("Error creating local directory %s: %v\n", filepath.Dir(localFilePath), err)
+				log.Printf(
+					"Error creating local directory %s: %v\n",
+					filepath.Dir(localFilePath),
+					err,
+				)
 				continue
 			}
 

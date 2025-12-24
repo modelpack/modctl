@@ -142,13 +142,14 @@ func TestRegistry_ListProviders(t *testing.T) {
 	registry := GetRegistry()
 	providers := registry.ListProviders()
 
-	if len(providers) != 2 {
+	if len(providers) != 3 {
 		t.Errorf("ListProviders() returned %d providers, want 2", len(providers))
 	}
 
 	expectedProviders := map[string]bool{
 		"huggingface": false,
 		"modelscope":  false,
+		"mlflow":      false,
 	}
 
 	for _, name := range providers {
