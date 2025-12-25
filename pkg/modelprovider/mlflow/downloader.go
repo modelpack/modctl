@@ -39,7 +39,7 @@ func NewMlFlowRegistry(mlflowClient *client.DatabricksClient) (MlFlowClient, err
 
 	if mlflowClient != nil {
 		registry = ml.NewModelRegistry(mlflowClient)
-		fmt.Println("Use default mlflow client for MlFlowRegistryAPI")
+		log.Println("Use default mlflow client for MlFlowRegistryAPI")
 		return MlFlowClient{registry: registry}, nil
 	}
 
@@ -92,8 +92,9 @@ func (mlfr *MlFlowClient) PullModelByName(
 		return "", errors.New(msg)
 	}
 
-	fmt.Printf("Found versions: '%v' for model '%s'\n", rawVersion, modelName)
+	log.Printf("Found versions: '%v' for model '%s'\n", rawVersion, modelName)
 	if modelVersion == "" {
+		slices.Sort(rawVersion)
 		modelVersion = rawVersion[0]
 	}
 
@@ -104,8 +105,11 @@ func (mlfr *MlFlowClient) PullModelByName(
 	if err != nil {
 		return "", err
 	}
-	fmt.Printf("Try pull model from uri %s", uri.ArtifactUri)
+	log.Printf("Try pull model from uri %s", uri.ArtifactUri)
 	parsed, err := url.Parse(uri.ArtifactUri)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse artifact uri: %w", err)
+	}
 	if parsed == nil {
 		return "", errors.New("failed to parse artifact uri")
 	}
@@ -124,7 +128,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 		return "", err
 	}
 
-	fmt.Printf("✅ Model downloaded")
+	log.Printf("✅ Model downloaded")
 
 	return destSrc, nil
 }
@@ -144,7 +148,7 @@ func (s3back *S3StorageBackend) DownloadModel(
 	}
 
 	bucketName := parsed.Host
-	s3FolderPrefix := parsed.Path[1:]
+	s3FolderPrefix := strings.TrimPrefix(parsed.Path, "/")
 	fmt.Printf("Parsed s3 bucket %s, path %s from path", bucketName, s3FolderPrefix)
 
 	cfg, err := awsconfig.LoadDefaultConfig(ctx)
@@ -161,11 +165,10 @@ func (s3back *S3StorageBackend) DownloadModel(
 	downloader := manager.NewDownloader(s3Client, func(d *manager.Downloader) {
 		d.PartSize = partMiBs * 1024 * 1024
 	})
-	// List objects with the specified prefix
+	// List all objects under the prefix (including nested directories).
 	paginator := s3.NewListObjectsV2Paginator(s3Client, &s3.ListObjectsV2Input{
-		Bucket:    aws.String(bucketName),
-		Prefix:    aws.String(s3FolderPrefix),
-		Delimiter: aws.String("/"),
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String(s3FolderPrefix),
 	})
 
 	log.Printf("Start downloading from s3 bucket %s, path %s", bucketName, s3FolderPrefix)
@@ -180,12 +183,13 @@ func (s3back *S3StorageBackend) DownloadModel(
 		for _, object := range page.Contents {
 			s3Key := *object.Key
 			log.Printf("Downloading object: %s\n", s3Key)
-			//if strings.HasSuffix(s3Key, "/") { // Skip S3 "folder" markers
-			//	continue
-			//}
+			if strings.HasSuffix(s3Key, "/") { // Skip S3 "folder" markers
+				continue
+			}
 
 			// Construct local file path
 			relativePath := strings.TrimPrefix(s3Key, s3FolderPrefix)
+			relativePath = strings.TrimPrefix(relativePath, "/")
 			localFilePath := filepath.Join(destPath, relativePath)
 
 			// Create local directories if they don't exist
@@ -205,14 +209,26 @@ func (s3back *S3StorageBackend) DownloadModel(
 				log.Printf("Error creating local file %s: %v\n", localFilePath, err)
 				continue
 			}
-			defer file.Close()
 
 			numBytes, err := downloader.Download(ctx, file, &s3.GetObjectInput{
 				Bucket: aws.String(bucketName),
 				Key:    aws.String(s3Key),
 			})
+			closeErr := file.Close()
 			if err != nil {
 				log.Printf("Error downloading object %s: %v\n", s3Key, err)
+				if removeErr := os.Remove(localFilePath); removeErr != nil &&
+					!errors.Is(removeErr, os.ErrNotExist) {
+					log.Printf("Error removing partial file %s: %v\n", localFilePath, removeErr)
+				}
+				continue
+			}
+			if closeErr != nil {
+				log.Printf("Error closing file %s: %v\n", localFilePath, closeErr)
+				if removeErr := os.Remove(localFilePath); removeErr != nil &&
+					!errors.Is(removeErr, os.ErrNotExist) {
+					log.Printf("Error removing partial file %s: %v\n", localFilePath, removeErr)
+				}
 				continue
 			}
 			log.Printf("Downloaded %s to %s (%d bytes)\n", s3Key, localFilePath, numBytes)
