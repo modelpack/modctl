@@ -55,6 +55,7 @@ func NewMlFlowRegistry(mlflowClient *client.DatabricksClient) (MlFlowClient, err
 	return MlFlowClient{registry: registry}, nil
 }
 
+// Pull latest modelVersion if `modelVersion` is nil
 func (mlfr *MlFlowClient) PullModelByName(
 	ctx context.Context,
 	modelName string,
@@ -65,42 +66,51 @@ func (mlfr *MlFlowClient) PullModelByName(
 		return "", errors.New("mlflow client is not initialized: registry is nil")
 	}
 
-	versions, err := mlfr.registry.GetLatestVersionsAll(
-		ctx,
-		ml.GetLatestVersionsRequest{Name: modelName},
-	)
-	if err != nil {
-		return "", errors.Join(fmt.Errorf("failed to get versions for model: %s", modelName), err)
-	}
+	var pullVersion string
 
-	if len(versions) == 0 {
-		return "", fmt.Errorf("model %s has versions: %v", modelName, versions)
-	}
-
-	var rawVersion []string
-	for _, version := range versions {
-		rawVersion = append(rawVersion, version.Version)
-	}
-	contains := slices.Contains(rawVersion, modelVersion)
-	if !contains {
-		msg := fmt.Sprintf(
-			"model %s version %s not found, available version %v",
-			modelName,
-			modelVersion,
-			rawVersion,
-		)
-		return "", errors.New(msg)
-	}
-
-	log.Printf("Found versions: '%v' for model '%s'\n", rawVersion, modelName)
 	if modelVersion == "" {
-		slices.Sort(rawVersion)
-		modelVersion = rawVersion[0]
+		versions, err := mlfr.registry.GetLatestVersionsAll(
+			ctx,
+			ml.GetLatestVersionsRequest{Name: modelName},
+		)
+		if err != nil {
+			return "", errors.Join(fmt.Errorf("failed to get versions for model: %s", modelName), err)
+		}
+
+		if len(versions) == 0 {
+			return "", fmt.Errorf("model %s has versions: %v", modelName, versions)
+		}
+
+		pullVersion = versions[0].Version
+		log.Printf("Found versions: '%v' for model '%s'\n", pullVersion, modelName)
+
+	} else {
+
+		all, err := mlfr.registry.SearchModelVersionsAll(ctx, ml.SearchModelVersionsRequest{})
+		if err != nil {
+			return "", err
+		}
+		var rawVersions []string
+
+		for _, v := range all {
+			rawVersions = append(rawVersions, v.Version)
+		}
+
+		if !slices.Contains(rawVersions, modelVersion) {
+			msg := fmt.Sprintf(
+				"model %s version %s not found, available version %v",
+				modelName,
+				modelVersion,
+				rawVersions,
+			)
+			return "", errors.New(msg)
+		}
 	}
+	log.Printf("Start pull model from model registry with version %s", pullVersion)
 
 	uri, err := mlfr.registry.GetModelVersionDownloadUri(ctx, ml.GetModelVersionDownloadUriRequest{
 		Name:    modelName,
-		Version: modelVersion,
+		Version: pullVersion,
 	})
 	if err != nil {
 		return "", err
@@ -149,7 +159,7 @@ func (s3back *S3StorageBackend) DownloadModel(
 
 	bucketName := parsed.Host
 	s3FolderPrefix := strings.TrimPrefix(parsed.Path, "/")
-	fmt.Printf("Parsed s3 bucket %s, path %s from path", bucketName, s3FolderPrefix)
+	log.Printf("Parsed s3 bucket %s, path %s from path", bucketName, s3FolderPrefix)
 
 	cfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
@@ -215,16 +225,13 @@ func (s3back *S3StorageBackend) DownloadModel(
 				Key:    aws.String(s3Key),
 			})
 			closeErr := file.Close()
-			if err != nil {
-				log.Printf("Error downloading object %s: %v\n", s3Key, err)
-				if removeErr := os.Remove(localFilePath); removeErr != nil &&
-					!errors.Is(removeErr, os.ErrNotExist) {
-					log.Printf("Error removing partial file %s: %v\n", localFilePath, removeErr)
+			if err != nil || closeErr != nil {
+				if err != nil {
+					log.Printf("Error downloading object %s: %v\n", s3Key, err)
 				}
-				continue
-			}
-			if closeErr != nil {
-				log.Printf("Error closing file %s: %v\n", localFilePath, closeErr)
+				if closeErr != nil {
+					log.Printf("Error closing file %s: %v\n", localFilePath, closeErr)
+				}
 				if removeErr := os.Remove(localFilePath); removeErr != nil &&
 					!errors.Is(removeErr, os.ErrNotExist) {
 					log.Printf("Error removing partial file %s: %v\n", localFilePath, removeErr)

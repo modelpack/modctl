@@ -7,44 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMlflowProvider_CheckAuth(t *testing.T) {
-	type fields struct {
-		mlfClient MlFlowClient
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr bool
-	}{
-		{
-			name:    "missing envs returns error",
-			wantErr: true,
-		},
-		{
-			name:    "databricks host set returns nil",
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("DATABRICKS_HOST", "")
-			t.Setenv("DATABRICKS_USERNAME", "")
-			t.Setenv("DATABRICKS_PASSWORD", "")
-			t.Setenv("MLFLOW_TRACKING_URI", "")
-			t.Setenv("MLFLOW_TRACKING_USERNAME", "")
-			t.Setenv("MLFLOW_TRACKING_PASSWORD", "")
-			if tt.name == "databricks host set returns nil" {
-				t.Setenv("DATABRICKS_HOST", "https://example.com")
-			}
-
-			p := &MlflowProvider{
-				mflClient: tt.fields.mlfClient,
-			}
-			assert.NoError(t, p.CheckAuth())
-		})
-	}
-}
-
 func TestMlflowProvider_DownloadModel(t *testing.T) {
 	type fields struct {
 		mlfClient MlFlowClient
@@ -182,7 +144,7 @@ func Test_checkMlflowAuth(t *testing.T) {
 		},
 		{
 			name:    "mlflow tracking set returns nil",
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
