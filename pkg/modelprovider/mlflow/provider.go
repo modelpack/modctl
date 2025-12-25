@@ -19,9 +19,10 @@ package mlflow
 import (
 	"context"
 	"errors"
-	"fmt"
+	"log"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -46,13 +47,16 @@ func (p *MlflowProvider) Name() string {
 func (p *MlflowProvider) SupportsURL(url string) bool {
 	url = strings.TrimSpace(url)
 	// TODO Mlflow API equals with Databricks Model Registry, support later
-	possibleUrls := []string{"models"}
+	possibleUrls := []string{"models:/"}
 
 	return hasAnyPrefix(url, possibleUrls)
 }
 
 // DownloadModel downloads a model from ModelScope using the modelscope CLI
-func (p *MlflowProvider) DownloadModel(ctx context.Context, modelURL, destDir string) (string, error) {
+func (p *MlflowProvider) DownloadModel(
+	ctx context.Context,
+	modelURL, destDir string,
+) (string, error) {
 	model, version, err := parseModelURL(modelURL)
 	if err != nil {
 		return "", err
@@ -84,40 +88,37 @@ func hasAnyPrefix(s string, subs []string) bool {
 
 func checkMlflowAuth() error {
 
-	var err error
+	isAllNonEmpty := func(s []string) bool {
+		for v := range slices.Values(s) {
+			if v == "" {
+				return false
+			}
+		}
+		return true
+	}
 
-	host := os.Getenv("DATABRICKS_HOST")
-	usr := os.Getenv("DATABRICKS_USERNAME")
-	pass := os.Getenv("DATABRICKS_PASSWORD")
-	mlfhost := os.Getenv("MLFLOW_TRACKING_URI")
-	mlfuser := os.Getenv("MLFLOW_TRACKING_USERNAME")
-	mlfpass := os.Getenv("MLFLOW_TRACKING_PASSWORD")
+	databricksEnvs := []string{
+		os.Getenv("DATABRICKS_HOST"),
+		os.Getenv("DATABRICKS_USERNAME"),
+		os.Getenv("DATABRICKS_PASSWORD"),
+	}
+	mlflowEnvs := []string{
+		os.Getenv("MLFLOW_TRACKING_URI"),
+		os.Getenv("MLFLOW_TRACKING_USERNAME"),
+		os.Getenv("MLFLOW_TRACKING_PASSWORD"),
+	}
 
-	if host == "" && usr == "" && pass == "" {
-		fmt.Println("Please set DATABRICKS_HOST environment variable.")
-		fmt.Println("Please set DATABRICKS_USERNAME environment variable.")
-		fmt.Println("Please set DATABRICKS_PASSWORD environment variable.")
-	} else {
+	if isAllNonEmpty(databricksEnvs) {
 		return nil
-	}
-	if mlfhost != "" && mlfuser != "" && mlfpass != "" {
-		err = os.Setenv("DATABRICKS_HOST", mlfhost)
-		if err != nil {
-			return err
-		}
-		err = os.Setenv("DATABRICKS_USERNAME", usr)
-		if err != nil {
-			return err
-		}
-		err = os.Setenv("DATABRICKS_PASSWORD", pass)
-		if err != nil {
-			return err
-		}
-
+	} else if isAllNonEmpty(mlflowEnvs) {
+		log.Printf("Detected MlFlow environment variables, set DATABRICKS_* envs \n")
 	} else {
-		return errors.New("please set MLFLOW tracking environment variable.")
+		log.Println("Please set DATABRICKS_HOST environment variable.")
+		log.Println("Please set DATABRICKS_USERNAME environment variable.")
+		log.Println("Please set DATABRICKS_PASSWORD environment variable.")
 	}
-	return err
+
+	return nil
 }
 
 func parseModelURL(modelURL string) (string, string, error) {

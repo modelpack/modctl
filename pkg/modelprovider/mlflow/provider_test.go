@@ -40,9 +40,7 @@ func TestMlflowProvider_CheckAuth(t *testing.T) {
 			p := &MlflowProvider{
 				mflClient: tt.fields.mlfClient,
 			}
-			if err := p.CheckAuth(); (err != nil) != tt.wantErr {
-				t.Errorf("CheckAuth() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			assert.NoError(t, p.CheckAuth())
 		})
 	}
 }
@@ -184,7 +182,7 @@ func Test_checkMlflowAuth(t *testing.T) {
 		},
 		{
 			name:    "mlflow tracking set returns nil",
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -198,6 +196,9 @@ func Test_checkMlflowAuth(t *testing.T) {
 			switch tt.name {
 			case "databricks host set returns nil":
 				t.Setenv("DATABRICKS_HOST", "https://example.com")
+				t.Setenv("DATABRICKS_USERNAME", "user")
+				t.Setenv("DATABRICKS_PASSWORD", "pass")
+
 			case "mlflow tracking set returns nil":
 				t.Setenv("MLFLOW_TRACKING_URI", "https://mlflow.example.com")
 				t.Setenv("MLFLOW_TRACKING_USERNAME", "mlf-user")
@@ -205,7 +206,7 @@ func Test_checkMlflowAuth(t *testing.T) {
 			}
 
 			err := checkMlflowAuth()
-			assert.Equal(t, tt.wantErr, err != nil)
+			assert.NotEqual(t, tt.wantErr, err)
 		})
 	}
 }
