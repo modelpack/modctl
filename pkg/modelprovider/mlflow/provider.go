@@ -59,15 +59,15 @@ func (p *MlflowProvider) DownloadModel(
 ) (string, error) {
 	model, version, err := parseModelURL(modelURL)
 	if err != nil {
-		return "", err
+		return "", errors.Join(errors.New("Parse modelURL error"), err)
 	}
 	registryClient, err := NewMlFlowRegistry(nil)
 	if err != nil {
-		return "", err
+		return "", errors.Join(errors.New("failed initialized mlflow registry client"), err)
 	}
 	downloadPath, err := registryClient.PullModelByName(ctx, model, version, destDir)
 	if err != nil {
-		return "", err
+		return "", errors.Join(errors.New("provider download error"), err)
 	}
 	return downloadPath, nil
 }
