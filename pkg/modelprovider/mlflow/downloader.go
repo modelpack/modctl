@@ -82,13 +82,14 @@ func (mlfr *MlFlowClient) PullModelByName(
 		}
 
 		pullVersion = versions[0].Version
+
 		log.Printf("Found versions: '%v' for model '%s'\n", pullVersion, modelName)
 
 	} else {
 
 		all, err := mlfr.registry.SearchModelVersionsAll(ctx, ml.SearchModelVersionsRequest{})
 		if err != nil {
-			return "", err
+			return "", errors.Join(errors.New("search model versions failed"), err)
 		}
 		var rawVersions []string
 
@@ -104,6 +105,8 @@ func (mlfr *MlFlowClient) PullModelByName(
 				rawVersions,
 			)
 			return "", errors.New(msg)
+		} else {
+			pullVersion = modelVersion
 		}
 	}
 	log.Printf("Start pull model from model registry with version %s", pullVersion)
@@ -113,7 +116,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 		Version: pullVersion,
 	})
 	if err != nil {
-		return "", err
+		return "", errors.Join(errors.New("failed fetch download uri for model"), err)
 	}
 	log.Printf("Try pull model from uri %s", uri.ArtifactUri)
 	parsed, err := url.Parse(uri.ArtifactUri)
