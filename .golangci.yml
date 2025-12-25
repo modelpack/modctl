@@ -41,6 +41,10 @@ formatters:
   enable:
     - gci
     - gofmt
+    - gofumpt
+    - goimports
+    - golines
+    - swaggo
   settings:
     gci:
       sections:
