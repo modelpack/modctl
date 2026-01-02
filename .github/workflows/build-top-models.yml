@@ -1,0 +1,267 @@
+name: Build Top HuggingFace Models
+
+on:
+  schedule:
+    # Run weekly on Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of models to build'
+        required: false
+        default: '10'
+        type: string
+      max_size:
+        description: 'Maximum model size in GB'
+        required: false
+        default: '10'
+        type: string
+      sort_by:
+        description: 'Sort criteria'
+        required: false
+        default: 'downloads'
+        type: choice
+        options:
+          - downloads
+          - likes
+          - trending
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  ORGANIZATION: ${{ github.repository_owner }}
+
+jobs:
+  select-models:
+    name: Select Top Models
+    runs-on: ubuntu-latest
+    outputs:
+      models: ${{ steps.select-models.outputs.models }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          pip install -r contrib/scripts/requirements.txt
+
+      - name: Select compatible models
+        id: select-models
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python contrib/scripts/select-top-models.py \
+            --limit ${{ github.event.inputs.limit || '10' }} \
+            --max-size ${{ github.event.inputs.max_size || '10' }} \
+            --sort-by ${{ github.event.inputs.sort_by || 'downloads' }} \
+            --output models.json
+
+          # Convert to single line JSON for GitHub output
+          echo "models=$(cat models.json | jq -c)" >> $GITHUB_OUTPUT
+
+          # Also display selected models for debugging
+          echo "Selected models:"
+          cat models.json | jq -r '.[] | "\(.id) (\(.format), \(.size_gb)GB)"'
+
+  build-modctl:
+    name: Build modctl
+    runs-on: ubuntu-latest
+    env:
+      PACKAGE_DIR: modctl-build-package
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Create Cache Dir
+        run: |
+          mkdir -p ${{ env.PACKAGE_DIR }}
+
+      - name: Cache Package
+        id: cache-package
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PACKAGE_DIR }}
+          key: modctl-build-packages
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config
+          sudo DEBIAN_FRONTEND=noninteractive apt install -y build-essential \
+            cmake pkg-config libssl-dev libssh2-1-dev zlib1g-dev \
+            libhttp-parser-dev python3 wget tar git
+          mkdir -p ${{ env.PACKAGE_DIR }}
+          if [ ! -f "${{ env.PACKAGE_DIR }}/libgit2-v1.5.1.tar.gz" ]; then
+            wget https://github.com/libgit2/libgit2/archive/refs/tags/v1.5.1.tar.gz -O ${{ env.PACKAGE_DIR }}/libgit2-v1.5.1.tar.gz
+          fi
+          tar -xzf ${{ env.PACKAGE_DIR }}/libgit2-v1.5.1.tar.gz
+          cd libgit2-1.5.1 && mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+        env:
+          LIBGIT2_SYS_USE_PKG_CONFIG: "1"
+
+      - name: Build modctl
+        run: |
+          go build -tags "static system_libgit2 enable_libgit2"
+
+      - name: Upload modctl
+        uses: actions/upload-artifact@v4
+        with:
+          name: modctl-artifact
+          path: modctl
+
+  build-and-push-models:
+    name: Build ${{ matrix.model.id }}
+    needs: [select-models, build-modctl]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 3  # Don't overwhelm GHCR
+      matrix:
+        model: ${{ fromJson(needs.select-models.outputs.models) }}
+    env:
+      MODEL_ID: ${{ matrix.model.id }}
+      MODEL_FAMILY: ${{ matrix.model.family }}
+      MODEL_FORMAT: ${{ matrix.model.format }}
+      MODEL_PARAM_SIZE: ${{ matrix.model.param_size }}
+      MODEL_DIR: model-files
+    steps:
+      - name: Download modctl artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: modctl-artifact
+          path: modctl
+
+      - name: Setup modctl
+        run: |
+          sudo cp modctl/modctl /bin/modctl
+          sudo chmod +x /bin/modctl
+          modctl version
+          modctl login -u ${{ github.actor }} \
+                       -p ${{ secrets.GITHUB_TOKEN }} \
+                       ${{ env.REGISTRY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Cache model
+        uses: actions/cache@v4
+        id: cache-model
+        with:
+          path: ${{ env.MODEL_DIR }}
+          key: model-${{ env.MODEL_ID }}-${{ hashFiles('**/config.json') }}
+
+      - name: Download HuggingFace Model
+        if: steps.cache-model.outputs.cache-hit != 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          pip install 'huggingface_hub'
+          python << 'EOF'
+          from huggingface_hub import snapshot_download
+          import os
+
+          model_id = os.environ['MODEL_ID']
+          model_dir = os.environ['MODEL_DIR']
+
+          print(f"Downloading {model_id}...")
+          snapshot_download(
+              repo_id=model_id,
+              local_dir=model_dir,
+              token=os.environ.get('HF_TOKEN')
+          )
+          print(f"Download complete: {model_dir}")
+          EOF
+
+      - name: Generate Modelfile
+        run: |
+          cd ${{ env.MODEL_DIR }}
+          echo "Generating Modelfile for ${{ env.MODEL_ID }}"
+          modctl modelfile generate \
+            --arch transformer \
+            --family ${{ env.MODEL_FAMILY }} \
+            --format ${{ env.MODEL_FORMAT }} \
+            --param-size ${{ env.MODEL_PARAM_SIZE }} \
+            .
+
+          echo "Generated Modelfile:"
+          cat Modelfile
+
+      - name: Build and Push Model
+        run: |
+          cd ${{ env.MODEL_DIR }}
+
+          # Convert model ID to valid image name (lowercase, replace / with -)
+          IMAGE_NAME=$(echo "${{ env.MODEL_ID }}" | tr '[:upper:]' '[:lower:]' | tr '/' '-')
+          IMAGE_URL="${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${IMAGE_NAME}:latest"
+
+          echo "Building and pushing to ${IMAGE_URL}"
+
+          modctl build -f Modelfile \
+            -t ${IMAGE_URL} \
+            --raw --output-remote --log-level debug \
+            .
+
+          echo "Successfully pushed ${IMAGE_URL}"
+
+      - name: Cleanup HuggingFace Model Files
+        run: |
+          echo "Cleaning up HuggingFace model files to free disk space..."
+          du -sh ${{ env.MODEL_DIR }} || true
+          rm -rf ${{ env.MODEL_DIR }}
+          echo "Cleanup complete"
+          df -h
+
+      - name: Verify Pull
+        run: |
+          # Convert model ID to valid image name
+          IMAGE_NAME=$(echo "${{ env.MODEL_ID }}" | tr '[:upper:]' '[:lower:]' | tr '/' '-')
+          IMAGE_URL="${{ env.REGISTRY }}/${{ env.ORGANIZATION }}/${IMAGE_NAME}:latest"
+
+          mkdir -p verify-download
+          echo "Pulling ${IMAGE_URL} to verify"
+
+          modctl pull ${IMAGE_URL} \
+            --extract-dir verify-download \
+            --log-level debug
+
+          echo "Successfully verified pull from ${IMAGE_URL}"
+
+  summary:
+    name: Build Summary
+    needs: [select-models, build-and-push-models]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "# Build Top Models Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Selected Models" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '${{ needs.select-models.outputs.models }}' | jq -r '.[] | "- **\(.id)** (\(.format), \(.param_size), \(.size_gb)GB) - \(.downloads) downloads"' >> $GITHUB_STEP_SUMMARY || true
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "Check individual job results above." >> $GITHUB_STEP_SUMMARY
