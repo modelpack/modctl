@@ -25,7 +25,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -37,12 +36,12 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 
+	"github.com/modelpack/modctl/internal/cache"
 	buildconfig "github.com/modelpack/modctl/pkg/backend/build/config"
 	"github.com/modelpack/modctl/pkg/backend/build/hooks"
 	"github.com/modelpack/modctl/pkg/backend/build/interceptor"
 	pkgcodec "github.com/modelpack/modctl/pkg/codec"
 	"github.com/modelpack/modctl/pkg/storage"
-	"github.com/modelpack/modctl/pkg/xattr"
 )
 
 // OutputType defines the type of output to generate.
@@ -102,12 +101,20 @@ func NewBuilder(outputType OutputType, store storage.Storage, repo, tag string, 
 		return nil, err
 	}
 
+	// TODO: Use the storage dir specified from user.
+	cache, err := cache.New(os.TempDir())
+	if err != nil {
+		// Just print the error message because cache is not critical.
+		logrus.Errorf("failed to create cache: %v", err)
+	}
+
 	return &abstractBuilder{
 		store:       store,
 		repo:        repo,
 		tag:         tag,
 		strategy:    strategy,
 		interceptor: cfg.interceptor,
+		cache:       cache,
 	}, nil
 }
 
@@ -120,6 +127,8 @@ type abstractBuilder struct {
 	strategy OutputStrategy
 	// interceptor is the interceptor used to intercept the build process.
 	interceptor interceptor.Interceptor
+	// cache is the cache used to store the file digest.
+	cache cache.Cache
 }
 
 func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, path, destPath string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
@@ -157,7 +166,7 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
 	}
 
-	reader, digest, size, err := computeDigestAndSize(mediaType, path, workDirPath, info, reader, codec)
+	reader, digest, size, err := ab.computeDigestAndSize(ctx, mediaType, path, workDirPath, info, reader, codec)
 	if err != nil {
 		return ocispec.Descriptor{}, fmt.Errorf("failed to compute digest and size: %w", err)
 	}
@@ -237,6 +246,83 @@ func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.D
 	return ab.strategy.OutputManifest(ctx, manifest.MediaType, digest, int64(len(manifestJSON)), bytes.NewReader(manifestJSON), hooks)
 }
 
+// computeDigestAndSize computes the digest and size for the encoded content, using cache if available.
+func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, path, workDirPath string, info os.FileInfo, reader io.Reader, codec pkgcodec.Codec) (io.Reader, string, int64, error) {
+	// Try to retrieve valid digest from cache for raw model weights.
+	if mediaType == modelspec.MediaTypeModelWeightRaw {
+		if digest, size, ok := ab.retrieveCache(ctx, path, info); ok {
+			return reader, digest, size, nil
+		}
+	}
+
+	logrus.Infof("builder: calculating digest for file %s", path)
+
+	hash := sha256.New()
+	size, err := io.Copy(hash, reader)
+	if err != nil {
+		return reader, "", 0, fmt.Errorf("failed to copy content to hash: %w", err)
+	}
+	digest := fmt.Sprintf("sha256:%x", hash.Sum(nil))
+
+	logrus.Infof("builder: calculated digest for file %s [digest: %s]", path, digest)
+
+	// Reset reader for subsequent use.
+	reader, err = resetReader(reader, path, workDirPath, codec)
+	if err != nil {
+		return reader, "", 0, err
+	}
+
+	// Update cache.
+	if mediaType == modelspec.MediaTypeModelWeightRaw {
+		if err := ab.updateCache(ctx, path, info.ModTime(), size, digest); err != nil {
+			logrus.Warnf("builder: failed to update cache for file %s: %s", path, err)
+		}
+	}
+
+	return reader, digest, size, nil
+}
+
+// retrieveCache checks if mtime and size match, then returns the cached digest.
+func (ab *abstractBuilder) retrieveCache(ctx context.Context, path string, info os.FileInfo) (string, int64, bool) {
+	if ab.cache == nil {
+		return "", 0, false
+	}
+
+	item, err := ab.cache.Get(ctx, path)
+	if err != nil {
+		if !errors.Is(err, cache.ErrNotFound) {
+			logrus.Errorf("builder: failed to retrieve cache item for file %s: %s", path, err)
+		}
+
+		return "", 0, false
+	}
+
+	if item.ModTime != info.ModTime() || item.Size != info.Size() {
+		logrus.Warnf("builder: cache item for file %s is stale, skip cache", path)
+		return "", 0, false
+	}
+
+	logrus.Infof("builder: retrieved from cache for file %s [digest: %s]", path, item.Digest)
+	return item.Digest, item.Size, true
+}
+
+// updateCache writes mtime, size, and digest to cache.
+func (ab *abstractBuilder) updateCache(ctx context.Context, path string, mtime time.Time, size int64, digest string) error {
+	if ab.cache == nil {
+		return errors.New("cache is not initialized")
+	}
+
+	item := &cache.Item{
+		Path:      path,
+		ModTime:   mtime,
+		Size:      size,
+		Digest:    digest,
+		CreatedAt: time.Now(),
+	}
+
+	return ab.cache.Put(ctx, item)
+}
+
 // BuildModelConfig builds the model config.
 func BuildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descriptor) (modelspec.Model, error) {
 	if modelConfig == nil {
@@ -284,82 +370,6 @@ func BuildModelConfig(modelConfig *buildconfig.Model, layers []ocispec.Descripto
 		Descriptor: descriptor,
 		ModelFS:    fs,
 	}, nil
-}
-
-// computeDigestAndSize computes the digest and size for the encoded content, using xattrs if available.
-func computeDigestAndSize(mediaType, path, workDirPath string, info os.FileInfo, reader io.Reader, codec pkgcodec.Codec) (io.Reader, string, int64, error) {
-	// Try to retrieve valid digest from xattrs cache.
-	if pkgcodec.IsRawMediaType(mediaType) {
-		if digest, size, ok := retrieveCachedDigest(path, info); ok {
-			return reader, digest, size, nil
-		}
-	}
-
-	logrus.Infof("builder: calculating digest for file %s", path)
-
-	hash := sha256.New()
-	size, err := io.Copy(hash, reader)
-	if err != nil {
-		return reader, "", 0, fmt.Errorf("failed to copy content to hash: %w", err)
-	}
-	digest := fmt.Sprintf("sha256:%x", hash.Sum(nil))
-
-	logrus.Infof("builder: calculated digest for file %s [digest: %s]", path, digest)
-
-	// Reset reader for subsequent use.
-	reader, err = resetReader(reader, path, workDirPath, codec)
-	if err != nil {
-		return reader, "", 0, err
-	}
-
-	// Update xattrs cache.
-	if pkgcodec.IsRawMediaType(mediaType) {
-		if err := updateCachedDigest(path, info.ModTime().UnixNano(), size, digest); err != nil {
-			logrus.Warnf("builder: failed to update xattrs for file %s: %s", path, err)
-		}
-	}
-
-	return reader, digest, size, nil
-}
-
-// retrieveCachedDigest checks if mtime and size match, then returns the cached digest.
-func retrieveCachedDigest(path string, info os.FileInfo) (string, int64, bool) {
-	mtimeData, err := xattr.Get(path, xattr.MakeKey(xattr.KeyMtime))
-	if err != nil || string(mtimeData) != strconv.FormatInt(info.ModTime().UnixNano(), 10) {
-		return "", 0, false
-	}
-
-	sizeData, err := xattr.Get(path, xattr.MakeKey(xattr.KeySize))
-	if err != nil {
-		return "", 0, false
-	}
-	cachedSize, err := strconv.ParseInt(string(sizeData), 10, 64)
-	if err != nil || cachedSize != info.Size() {
-		return "", 0, false
-	}
-
-	digestData, err := xattr.Get(path, xattr.MakeKey(xattr.KeySha256))
-	if err != nil {
-		return "", 0, false
-	}
-
-	digest := string(digestData)
-	logrus.Infof("builder: retrieved from xattr cache for file %s [digest: %s]", path, digest)
-	return digest, cachedSize, true
-}
-
-// updateCachedDigest writes mtime, size, and digest to xattrs.
-func updateCachedDigest(path string, mtime, size int64, digest string) error {
-	if err := xattr.Set(path, xattr.MakeKey(xattr.KeyMtime), []byte(strconv.FormatInt(mtime, 10))); err != nil {
-		return err
-	}
-	if err := xattr.Set(path, xattr.MakeKey(xattr.KeySha256), []byte(digest)); err != nil {
-		return err
-	}
-	if err := xattr.Set(path, xattr.MakeKey(xattr.KeySize), []byte(strconv.FormatInt(size, 10))); err != nil {
-		return err
-	}
-	return nil
 }
 
 // resetReader resets the reader to the beginning or re-encodes if not seekable.

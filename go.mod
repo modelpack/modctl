@@ -12,6 +12,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/go-git/go-git/v5 v5.16.4
+	github.com/gofrs/flock v0.13.0
 	github.com/libgit2/git2go/v34 v34.0.0
 	github.com/minio/sha256-simd v1.0.1
 	github.com/modelpack/model-spec v0.0.7
@@ -24,7 +25,7 @@ require (
 	github.com/vbauerster/mpb/v8 v8.11.3
 	golang.org/x/crypto v0.45.0
 	golang.org/x/sync v0.18.0
-	golang.org/x/sys v0.39.0
+	golang.org/x/sys v0.40.0
 	google.golang.org/grpc v1.78.0
 	oras.land/oras-go/v2 v2.6.0
 )
