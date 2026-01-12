@@ -44,7 +44,6 @@ formatters:
     - gofumpt
     - goimports
     - golines
-    - swaggo
   settings:
     gci:
       sections:
