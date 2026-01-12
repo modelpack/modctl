@@ -19,11 +19,12 @@ package mlflow
 import (
 	"context"
 	"errors"
-	"log"
 	"net/url"
 	"os"
 	"slices"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // MlflowProvider implements the modelprovider.Provider interface for Mlflow
