@@ -124,7 +124,7 @@ jobs:
           go build -tags "static system_libgit2 enable_libgit2"
 
       - name: Upload modctl
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: modctl-artifact
           path: modctl
