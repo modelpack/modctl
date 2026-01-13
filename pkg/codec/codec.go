@@ -72,8 +72,3 @@ func TypeFromMediaType(mediaType string) Type {
 
 	return ""
 }
-
-// IsRawMediaType returns true if the media type is raw.
-func IsRawMediaType(mediaType string) bool {
-	return strings.HasSuffix(mediaType, ".raw")
-}
