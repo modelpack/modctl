@@ -165,6 +165,11 @@ def is_compatible_model(api: HfApi, model_id: str, max_size_gb: float = 20.0) ->
         print(f"Skipping {model_id}: Could not fetch model info: {e}", file=sys.stderr)
         return False, None
 
+    # Skip gated models that require authorization
+    if getattr(model_info, 'gated', False):
+        print(f"Skipping {model_id}: Model is gated and requires authorization", file=sys.stderr)
+        return False, None
+
     # Check for config.json
     if not has_config_json(model_info):
         print(f"Skipping {model_id}: No config.json", file=sys.stderr)
