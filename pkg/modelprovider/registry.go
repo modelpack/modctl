@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/modelpack/modctl/pkg/modelprovider/huggingface"
+	"github.com/modelpack/modctl/pkg/modelprovider/mlflow"
 	"github.com/modelpack/modctl/pkg/modelprovider/modelscope"
 )
 
@@ -43,6 +44,7 @@ func GetRegistry() *Registry {
 			providers: []Provider{
 				huggingface.New(),
 				modelscope.New(),
+				mlflow.New(),
 				// Future providers can be added here:
 				// civitai.New(),
 			},
