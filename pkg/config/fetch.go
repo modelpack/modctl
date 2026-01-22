@@ -16,7 +16,11 @@
 
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+	"os"
+)
 
 const (
 	// defaultFetchConcurrency is the default number of concurrent fetch operations.
@@ -24,22 +28,30 @@ const (
 )
 
 type Fetch struct {
-	Concurrency int
-	PlainHTTP   bool
-	Proxy       string
-	Insecure    bool
-	Output      string
-	Patterns    []string
+	Concurrency       int
+	PlainHTTP         bool
+	Proxy             string
+	Insecure          bool
+	Output            string
+	Patterns          []string
+	DragonflyEndpoint string
+	ProgressWriter    io.Writer
+	DisableProgress   bool
+	Hooks             PullHooks
 }
 
 func NewFetch() *Fetch {
 	return &Fetch{
-		Concurrency: defaultFetchConcurrency,
-		PlainHTTP:   false,
-		Proxy:       "",
-		Insecure:    false,
-		Output:      "",
-		Patterns:    []string{},
+		Concurrency:       defaultFetchConcurrency,
+		PlainHTTP:         false,
+		Proxy:             "",
+		Insecure:          false,
+		Output:            "",
+		Patterns:          []string{},
+		DragonflyEndpoint: "",
+		ProgressWriter:    os.Stdout,
+		DisableProgress:   false,
+		Hooks:             &emptyPullHook{},
 	}
 }
 
