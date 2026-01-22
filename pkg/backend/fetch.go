@@ -36,6 +36,13 @@ import (
 // Fetch fetches partial files to the output.
 func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) error {
 	logrus.Infof("fetch: starting fetch operation for target %s [config: %+v]", target, cfg)
+
+	// fetchByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
+	if cfg.DragonflyEndpoint != "" {
+		logrus.Infof("fetch: using dragonfly for target %s", target)
+		return b.fetchByDragonfly(ctx, target, cfg)
+	}
+
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {

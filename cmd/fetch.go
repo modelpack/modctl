@@ -55,6 +55,7 @@ func init() {
 	flags.StringVar(&fetchConfig.Proxy, "proxy", "", "use proxy for the fetch operation")
 	flags.StringVar(&fetchConfig.Output, "output", "", "specify the directory for fetching the model artifact")
 	flags.StringSliceVar(&fetchConfig.Patterns, "patterns", []string{}, "specify the patterns for fetching the model artifact")
+	flags.StringVar(&fetchConfig.DragonflyEndpoint, "dragonfly-endpoint", "", "specify the dragonfly endpoint for the pull operation, which will download and hardlink the blob by dragonfly GRPC service.")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind cache pull flags to viper: %w", err))
