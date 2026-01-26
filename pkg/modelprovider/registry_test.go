@@ -54,6 +54,12 @@ func TestRegistry_GetProvider(t *testing.T) {
 			wantErr:      false,
 		},
 		{
+			name:         "MlFlow URL without models prefix",
+			modelURL:     "models://damo/nlp_structbert_backbone_base_std",
+			wantProvider: "mlflow",
+			wantErr:      false,
+		},
+		{
 			name:     "Unsupported URL",
 			modelURL: "https://example.com/model/repo",
 			wantErr:  true,
@@ -108,6 +114,11 @@ func TestRegistry_GetProviderByName(t *testing.T) {
 			wantErr:      false,
 		},
 		{
+			name:         "Get  MlFlow provider",
+			providerName: "mlflow",
+			wantErr:      false,
+		},
+		{
 			name:         "Get non-existent provider",
 			providerName: "civitai",
 			wantErr:      true,
@@ -142,13 +153,14 @@ func TestRegistry_ListProviders(t *testing.T) {
 	registry := GetRegistry()
 	providers := registry.ListProviders()
 
-	if len(providers) != 2 {
-		t.Errorf("ListProviders() returned %d providers, want 2", len(providers))
+	if len(providers) != 3 {
+		t.Errorf("ListProviders() returned %d providers, want 3", len(providers))
 	}
 
 	expectedProviders := map[string]bool{
 		"huggingface": false,
 		"modelscope":  false,
+		"mlflow":      false,
 	}
 
 	for _, name := range providers {
