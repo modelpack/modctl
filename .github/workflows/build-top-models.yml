@@ -42,10 +42,10 @@ jobs:
       models: ${{ steps.select-models.outputs.models }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6.0.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8    # v6.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405    # v6.2.0
         with:
           python-version: "3.14"
 
@@ -78,12 +78,12 @@ jobs:
       PACKAGE_DIR: modctl-build-package
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6.0.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8    # v6.0.1
         with:
           submodules: recursive
 
       - name: Install Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5    # v6.2.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -94,7 +94,7 @@ jobs:
 
       - name: Cache Package
         id: cache-package
-        uses: actions/cache@v5
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7    # v5.0.2
         with:
           path: ${{ env.PACKAGE_DIR }}
           key: modctl-build-packages
@@ -124,7 +124,7 @@ jobs:
           go build -tags "static system_libgit2 enable_libgit2"
 
       - name: Upload modctl
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
         with:
           name: modctl-artifact
           path: modctl
@@ -147,7 +147,7 @@ jobs:
       MODEL_DIR: model-files
     steps:
       - name: Download modctl artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131    # v7.0.0
         with:
           name: modctl-artifact
           path: modctl
@@ -162,12 +162,12 @@ jobs:
                        ${{ env.REGISTRY }}
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405    # v6.2.0
         with:
           python-version: "3.10"
 
       - name: Cache model
-        uses: actions/cache@v5
+        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7    # v5.0.2
         id: cache-model
         with:
           path: ${{ env.MODEL_DIR }}
