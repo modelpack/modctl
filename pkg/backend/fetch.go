@@ -78,9 +78,10 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 				if path == "" {
 					path = anno[legacymodelspec.AnnotationFilepath]
 				}
-				// Use doublestar for pattern matching to support ** recursive matching
-				// doublestar.Match supports both simple patterns (*.json) and recursive patterns (**/*.json)
-				matched, err := doublestar.Match(pattern, path)
+				// Use doublestar.PathMatch for pattern matching to support ** recursive matching
+				// PathMatch uses the system's native path separator (like filepath.Match) while
+				// also supporting recursive patterns like **/*.json
+				matched, err := doublestar.PathMatch(pattern, path)
 				if err != nil {
 					return fmt.Errorf("failed to match pattern: %w", err)
 				}
