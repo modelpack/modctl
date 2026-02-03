@@ -28,6 +28,7 @@ import (
 	common "d7y.io/api/v2/pkg/apis/common/v2"
 	dfdaemon "d7y.io/api/v2/pkg/apis/dfdaemon/v2"
 	"github.com/avast/retry-go/v4"
+	"github.com/bmatcuk/doublestar/v4"
 	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -81,7 +82,9 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 				if path == "" {
 					path = anno[legacymodelspec.AnnotationFilepath]
 				}
-				matched, err := filepath.Match(pattern, path)
+				// Use doublestar for pattern matching to support ** recursive matching
+				// doublestar.Match supports both simple patterns (*.json) and recursive patterns (**/*.json)
+				matched, err := doublestar.Match(pattern, path)
 				if err != nil {
 					return fmt.Errorf("failed to match pattern: %w", err)
 				}
