@@ -17,16 +17,61 @@
 package source
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
+	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGit(t *testing.T) {
+	// Create a temporary directory for the test git repository
+	tempDir, err := os.MkdirTemp("", "git-test-repo")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Initialize a new git repository
+	repo, err := gogit.PlainInit(tempDir, false)
+	require.NoError(t, err)
+
+	// Create a remote "origin" with a test URL
+	expectedURL := "https://github.com/octocat/Hello-World.git"
+	_, err = repo.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{expectedURL},
+	})
+	require.NoError(t, err)
+
+	// Create a test file and commit it
+	testFile := filepath.Join(tempDir, "README.md")
+	err = os.WriteFile(testFile, []byte("# Hello World"), 0644)
+	require.NoError(t, err)
+
+	worktree, err := repo.Worktree()
+	require.NoError(t, err)
+
+	_, err = worktree.Add("README.md")
+	require.NoError(t, err)
+
+	commit, err := worktree.Commit("Initial commit", &gogit.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Test User",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
+	})
+	require.NoError(t, err)
+
+	// Now test the git parser
 	parser := &git{}
-	info, err := parser.Parse("testdata/git-repo")
+	info, err := parser.Parse(tempDir)
 	assert.NoError(t, err)
-	assert.Equal(t, "https://github.com/octocat/Hello-World.git", info.URL, "source url should be equal to expected")
-	assert.Equal(t, "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d", info.Commit, "commit should be equal to expected")
+	assert.Equal(t, expectedURL, info.URL, "source url should be equal to expected")
+	assert.Equal(t, commit.String(), info.Commit, "commit should be equal to expected")
 	assert.Equal(t, false, info.Dirty, "dirty should be equal to expected")
 }
