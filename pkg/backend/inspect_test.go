@@ -147,6 +147,8 @@ func TestInspect(t *testing.T) {
 	assert.Len(t, inspected.Layers, 8)
 	assert.Equal(t, "application/vnd.cnai.model.doc.v1.tar", inspected.Layers[0].MediaType)
 	assert.Equal(t, "sha256:5a96686deb327903f4310e9181ef2ee0bc7261e5181bd23ccdce6c575b6120a2", inspected.Layers[0].Digest)
-	assert.Equal(t, "LICENSE", inspected.Layers[0].Filepath)
 	assert.Equal(t, int64(13312), inspected.Layers[0].Size)
+	assert.Equal(t, map[string]string{
+		"org.cnai.model.filepath": "LICENSE",
+	}, inspected.Layers[0].Annotations)
 }

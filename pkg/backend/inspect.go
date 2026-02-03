@@ -64,8 +64,8 @@ type InspectedModelArtifactLayer struct {
 	Digest string `json:"Digest"`
 	// Size is the size of the model artifact layer.
 	Size int64 `json:"Size"`
-	// Filepath is the filepath of the model artifact layer.
-	Filepath string `json:"Filepath"`
+	// Annotations is the annotations of the model artifact layer.
+	Annotations map[string]string `json:"Annotations,omitempty"`
 }
 
 // Inspect inspects the target from the storage.
@@ -121,11 +121,19 @@ func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspec
 			filepath = layer.Annotations[legacymodelspec.AnnotationFilepath]
 		}
 
+		var annotations map[string]string
+		if len(layer.Annotations) > 0 {
+			annotations = make(map[string]string, len(layer.Annotations))
+			for k, v := range layer.Annotations {
+				annotations[k] = v
+			}
+		}
+
 		inspectedModelArtifact.Layers = append(inspectedModelArtifact.Layers, InspectedModelArtifactLayer{
-			MediaType: layer.MediaType,
-			Digest:    layer.Digest.String(),
-			Size:      layer.Size,
-			Filepath:  filepath,
+			MediaType:   layer.MediaType,
+			Digest:      layer.Digest.String(),
+			Size:        layer.Size,
+			Annotations: annotations,
 		})
 	}
 
