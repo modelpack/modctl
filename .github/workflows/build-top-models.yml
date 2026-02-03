@@ -94,7 +94,7 @@ jobs:
 
       - name: Cache Package
         id: cache-package
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7    # v5.0.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306    # v5.0.3
         with:
           path: ${{ env.PACKAGE_DIR }}
           key: modctl-build-packages
@@ -167,7 +167,7 @@ jobs:
           python-version: "3.10"
 
       - name: Cache model
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7    # v5.0.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306    # v5.0.3
         id: cache-model
         with:
           path: ${{ env.MODEL_DIR }}
