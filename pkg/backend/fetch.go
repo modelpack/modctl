@@ -20,8 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 
+	"github.com/bmatcuk/doublestar/v4"
 	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -78,7 +78,9 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 				if path == "" {
 					path = anno[legacymodelspec.AnnotationFilepath]
 				}
-				matched, err := filepath.Match(pattern, path)
+				// Use doublestar for pattern matching to support ** recursive matching
+				// doublestar.Match supports both simple patterns (*.json) and recursive patterns (**/*.json)
+				matched, err := doublestar.Match(pattern, path)
 				if err != nil {
 					return fmt.Errorf("failed to match pattern: %w", err)
 				}
