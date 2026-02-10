@@ -73,7 +73,7 @@ func TestFetch(t *testing.T) {
 						Digest:    file2Digest,
 						Size:      int64(len(file2Content)),
 						Annotations: map[string]string{
-							modelspec.AnnotationFilepath: "file2.txt",
+							modelspec.AnnotationFilepath: "subdir/file2.txt",
 						},
 					},
 				},
@@ -118,11 +118,33 @@ func TestFetch(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:   "fetch with pattern matching both files",
+			name:   "fetch with pattern matching subdirectory file",
 			target: url + "/test/model:latest",
 			cfg: &config.Fetch{
 				Output:      tempDir,
-				Patterns:    []string{"file*.txt"},
+				Patterns:    []string{"subdir/*.txt"},
+				PlainHTTP:   true,
+				Concurrency: 2,
+			},
+			expectError: false,
+		},
+		{
+			name:   "fetch with recursive pattern matching all txt files",
+			target: url + "/test/model:latest",
+			cfg: &config.Fetch{
+				Output:      tempDir,
+				Patterns:    []string{"**/*.txt"},
+				PlainHTTP:   true,
+				Concurrency: 2,
+			},
+			expectError: false,
+		},
+		{
+			name:   "fetch with wildcard pattern (old behavior)",
+			target: url + "/test/model:latest",
+			cfg: &config.Fetch{
+				Output:      tempDir,
+				Patterns:    []string{"*.txt"},
 				PlainHTTP:   true,
 				Concurrency: 2,
 			},
