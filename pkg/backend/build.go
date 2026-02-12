@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 
 	retry "github.com/avast/retry-go/v4"
-	modelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 
@@ -40,7 +40,7 @@ import (
 
 const (
 	// annotationModelfile is the annotation key for the Modelfile.
-	annotationModelfile = "org.cnai.modctl.modelfile"
+	annotationModelfile = "org.cncf.modctl.modelfile"
 )
 
 // Build builds the user materials into the model artifact which follows the Model Spec.
