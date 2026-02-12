@@ -36,6 +36,7 @@ type Build struct {
 	Raw            bool
 	Reasoning      bool
 	NoCreationTime bool
+	Regenerate     bool
 }
 
 func NewBuild() *Build {
@@ -52,6 +53,7 @@ func NewBuild() *Build {
 		Raw:            false,
 		Reasoning:      false,
 		NoCreationTime: false,
+		Regenerate:     false,
 	}
 }
 
