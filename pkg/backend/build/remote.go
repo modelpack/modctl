@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"io"
 
-	modelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
