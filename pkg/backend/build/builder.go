@@ -29,8 +29,8 @@ import (
 	"syscall"
 	"time"
 
-	modelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	sha256 "github.com/minio/sha256-simd"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

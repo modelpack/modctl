@@ -53,10 +53,10 @@ const (
 var (
 	// mediaTypePriorityMap defines the priority for layer sorting by group.
 	mediaTypePriorityMap = map[string]int{
-		legacymodelspec.MediaTypeModelWeightConfig: modelWeightConfigPriority,
-		legacymodelspec.MediaTypeModelWeight:       modelWeightPriority,
-		legacymodelspec.MediaTypeModelCode:         modelCodePriority,
-		legacymodelspec.MediaTypeModelDoc:          modelDocPriority,
+		modelspec.MediaTypeModelWeightConfig: modelWeightConfigPriority,
+		modelspec.MediaTypeModelWeight:       modelWeightPriority,
+		modelspec.MediaTypeModelCode:         modelCodePriority,
+		modelspec.MediaTypeModelDoc:          modelDocPriority,
 	}
 )
 
@@ -143,7 +143,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		}
 	}
 
-	var config legacymodelspec.Model
+	var config modelspec.Model
 	if !cfg.Config {
 		var reasoning bool
 		if srcModelConfig.Config.Capabilities != nil && srcModelConfig.Config.Capabilities.Reasoning != nil {
@@ -307,33 +307,33 @@ func (b *backend) getModelConfig(ctx context.Context, reference string, desc oci
 
 func (b *backend) getProcessor(destDir, filepath string, rawMediaType bool) processor.Processor {
 	if modelfile.IsFileType(filepath, modelfile.ConfigFilePatterns) {
-		mediaType := legacymodelspec.MediaTypeModelWeightConfig
+		mediaType := modelspec.MediaTypeModelWeightConfig
 		if rawMediaType {
-			mediaType = legacymodelspec.MediaTypeModelWeightConfigRaw
+			mediaType = modelspec.MediaTypeModelWeightConfigRaw
 		}
 		return processor.NewModelConfigProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.ModelFilePatterns) {
-		mediaType := legacymodelspec.MediaTypeModelWeight
+		mediaType := modelspec.MediaTypeModelWeight
 		if rawMediaType {
-			mediaType = legacymodelspec.MediaTypeModelWeightRaw
+			mediaType = modelspec.MediaTypeModelWeightRaw
 		}
 		return processor.NewModelProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.CodeFilePatterns) {
-		mediaType := legacymodelspec.MediaTypeModelCode
+		mediaType := modelspec.MediaTypeModelCode
 		if rawMediaType {
-			mediaType = legacymodelspec.MediaTypeModelCodeRaw
+			mediaType = modelspec.MediaTypeModelCodeRaw
 		}
 		return processor.NewCodeProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.DocFilePatterns) {
-		mediaType := legacymodelspec.MediaTypeModelDoc
+		mediaType := modelspec.MediaTypeModelDoc
 		if rawMediaType {
-			mediaType = legacymodelspec.MediaTypeModelDocRaw
+			mediaType = modelspec.MediaTypeModelDocRaw
 		}
 		return processor.NewDocProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
