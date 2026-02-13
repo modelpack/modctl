@@ -3,6 +3,7 @@
 [![CI](https://github.com/modelpack/modctl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/modelpack/modctl/actions/workflows/ci.yml)
 [![GoDoc](https://godoc.org/github.com/modelpack/modctl?status.svg)](https://godoc.org/github.com/modelpack/modctl)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/modelpack/modctl)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmodelpack%2Fmodctl.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmodelpack%2Fmodctl?ref=badge_shield)
 
 Modctl is a user-friendly CLI tool for managing OCI model artifacts, which are bundled based on [Model Spec](https://github.com/modelpack/model-spec).
 It offers commands such as `build`, `pull`, `push`, and more, making it easy for users to convert their AI models into OCI artifacts.
@@ -18,3 +19,6 @@ Copyright © contributors to ModelPack, established as ModelPack a Series of LF 
 ## LICENSE
 
 Apache 2.0 License. Please see [LICENSE](LICENSE) for more information.
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fmodelpack%2Fmodctl.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fmodelpack%2Fmodctl?ref=badge_large)
