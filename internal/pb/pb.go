@@ -113,10 +113,10 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 			}, decor.WCSyncSpaceR),
 		),
 		mpbv8.AppendDecorators(
-			decor.OnComplete(decor.Counters(decor.SizeB1024(0), "% .2f / % .2f"), humanize.Bytes(uint64(size))),
+			decor.OnComplete(decor.Counters(decor.SizeB1000(0), "% .2f / % .2f"), humanize.Bytes(uint64(size))),
 			decor.OnComplete(decor.Name(" | ", decor.WCSyncWidthR), " | "),
 			decor.OnCompleteMeta(
-				decor.AverageSpeed(decor.SizeB1024(0), "% .2f", decor.WCSyncWidthR),
+				decor.AverageSpeed(decor.SizeB1000(0), "% .2f", decor.WCSyncWidthR),
 				func(_ string) string {
 					duration := time.Since(newBar.startTime).Seconds()
 					return fmt.Sprintf("done(%.1fs)", duration)
