@@ -1,41 +1,48 @@
-% MODCTL(1) Version v2.2.0 | Frivolous "Modctl" Documentation
+% MODCTL(1) Version v0.1.2 | modctl Documentation
 
 # NAME
 
-**modctl** — A command line tool for managing artifact bundled based on the Model Format Specification
+**modctl** — A command line tool for managing artifacts bundled based on the ModelPack Specification
 
 ## OPTIONS
 
 ```shell
-A command line tool for managing artifact bundled based on the Model Format Specification
+A command line tool for managing artifacts bundled based on the ModelPack Specification
 
 Usage:
   modctl [flags]
   modctl [command]
 
 Available Commands:
-  build       A command line tool for modctl build
+  attach      Attach the file to an existing model artifact.
+  build       Build the model artifact with the context by specified path.
   completion  Generate the autocompletion script for the specified shell
-  extract     A command line tool for modctl extract
+  extract     Extract the model artifact to the output path, which can restore the initial state of the model files.
+  fetch       Fetch can retrieve files from the remote model repository, enabling selective download of partial model files by filtering based on file path patterns.
   help        Help about any command
-  inspect     A command line tool for modctl inspect
-  login       A command line tool for modctl login
-  logout      A command line tool for modctl logout
-  ls          A command line tool for modctl list
-  prune       A command line tool for modctl prune
-  pull        A command line tool for modctl pull
-  push        A command line tool for modctl push
-  rm          A command line tool for modctl rm
-  attach      A command line tool for modctl attach
-  fetch       A command line tool for modctl fetch
-  tag         A command line tool for modctl tag
-  upload      A command line tool for modctl upload
+  inspect     Inspect can help to analyze the composition of model artifact.
+  login       Login to a registry.
+  logout      Logout from a registry.
+  ls          List the current built model artifacts from local storage.
+  modelfile   A command line tool for modelfile operation
+  prune       Prune can help to cleanup useless manifests and blobs in the local storage.
+  pull        Pull a model artifact from the remote registry.
+  push        Push a model artifact to the remote registry.
+  rm          Remove a model artifact from the local storage.
+  tag         Tag can tag one model artifact to another one without rebuilding.
+  upload      Upload a file to the remote end in advance to save time in the later build, applicable to the scenario of uploading while downloading, this function needs to be used together with build.
   version     A command line tool for modctl version
-  modelfile   A command line tool for modctl modelfile
 
 Flags:
   -h, --help                 help for modctl
-      --storage-dir string   specify the storage directory for modctl (default $HOME/.modctl)
+      --log-dir string       specify the log directory for modctl (default "~/.modctl/logs")
+      --log-level string     specify the log level for modctl (default "info")
+      --no-progress          disable progress bar
+      --pprof                enable pprof
+      --pprof-addr string    specify the address for pprof (default "localhost:6060")
+      --storage-dir string   specify the storage directory for modctl (default "~/.modctl")
+
+Use "modctl [command] --help" for more information about a command.
 ```
 
 # BUGS
