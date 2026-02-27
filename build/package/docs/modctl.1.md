@@ -2,15 +2,14 @@
 
 # NAME
 
-**modctl** — A command line tool for managing artifacts bundled based on the ModelPack Specification
+**modctl** — A command line tool for managing artifact bundled based on the ModelPack Specification
 
 ## OPTIONS
 
 ```shell
-A command line tool for managing artifacts bundled based on the ModelPack Specification
+A command line tool for managing artifact bundled based on the ModelPack Specification
 
 Usage:
-  modctl [flags]
   modctl [command]
 
 Available Commands:
@@ -23,13 +22,13 @@ Available Commands:
   inspect     Inspect can help to analyze the composition of model artifact.
   login       Login to a registry.
   logout      Logout from a registry.
-  ls          List the current built model artifacts from local storage.
+  ls          List will lists the current built model artifacts from local storage.
   modelfile   A command line tool for modelfile operation
   prune       Prune can help to cleanup useless manifests and blobs in the local storage.
   pull        Pull a model artifact from the remote registry.
   push        Push a model artifact to the remote registry.
   rm          Remove a model artifact from the local storage.
-  tag         Tag can tag one model artifact to another one without rebuilding.
+  tag         Tag can tag one model artifact to another one without rebuiding.
   upload      Upload a file to the remote end in advance to save time in the later build, applicable to the scenario of uploading while downloading, this function needs to be used together with build.
   version     A command line tool for modctl version
 
