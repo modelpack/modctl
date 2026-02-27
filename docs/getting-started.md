@@ -190,24 +190,6 @@ Inspect metadata for a model artifact:
 $ modctl inspect registry.com/models/llama3:v1.0.0
 ```
 
-### Utilities
-
-#### Version
-
-Display modctl version information:
-
-```shell
-$ modctl version
-```
-
-#### Completion
-
-Generate shell completion scripts:
-
-```shell
-$ modctl completion bash
-```
-
 ### Cleanup
 
 Delete the model artifact in the local storage:
