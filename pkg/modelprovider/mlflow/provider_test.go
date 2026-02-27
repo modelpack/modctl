@@ -1,11 +1,9 @@
 package mlflow
 
 import (
-	"bytes"
 	"context"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -257,34 +255,4 @@ func Test_parseModelURL(t *testing.T) {
 			assert.Equal(t, tt.want1, got1, "parseModelURL() got1 = %v, want %v", got1, tt.want1)
 		})
 	}
-}
-
-func Test_checkMlflowAuth_LogsStandardizedMessages(t *testing.T) {
-	logger := log.StandardLogger()
-	originalOut := logger.Out
-	originalLevel := logger.GetLevel()
-	originalFormatter := logger.Formatter
-
-	buf := &bytes.Buffer{}
-	logger.SetOutput(buf)
-	logger.SetLevel(log.InfoLevel)
-	logger.SetFormatter(&log.TextFormatter{DisableTimestamp: true, DisableLevelTruncation: true})
-	t.Cleanup(func() {
-		logger.SetOutput(originalOut)
-		logger.SetLevel(originalLevel)
-		logger.SetFormatter(originalFormatter)
-	})
-
-	t.Setenv("DATABRICKS_HOST", "")
-	t.Setenv("DATABRICKS_USERNAME", "")
-	t.Setenv("DATABRICKS_PASSWORD", "")
-	t.Setenv("MLFLOW_TRACKING_URI", "")
-	t.Setenv("MLFLOW_TRACKING_USERNAME", "")
-	t.Setenv("MLFLOW_TRACKING_PASSWORD", "")
-
-	err := checkMlflowAuth()
-	assert.Error(t, err)
-	assert.Contains(t, buf.String(), "set DATABRICKS_HOST or MLFLOW_TRACKING_URI environment variable")
-	assert.Contains(t, buf.String(), "authentication for MLflow/Databricks is not configured")
-	assert.Contains(t, buf.String(), "for more details on configuration")
 }

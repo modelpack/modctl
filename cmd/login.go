@@ -84,7 +84,7 @@ func runLogin(ctx context.Context, registry string) error {
 			return err
 		}
 	} else if loginConfig.PasswordStdin && loginConfig.Password == "" {
-		fmt.Print("Enter password: ")
+		rootCmd.Print("Enter password: ")
 		password, err := terminal.ReadPassword(syscall.Stdin)
 		if err != nil {
 			return err
@@ -93,12 +93,12 @@ func runLogin(ctx context.Context, registry string) error {
 		loginConfig.Password = strings.TrimSpace(string(password))
 	}
 
-	fmt.Println("\nLogging In...")
+	rootCmd.Println("\nLogging In...")
 
 	if err := b.Login(ctx, registry, loginConfig.Username, loginConfig.Password, loginConfig); err != nil {
 		return err
 	}
 
-	fmt.Println("Login Succeeded.")
+	rootCmd.Println("Login Succeeded.")
 	return nil
 }

@@ -48,9 +48,9 @@ func init() {
 
 // runVersion runs the version modctl.
 func runVersion() error {
-	fmt.Printf("%-12s%s\n", "Version:", version.GitVersion)
-	fmt.Printf("%-12s%s\n", "Commit:", version.GitCommit)
-	fmt.Printf("%-12s%s\n", "Platform:", version.Platform)
-	fmt.Printf("%-12s%s\n", "BuildTime:", version.BuildTime)
+	rootCmd.Printf("%-12s%s\n", "Version:", version.GitVersion)
+	rootCmd.Printf("%-12s%s\n", "Commit:", version.GitCommit)
+	rootCmd.Printf("%-12s%s\n", "Platform:", version.Platform)
+	rootCmd.Printf("%-12s%s\n", "BuildTime:", version.BuildTime)
 	return nil
 }

@@ -127,7 +127,7 @@ func init() {
 func runGenerate(ctx context.Context) error {
 	// If model URL is provided, download the model first
 	if generateConfig.ModelURL != "" {
-		fmt.Printf("Model URL provided: %s\n", generateConfig.ModelURL)
+		RootCmd.Printf("Model URL provided: %s\n", generateConfig.ModelURL)
 
 		// Get the appropriate provider for this URL
 		registry := modelprovider.GetRegistry()
@@ -136,7 +136,7 @@ func runGenerate(ctx context.Context) error {
 			return fmt.Errorf("failed to select provider: %w", err)
 		}
 
-		fmt.Printf("Using provider: %s\n", provider.Name())
+		RootCmd.Printf("Using provider: %s\n", provider.Name())
 
 		// Check if user is authenticated with the provider
 		if err := provider.CheckAuth(); err != nil {
@@ -156,7 +156,7 @@ func runGenerate(ctx context.Context) error {
 			if err := os.MkdirAll(downloadDir, 0755); err != nil {
 				return fmt.Errorf("failed to create download directory: %w", err)
 			}
-			fmt.Printf("Using custom download directory: %s\n", downloadDir)
+			RootCmd.Printf("Using custom download directory: %s\n", downloadDir)
 		} else {
 			// Create a temporary directory for downloading the model
 			tmpDir, err := os.MkdirTemp("", "modctl-model-downloads-*")
@@ -180,10 +180,10 @@ func runGenerate(ctx context.Context) error {
 
 		// Update workspace to the downloaded model path
 		generateConfig.Workspace = downloadPath
-		fmt.Printf("Using downloaded model at: %s\n", downloadPath)
+		RootCmd.Printf("Using downloaded model at: %s\n", downloadPath)
 	}
 
-	fmt.Printf("Generating modelfile for %s\n", generateConfig.Workspace)
+	RootCmd.Printf("Generating modelfile for %s\n", generateConfig.Workspace)
 	modelfile, err := modelfile.NewModelfileByWorkspace(generateConfig.Workspace, generateConfig)
 	if err != nil {
 		return fmt.Errorf("failed to generate modelfile: %w", err)
@@ -194,6 +194,6 @@ func runGenerate(ctx context.Context) error {
 		return fmt.Errorf("failed to write modelfile: %w", err)
 	}
 
-	fmt.Printf("Successfully generated modelfile:\n%s\n", string(content))
+	RootCmd.Printf("Successfully generated modelfile:\n%s\n", string(content))
 	return nil
 }

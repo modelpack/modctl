@@ -59,6 +59,6 @@ func runLogout(ctx context.Context, registry string) error {
 		return err
 	}
 
-	fmt.Println("Logout Succeeded.")
+	rootCmd.Println("Logout Succeeded.")
 	return nil
 }

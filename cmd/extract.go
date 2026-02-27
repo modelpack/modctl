@@ -72,6 +72,6 @@ func runExtract(ctx context.Context, target string) error {
 		return err
 	}
 
-	fmt.Printf("Successfully extracted model artifact %s to %s\n", target, extractConfig.Output)
+	rootCmd.Printf("Successfully extracted model artifact %s to %s\n", target, extractConfig.Output)
 	return nil
 }

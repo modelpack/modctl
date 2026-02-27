@@ -79,7 +79,7 @@ func runBuild(ctx context.Context, workDir string) error {
 		return err
 	}
 
-	fmt.Printf("Successfully built model artifact: %s\n", buildConfig.Target)
+	rootCmd.Printf("Successfully built model artifact: %s\n", buildConfig.Target)
 
 	return nil
 }

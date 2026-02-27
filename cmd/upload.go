@@ -71,6 +71,10 @@ func runUpload(ctx context.Context, filepath string) error {
 		return err
 	}
 
-	fmt.Printf("Successfully uploaded %s to model artifact repository: %s\n", filepath, uploadConfig.Repo)
+	rootCmd.Printf(
+		"Successfully uploaded %s to model artifact repository: %s\n",
+		filepath,
+		uploadConfig.Repo,
+	)
 	return nil
 }

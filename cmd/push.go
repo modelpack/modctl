@@ -71,7 +71,7 @@ func runPush(ctx context.Context, target string) error {
 		return err
 	}
 
-	fmt.Printf("Successfully pushed model artifact: %s\n", target)
+	rootCmd.Printf("Successfully pushed model artifact: %s\n", target)
 
 	return nil
 }

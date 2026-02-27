@@ -64,6 +64,6 @@ func runRm(ctx context.Context, target string) error {
 		return err
 	}
 
-	fmt.Printf("Deleted: %s\n", digest)
+	rootCmd.Printf("Deleted: %s\n", digest)
 	return nil
 }

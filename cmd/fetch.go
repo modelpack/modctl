@@ -77,6 +77,6 @@ func runFetch(ctx context.Context, target string) error {
 		return err
 	}
 
-	fmt.Printf("Successfully fetched model artifact: %s\n", target)
+	rootCmd.Printf("Successfully fetched model artifact: %s\n", target)
 	return nil
 }

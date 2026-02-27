@@ -77,6 +77,6 @@ func runInspect(ctx context.Context, target string) error {
 		return err
 	}
 
-	fmt.Println(string(data))
+	rootCmd.Println(string(data))
 	return nil
 }

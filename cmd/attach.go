@@ -77,7 +77,7 @@ func runAttach(ctx context.Context, filepath string) error {
 		return err
 	}
 
-	fmt.Printf("Successfully attached model artifact: %s\n", attachConfig.Target)
+	rootCmd.Printf("Successfully attached model artifact: %s\n", attachConfig.Target)
 
 	return nil
 }

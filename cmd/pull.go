@@ -77,6 +77,6 @@ func runPull(ctx context.Context, target string) error {
 		return err
 	}
 
-	fmt.Printf("Successfully pulled model artifact: %s\n", target)
+	rootCmd.Printf("Successfully pulled model artifact: %s\n", target)
 	return nil
 }
