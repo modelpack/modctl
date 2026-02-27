@@ -284,5 +284,7 @@ func Test_checkMlflowAuth_LogsStandardizedMessages(t *testing.T) {
 
 	err := checkMlflowAuth()
 	assert.Error(t, err)
-	assert.Contains(t, buf.String(), `level=warning msg="authentication for MLflow/Databricks is not configured"`)
+	assert.Contains(t, buf.String(), "set DATABRICKS_HOST or MLFLOW_TRACKING_URI environment variable")
+	assert.Contains(t, buf.String(), "authentication for MLflow/Databricks is not configured")
+	assert.Contains(t, buf.String(), "for more details on configuration")
 }

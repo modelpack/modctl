@@ -112,7 +112,7 @@ func checkMlflowAuth() error {
 	if isAllNonEmpty(databricksEnvs) {
 		return nil
 	} else if isAllNonEmpty(mlflowEnvs) {
-		log.Info("detected MLflow environment variables, set DATABRICKS_* variables")
+		log.Warn("detected MLflow variables; set DATABRICKS_HOST, DATABRICKS_USERNAME, and DATABRICKS_PASSWORD")
 	} else {
 		log.Warn("set DATABRICKS_HOST or MLFLOW_TRACKING_URI environment variable")
 		log.Warn("authentication for MLflow/Databricks is not configured")
