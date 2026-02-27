@@ -62,7 +62,7 @@ func init() {
 	flags.BoolVar(&attachConfig.Config, "config", false, "turning on this flag will overwrite model artifact config layer")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind attach flags to viper: %w", err))
 	}
 }
 

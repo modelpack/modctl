@@ -56,7 +56,7 @@ func init() {
 	flags.StringVar(&uploadConfig.DestinationDir, "destination-dir", "", "destination directory for the uploaded file should be specified as a relative path; by default, it will match the original directory of the uploaded file")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind upload flags to viper: %w", err))
 	}
 }
 

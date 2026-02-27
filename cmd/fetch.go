@@ -58,7 +58,7 @@ func init() {
 	flags.StringVar(&fetchConfig.DragonflyEndpoint, "dragonfly-endpoint", "", "specify the dragonfly endpoint for the pull operation, which will download and hardlink the blob by dragonfly GRPC service.")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache pull flags to viper: %w", err))
+		panic(fmt.Errorf("bind fetch flags to viper: %w", err))
 	}
 }
 

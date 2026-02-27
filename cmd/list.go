@@ -47,7 +47,7 @@ func init() {
 	flags := listCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind list flags to viper: %w", err))
 	}
 }
 

@@ -44,7 +44,7 @@ func init() {
 	flags := logoutCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache logout flags to viper: %w", err))
+		panic(fmt.Errorf("bind logout flags to viper: %w", err))
 	}
 }
 

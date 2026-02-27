@@ -53,7 +53,7 @@ func init() {
 	flags.IntVar(&extractConfig.Concurrency, "concurrency", extractConfig.Concurrency, "specify the concurrency for extracting the model artifact")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache extract flags to viper: %w", err))
+		panic(fmt.Errorf("bind extract flags to viper: %w", err))
 	}
 }
 
