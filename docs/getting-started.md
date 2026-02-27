@@ -168,6 +168,46 @@ $ modctl upload model-00001-of-00003.safetensors --repo registry.com/models/llam
 ```
 
 
+### Tag
+
+Tag an existing model artifact with a new reference:
+
+```shell
+$ modctl tag registry.com/models/llama3:v1.0.0 registry.com/models/llama3:v1.0.1
+```
+
+### Inspect
+
+Inspect metadata for a model artifact:
+
+```shell
+$ modctl inspect registry.com/models/llama3:v1.0.0
+```
+
+### Version
+
+Display modctl version information:
+
+```shell
+$ modctl version
+```
+
+### Logout
+
+Logout from a registry:
+
+```shell
+$ modctl logout example.registry.com
+```
+
+### Completion
+
+Generate shell completion scripts:
+
+```shell
+$ modctl completion bash
+```
+
 ### Cleanup
 
 Delete the model artifact in the local storage:
