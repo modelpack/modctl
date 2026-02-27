@@ -26,6 +26,12 @@ Available Commands:
   pull        A command line tool for modctl pull
   push        A command line tool for modctl push
   rm          A command line tool for modctl rm
+  attach      A command line tool for modctl attach
+  fetch       A command line tool for modctl fetch
+  tag         A command line tool for modctl tag
+  upload      A command line tool for modctl upload
+  version     A command line tool for modctl version
+  modelfile   A command line tool for modctl modelfile
 
 Flags:
   -h, --help                 help for modctl
