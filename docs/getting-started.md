@@ -104,6 +104,12 @@ Before the `pull` or `push` command, you need to login the registry:
 $ modctl login -u username -p password example.registry.com
 ```
 
+Logout from a registry:
+
+```shell
+$ modctl logout example.registry.com
+```
+
 Pull the model artifact from the registry:
 
 ```shell
@@ -184,7 +190,9 @@ Inspect metadata for a model artifact:
 $ modctl inspect registry.com/models/llama3:v1.0.0
 ```
 
-### Version
+### Utilities
+
+#### Version
 
 Display modctl version information:
 
@@ -192,15 +200,7 @@ Display modctl version information:
 $ modctl version
 ```
 
-### Logout
-
-Logout from a registry:
-
-```shell
-$ modctl logout example.registry.com
-```
-
-### Completion
+#### Completion
 
 Generate shell completion scripts:
 
