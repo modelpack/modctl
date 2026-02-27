@@ -35,7 +35,7 @@ Available Commands:
 
 Flags:
   -h, --help                 help for modctl
-      --storage-dir string   specify the storage directory for modctl (default "~/.modctl")
+      --storage-dir string   specify the storage directory for modctl (default $HOME/.modctl)
 ```
 
 # BUGS
