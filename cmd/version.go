@@ -27,11 +27,10 @@ import (
 
 // versionCmd represents the modctl command for version.
 var versionCmd = &cobra.Command{
-	Use:                "version",
-	Short:              "A command line tool for modctl version",
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "version",
+	Short:             "A command line tool for modctl version",
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runVersion()
 	},

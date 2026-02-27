@@ -31,12 +31,11 @@ var pruneConfig = config.NewPrune()
 
 // pruneCmd represents the modctl command for prune.
 var pruneCmd = &cobra.Command{
-	Use:                "prune [flags]",
-	Short:              "Prune can help to cleanup useless manifests and blobs in the local storage.",
-	Args:               cobra.NoArgs,
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "prune [flags]",
+	Short:             "Prune can help to cleanup useless manifests and blobs in the local storage.",
+	Args:              cobra.NoArgs,
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runPrune(context.Background())
 	},

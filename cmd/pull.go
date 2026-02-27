@@ -31,12 +31,11 @@ var pullConfig = config.NewPull()
 
 // pullCmd represents the modctl command for pull.
 var pullCmd = &cobra.Command{
-	Use:                "pull [flags] <target>",
-	Short:              "Pull a model artifact from the remote registry.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "pull [flags] <target>",
+	Short:             "Pull a model artifact from the remote registry.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := pullConfig.Validate(); err != nil {
 			return err

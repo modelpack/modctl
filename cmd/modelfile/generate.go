@@ -65,10 +65,9 @@ Full URLs with domain names will auto-detect the provider.`,
 
   # Generate with metadata overrides
   modctl modelfile generate ./my-model-dir --name my-custom-model --family llama3`,
-	Args:               cobra.MaximumNArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Args:              cobra.MaximumNArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If model-url is provided, path is optional
 		workspace := "."

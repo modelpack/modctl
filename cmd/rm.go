@@ -28,12 +28,11 @@ import (
 
 // rmCmd represents the modctl command for rm.
 var rmCmd = &cobra.Command{
-	Use:                "rm [flags] <target>",
-	Short:              "Remove a model artifact from the local storage.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "rm [flags] <target>",
+	Short:             "Remove a model artifact from the local storage.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runRm(context.Background(), args[0])
 	},

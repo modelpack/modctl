@@ -32,12 +32,11 @@ var inspectConfig = config.NewInspect()
 
 // inspectCmd represents the modctl command for inspect.
 var inspectCmd = &cobra.Command{
-	Use:                "inspect [flags] <target>",
-	Short:              "Inspect can help to analyze the composition of model artifact.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "inspect [flags] <target>",
+	Short:             "Inspect can help to analyze the composition of model artifact.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runInspect(context.Background(), args[0])
 	},
