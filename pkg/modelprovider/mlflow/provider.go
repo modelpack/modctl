@@ -24,7 +24,7 @@ import (
 	"slices"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // MlflowProvider implements the modelprovider.Provider interface for Mlflow
@@ -112,11 +112,11 @@ func checkMlflowAuth() error {
 	if isAllNonEmpty(databricksEnvs) {
 		return nil
 	} else if isAllNonEmpty(mlflowEnvs) {
-		log.Printf("Detected MlFlow environment variables, set DATABRICKS_* envs \n")
+		logrus.Infof("mlflow: detected MlFlow environment variables, setting DATABRICKS_* envs")
 	} else {
-		log.Println("Please set DATABRICKS_HOST or MLFLOW_TRACKING_URI environment variable.")
-		log.Println("Authentication for MLflow/Databricks is not configured.")
-		log.Println("See https://pkg.go.dev/github.com/databricks/databricks-sdk-go/config for more details on configuration.")
+		logrus.Warnf("mlflow: please set DATABRICKS_HOST or MLFLOW_TRACKING_URI environment variable")
+		logrus.Warnf("mlflow: authentication for MLflow/Databricks is not configured")
+		logrus.Warnf("mlflow: see https://pkg.go.dev/github.com/databricks/databricks-sdk-go/config for more details on configuration")
 
 		return errors.New("mlflow/databricks authentication not configured")
 	}
