@@ -23,7 +23,38 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
+
+// buildTarHeader creates a tar header from FileInfo without using CGO-based
+// os/user.LookupGroupId or os/user.LookupUserId. This avoids a segfault in
+// statically linked CGO binaries caused by glibc NSS (getgrgid_r) being
+// incompatible with static linking across different glibc versions.
+// See: https://github.com/modelpack/modctl/issues/285
+func buildTarHeader(info os.FileInfo) (*tar.Header, error) {
+	header := &tar.Header{
+		Name:    info.Name(),
+		Size:    info.Size(),
+		Mode:    int64(info.Mode()),
+		ModTime: info.ModTime(),
+	}
+
+	// Set file type flag.
+	if info.IsDir() {
+		header.Typeflag = tar.TypeDir
+	} else {
+		header.Typeflag = tar.TypeReg
+	}
+
+	// Safely extract UID/GID from syscall.Stat_t without CGO user/group name lookup.
+	// We intentionally leave Uname/Gname empty to avoid os/user CGO calls entirely.
+	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+		header.Uid = int(stat.Uid)
+		header.Gid = int(stat.Gid)
+	}
+
+	return header, nil
+}
 
 // Tar creates a tar archive of the specified path (file or directory)
 // and returns the content as a stream. For individual files, it preserves
@@ -56,7 +87,7 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 					return fmt.Errorf("failed to get relative path: %w", err)
 				}
 
-				header, err := tar.FileInfoHeader(info, "")
+				header, err := buildTarHeader(info)
 				if err != nil {
 					return fmt.Errorf("failed to create tar header: %w", err)
 				}
@@ -95,14 +126,13 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 			}
 			defer file.Close()
 
-			header, err := tar.FileInfoHeader(info, "")
+			header, err := buildTarHeader(info)
 			if err != nil {
 				pw.CloseWithError(fmt.Errorf("failed to create tar header: %w", err))
 				return
 			}
 
-			// Use relative path as the header name to preserve directory structure
-			// This keeps the directory structure as part of the file path in the tar.
+			// Use relative path as the header name to preserve directory structure.
 			relPath, err := filepath.Rel(workDir, srcPath)
 			if err != nil {
 				pw.CloseWithError(fmt.Errorf("failed to get relative path: %w", err))
@@ -189,9 +219,9 @@ func Untar(reader io.Reader, destPath string) error {
 			}
 			file.Close()
 
-			// Set correct permissions for the directory.
+			// Set correct permissions for the file.
 			if err := os.Chmod(targetPath, os.FileMode(header.Mode)); err != nil {
-				return fmt.Errorf("failed to set directory permissions %s: %w", targetPath, err)
+				return fmt.Errorf("failed to set file permissions %s: %w", targetPath, err)
 			}
 			// Set modification time for the file.
 			if err := os.Chtimes(targetPath, header.ModTime, header.ModTime); err != nil {
