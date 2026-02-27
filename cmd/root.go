@@ -17,7 +17,6 @@
 package cmd
 
 import (
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -51,7 +50,7 @@ var rootCmd = &cobra.Command{
 			go func() {
 				err := http.ListenAndServe(rootConfig.PprofAddr, nil)
 				if err != nil {
-					log.Fatal(err)
+					logrus.WithError(err).Fatal("pprof server stopped")
 				}
 			}()
 		}

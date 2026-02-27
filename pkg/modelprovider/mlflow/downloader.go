@@ -39,7 +39,7 @@ func NewMlFlowRegistry(mlflowClient *client.DatabricksClient) (MlFlowClient, err
 
 	if mlflowClient != nil {
 		registry = ml.NewModelRegistry(mlflowClient)
-		log.Println("Use default mlflow client for MlFlowRegistryAPI")
+		log.Info("using default mlflow client for mlflow registry API")
 		return MlFlowClient{registry: registry}, nil
 	}
 
@@ -83,7 +83,10 @@ func (mlfr *MlFlowClient) PullModelByName(
 
 		pullVersion = versions[0].Version
 
-		log.Printf("Found versions: '%v' for model '%s'\n", pullVersion, modelName)
+		log.WithFields(log.Fields{
+			"model":   modelName,
+			"version": pullVersion,
+		}).Info("resolved model version")
 
 	} else {
 
@@ -109,7 +112,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 			pullVersion = modelVersion
 		}
 	}
-	log.Printf("Start pull model from model registry with version %s", pullVersion)
+	log.WithField("version", pullVersion).Info("pulling model from model registry")
 
 	uri, err := mlfr.registry.GetModelVersionDownloadUri(ctx, ml.GetModelVersionDownloadUriRequest{
 		Name:    modelName,
@@ -118,7 +121,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 	if err != nil {
 		return "", errors.Join(errors.New("failed fetch download uri for model"), err)
 	}
-	log.Printf("Try pull model from uri %s", uri.ArtifactUri)
+	log.WithField("artifact_uri", uri.ArtifactUri).Info("pulling model from artifact URI")
 	parsed, err := url.Parse(uri.ArtifactUri)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse artifact uri: %w", err)
@@ -141,7 +144,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 		return "", err
 	}
 
-	log.Printf("✅ Model downloaded")
+	log.Info("model downloaded")
 
 	return destSrc, nil
 }
@@ -162,7 +165,10 @@ func (s3back *S3StorageBackend) DownloadModel(
 
 	bucketName := parsed.Host
 	s3FolderPrefix := strings.TrimPrefix(parsed.Path, "/")
-	log.Printf("Parsed s3 bucket %s, path %s from path", bucketName, s3FolderPrefix)
+	log.WithFields(log.Fields{
+		"bucket": bucketName,
+		"path":   s3FolderPrefix,
+	}).Info("parsed S3 artifact path")
 
 	cfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
@@ -170,7 +176,10 @@ func (s3back *S3StorageBackend) DownloadModel(
 		return errors.Join(wrap, err)
 	}
 
-	log.Printf("Region - %s, endpoint - %s", cfg.Region, aws.ToString(cfg.BaseEndpoint))
+	log.WithFields(log.Fields{
+		"region":   cfg.Region,
+		"endpoint": aws.ToString(cfg.BaseEndpoint),
+	}).Info("loaded AWS configuration")
 
 	s3Client := s3.NewFromConfig(cfg)
 
@@ -184,18 +193,21 @@ func (s3back *S3StorageBackend) DownloadModel(
 		Prefix: aws.String(s3FolderPrefix),
 	})
 
-	log.Printf("Start downloading from s3 bucket %s, path %s", bucketName, s3FolderPrefix)
+	log.WithFields(log.Fields{
+		"bucket": bucketName,
+		"path":   s3FolderPrefix,
+	}).Info("downloading artifacts from S3")
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			log.Printf("Error listing objects: %v\n", err)
+			log.WithError(err).Error("failed to list S3 objects")
 			return err
 		}
 
 		for _, object := range page.Contents {
 			s3Key := *object.Key
-			log.Printf("Downloading object: %s\n", s3Key)
+			log.WithField("key", s3Key).Info("downloading S3 object")
 			if strings.HasSuffix(s3Key, "/") { // Skip S3 "folder" markers
 				continue
 			}
@@ -208,18 +220,15 @@ func (s3back *S3StorageBackend) DownloadModel(
 			// Create local directories if they don't exist
 			err = os.MkdirAll(filepath.Dir(localFilePath), 0o755)
 			if err != nil {
-				log.Printf(
-					"Error creating local directory %s: %v\n",
-					filepath.Dir(localFilePath),
-					err,
-				)
+				log.WithError(err).WithField("path", filepath.Dir(localFilePath)).
+					Error("failed to create local directory")
 				continue
 			}
 
 			// Download the object
 			file, err := os.Create(localFilePath)
 			if err != nil {
-				log.Printf("Error creating local file %s: %v\n", localFilePath, err)
+				log.WithError(err).WithField("path", localFilePath).Error("failed to create local file")
 				continue
 			}
 
@@ -230,18 +239,23 @@ func (s3back *S3StorageBackend) DownloadModel(
 			closeErr := file.Close()
 			if err != nil || closeErr != nil {
 				if err != nil {
-					log.Printf("Error downloading object %s: %v\n", s3Key, err)
+					log.WithError(err).WithField("key", s3Key).Error("failed to download S3 object")
 				}
 				if closeErr != nil {
-					log.Printf("Error closing file %s: %v\n", localFilePath, closeErr)
+					log.WithError(closeErr).WithField("path", localFilePath).Error("failed to close local file")
 				}
 				if removeErr := os.Remove(localFilePath); removeErr != nil &&
 					!errors.Is(removeErr, os.ErrNotExist) {
-					log.Printf("Error removing partial file %s: %v\n", localFilePath, removeErr)
+					log.WithError(removeErr).WithField("path", localFilePath).
+						Error("failed to remove partial local file")
 				}
 				continue
 			}
-			log.Printf("Downloaded %s to %s (%d bytes)\n", s3Key, localFilePath, numBytes)
+			log.WithFields(log.Fields{
+				"key":   s3Key,
+				"path":  localFilePath,
+				"bytes": numBytes,
+			}).Info("downloaded S3 object")
 		}
 	}
 
