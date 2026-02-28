@@ -44,7 +44,7 @@ var pruneCmd = &cobra.Command{
 
 // init initializes prune command.
 func init() {
-	flags := rmCmd.Flags()
+	flags := pruneCmd.Flags()
 	flags.BoolVar(&pruneConfig.DryRun, "dry-run", false, "do not remove any blobs, just print what would be removed")
 	flags.BoolVar(&pruneConfig.RemoveUntagged, "remove-untagged", true, "remove untagged manifests")
 

@@ -39,7 +39,7 @@ var versionCmd = &cobra.Command{
 
 // init initializes version command.
 func init() {
-	flags := rmCmd.Flags()
+	flags := versionCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind version flags to viper: %w", err))
