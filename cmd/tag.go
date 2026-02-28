@@ -44,7 +44,7 @@ func init() {
 	flags := tagCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache tag flags to viper: %w", err))
+		panic(fmt.Errorf("bind tag flags to viper: %w", err))
 	}
 }
 

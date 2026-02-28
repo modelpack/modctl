@@ -67,7 +67,7 @@ func init() {
 	flags.BoolVar(&loginConfig.Insecure, "insecure", false, "Allow insecure connections to registry")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache login flags to viper: %w", err))
+		panic(fmt.Errorf("bind login flags to viper: %w", err))
 	}
 }
 

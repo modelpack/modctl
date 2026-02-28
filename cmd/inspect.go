@@ -52,7 +52,7 @@ func init() {
 	flags.BoolVar(&inspectConfig.Config, "config", false, "inspect the config of the model artifact")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache inspect flags to viper: %w", err))
+		panic(fmt.Errorf("bind inspect flags to viper: %w", err))
 	}
 }
 
