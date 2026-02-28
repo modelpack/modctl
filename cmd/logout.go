@@ -35,7 +35,7 @@ var logoutCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runLogout(context.Background(), args[0])
+		return runLogout(cmd.Context(), args[0])
 	},
 }
 

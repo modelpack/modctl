@@ -42,7 +42,7 @@ var uploadCmd = &cobra.Command{
 			return err
 		}
 
-		return runUpload(context.Background(), args[0])
+		return runUpload(cmd.Context(), args[0])
 	},
 }
 

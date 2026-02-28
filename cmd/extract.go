@@ -42,7 +42,7 @@ var extractCmd = &cobra.Command{
 			return err
 		}
 
-		return runExtract(context.Background(), args[0])
+		return runExtract(cmd.Context(), args[0])
 	},
 }
 

@@ -42,7 +42,7 @@ var buildCmd = &cobra.Command{
 			return err
 		}
 
-		return runBuild(context.Background(), args[0])
+		return runBuild(cmd.Context(), args[0])
 	},
 }
 

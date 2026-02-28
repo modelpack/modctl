@@ -38,7 +38,7 @@ var pruneCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runPrune(context.Background())
+		return runPrune(cmd.Context())
 	},
 }
 

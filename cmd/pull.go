@@ -42,7 +42,7 @@ var pullCmd = &cobra.Command{
 			return err
 		}
 
-		return runPull(context.Background(), args[0])
+		return runPull(cmd.Context(), args[0])
 	},
 }
 

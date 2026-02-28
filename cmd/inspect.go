@@ -39,7 +39,7 @@ var inspectCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runInspect(context.Background(), args[0])
+		return runInspect(cmd.Context(), args[0])
 	},
 }
 
