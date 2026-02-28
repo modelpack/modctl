@@ -68,7 +68,7 @@ func init() {
 
 // runAttach runs the attach modctl.
 func runAttach(ctx context.Context, filepath string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

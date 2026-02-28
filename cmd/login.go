@@ -73,7 +73,7 @@ func init() {
 
 // runLogin runs the login modctl.
 func runLogin(ctx context.Context, registry string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

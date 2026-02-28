@@ -59,7 +59,7 @@ func init() {
 
 // runExtract runs the extract modctl.
 func runExtract(ctx context.Context, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

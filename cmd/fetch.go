@@ -64,7 +64,7 @@ func init() {
 
 // runFetch runs the fetch modctl.
 func runFetch(ctx context.Context, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

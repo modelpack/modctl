@@ -50,7 +50,7 @@ func init() {
 
 // runTag runs the tag modctl.
 func runTag(ctx context.Context, source, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}
