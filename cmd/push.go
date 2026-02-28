@@ -56,7 +56,7 @@ func init() {
 	flags.MarkHidden("nydusify")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache push flags to viper: %w", err))
+		panic(fmt.Errorf("bind push flags to viper: %w", err))
 	}
 }
 

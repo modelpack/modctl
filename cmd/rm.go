@@ -44,7 +44,7 @@ func init() {
 	flags := rmCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache rm flags to viper: %w", err))
+		panic(fmt.Errorf("bind rm flags to viper: %w", err))
 	}
 }
 
