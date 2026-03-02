@@ -17,7 +17,7 @@ require (
 	github.com/dragonflyoss/model-spec v0.0.6
 	github.com/dustin/go-humanize v1.0.1
 	github.com/emirpasic/gods v1.18.1
-	github.com/go-git/go-git/v5 v5.16.5
+	github.com/go-git/go-git/v5 v5.17.0
 	github.com/gofrs/flock v0.13.0
 	github.com/libgit2/git2go/v34 v34.0.0
 	github.com/minio/sha256-simd v1.0.1
@@ -76,7 +76,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-git/go-billy/v5 v5.6.2 // indirect
+	github.com/go-git/go-billy/v5 v5.8.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
