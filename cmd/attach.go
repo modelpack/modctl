@@ -42,7 +42,7 @@ var attachCmd = &cobra.Command{
 			return err
 		}
 
-		return runAttach(context.Background(), args[0])
+		return runAttach(cmd.Context(), args[0])
 	},
 }
 

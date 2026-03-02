@@ -92,7 +92,7 @@ Full URLs with domain names will auto-detect the provider.`,
 			return err
 		}
 
-		return runGenerate(context.Background())
+		return runGenerate(cmd.Context())
 	},
 }
 

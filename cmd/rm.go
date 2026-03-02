@@ -35,7 +35,7 @@ var rmCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runRm(context.Background(), args[0])
+		return runRm(cmd.Context(), args[0])
 	},
 }
 
