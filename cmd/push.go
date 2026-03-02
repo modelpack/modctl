@@ -42,7 +42,7 @@ var pushCmd = &cobra.Command{
 			return err
 		}
 
-		return runPush(context.Background(), args[0])
+		return runPush(cmd.Context(), args[0])
 	},
 }
 

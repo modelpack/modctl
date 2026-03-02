@@ -35,7 +35,7 @@ var tagCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runTag(context.Background(), args[0], args[1])
+		return runTag(cmd.Context(), args[0], args[1])
 	},
 }
 

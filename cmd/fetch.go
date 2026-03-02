@@ -42,7 +42,7 @@ var fetchCmd = &cobra.Command{
 			return err
 		}
 
-		return runFetch(context.Background(), args[0])
+		return runFetch(cmd.Context(), args[0])
 	},
 }
 
