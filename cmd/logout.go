@@ -50,7 +50,7 @@ func init() {
 
 // runLogout runs the logout modctl.
 func runLogout(ctx context.Context, registry string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

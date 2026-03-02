@@ -115,7 +115,7 @@ func init() {
 
 	// Bind more cache specific persistent flags.
 	flags := rootCmd.PersistentFlags()
-	flags.StringVar(&rootConfig.StoargeDir, "storage-dir", rootConfig.StoargeDir, "specify the storage directory for modctl")
+	flags.StringVar(&rootConfig.StorageDir, "storage-dir", rootConfig.StorageDir, "specify the storage directory for modctl")
 	flags.BoolVar(&rootConfig.Pprof, "pprof", rootConfig.Pprof, "enable pprof")
 	flags.StringVar(&rootConfig.PprofAddr, "pprof-addr", rootConfig.PprofAddr, "specify the address for pprof")
 	flags.BoolVar(&rootConfig.DisableProgress, "no-progress", rootConfig.DisableProgress, "disable progress bar")
