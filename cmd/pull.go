@@ -64,7 +64,7 @@ func init() {
 
 // runPull runs the pull modctl.
 func runPull(ctx context.Context, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

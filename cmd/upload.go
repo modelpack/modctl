@@ -62,7 +62,7 @@ func init() {
 
 // runUpload runs the upload modctl.
 func runUpload(ctx context.Context, filepath string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}
