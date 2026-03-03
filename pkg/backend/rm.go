@@ -47,6 +47,6 @@ func (b *backend) Remove(ctx context.Context, target string) (string, error) {
 		return "", fmt.Errorf("failed to delete manifest %s: %w", reference, err)
 	}
 
-	logrus.Infof("remove: manifest removed %s", reference)
+	logrus.Infof("remove: removed manifest %s", reference)
 	return reference, nil
 }

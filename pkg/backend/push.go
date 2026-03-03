@@ -123,7 +123,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
 
-	logrus.Infof("push: artifact pushed %s", target)
+	logrus.Infof("push: pushed artifact %s", target)
 	return nil
 }
 

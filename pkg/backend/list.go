@@ -79,7 +79,7 @@ func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
 		return modelArtifacts[i].CreatedAt.After(modelArtifacts[j].CreatedAt)
 	})
 
-	logrus.Infof("list: found %d model artifacts", len(modelArtifacts))
+	logrus.Infof("list: listed %d model artifacts", len(modelArtifacts))
 	return modelArtifacts, nil
 }
 

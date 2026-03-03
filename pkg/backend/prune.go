@@ -35,6 +35,6 @@ func (b *backend) Prune(ctx context.Context, dryRun, removeUntagged bool) error 
 		return fmt.Errorf("failed to perform purge uploads: %w", err)
 	}
 
-	logrus.Infof("prune: unused blobs pruned")
+	logrus.Infof("prune: pruned unused blobs")
 	return nil
 }

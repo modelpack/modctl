@@ -111,7 +111,7 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 		return err
 	}
 
-	logrus.Infof("extract: artifact extracted %s", repo)
+	logrus.Infof("extract: extracted artifact %s", repo)
 	return nil
 }
 

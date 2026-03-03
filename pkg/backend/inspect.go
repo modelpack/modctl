@@ -129,6 +129,6 @@ func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspec
 		})
 	}
 
-	logrus.Infof("inspect: target inspected %s", target)
+	logrus.Infof("inspect: inspected target %s", target)
 	return inspectedModelArtifact, nil
 }

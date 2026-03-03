@@ -127,6 +127,6 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 		return err
 	}
 
-	logrus.Infof("fetch: layers fetched [count: %d]", len(layers))
+	logrus.Infof("fetch: fetched %d layers", len(layers))
 	return nil
 }

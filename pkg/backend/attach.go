@@ -210,7 +210,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
 
-	logrus.Infof("attach: file attached %s", filepath)
+	logrus.Infof("attach: attached file %s", filepath)
 	return nil
 }
 

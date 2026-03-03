@@ -163,10 +163,10 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		if err := exportModelArtifact(ctx, dst, manifest, repo, extractCfg); err != nil {
 			return fmt.Errorf("failed to export the artifact to the output directory: %w", err)
 		}
-		logrus.Infof("pull: artifact pulled and extracted %s", target)
+		logrus.Infof("pull: pulled and extracted artifact %s", target)
 	}
 
-	logrus.Infof("pull: artifact pulled %s", target)
+	logrus.Infof("pull: pulled artifact %s", target)
 	return nil
 }
 

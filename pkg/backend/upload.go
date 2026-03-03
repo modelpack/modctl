@@ -53,6 +53,6 @@ func (b *backend) Upload(ctx context.Context, filepath string, cfg *config.Uploa
 		return fmt.Errorf("failed to process layers: %w", err)
 	}
 
-	logrus.Infof("upload: file uploaded %s to %s", filepath, cfg.Repo)
+	logrus.Infof("upload: uploaded file %s to %s", filepath, cfg.Repo)
 	return nil
 }

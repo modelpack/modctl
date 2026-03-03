@@ -149,7 +149,7 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 		return err
 	}
 
-	logrus.Infof("fetch: layers fetched via dragonfly [count: %d]", len(layers))
+	logrus.Infof("fetch: fetched %d layers via dragonfly", len(layers))
 	return nil
 }
 

@@ -125,7 +125,7 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 		return err
 	}
 
-	logrus.Infof("pull: artifact pulled via dragonfly %s", target)
+	logrus.Infof("pull: pulled artifact %s via dragonfly", target)
 	return nil
 }
 

@@ -158,7 +158,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
 
-	logrus.Infof("build: artifact built %s", target)
+	logrus.Infof("build: built artifact %s", target)
 	return nil
 }
 

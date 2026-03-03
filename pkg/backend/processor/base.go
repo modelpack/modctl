@@ -186,7 +186,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		return nil, err
 	}
 
-	logrus.Infof("processor: %s files processed [count: %d]", b.name, len(matchedPaths))
+	logrus.Infof("processor: processed %s files [count: %d]", b.name, len(matchedPaths))
 
 	sort.Slice(descriptors, func(i int, j int) bool {
 		// Sort by filepath by default.
