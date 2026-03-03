@@ -39,7 +39,7 @@ func NewMlFlowRegistry(mlflowClient *client.DatabricksClient) (MlFlowClient, err
 
 	if mlflowClient != nil {
 		registry = ml.NewModelRegistry(mlflowClient)
-		logrus.Infof("mlflow: using default client for MlFlowRegistryAPI")
+		logrus.Debugf("mlflow: using provided client for registry API")
 		return MlFlowClient{registry: registry}, nil
 	}
 
@@ -83,7 +83,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 
 		pullVersion = versions[0].Version
 
-		logrus.Infof("mlflow: found versions '%v' for model '%s'", pullVersion, modelName)
+		logrus.Infof("mlflow: resolved version %s for model %s", pullVersion, modelName)
 
 	} else {
 
@@ -109,7 +109,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 			pullVersion = modelVersion
 		}
 	}
-	logrus.Infof("mlflow: starting pull model from registry with version %s", pullVersion)
+	logrus.Infof("mlflow: pulling model version %s from registry", pullVersion)
 
 	uri, err := mlfr.registry.GetModelVersionDownloadUri(ctx, ml.GetModelVersionDownloadUriRequest{
 		Name:    modelName,
@@ -118,7 +118,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 	if err != nil {
 		return "", errors.Join(errors.New("failed fetch download uri for model"), err)
 	}
-	logrus.Infof("mlflow: pulling model from uri %s", uri.ArtifactUri)
+	logrus.Debugf("mlflow: downloading from artifact URI %s", uri.ArtifactUri)
 	parsed, err := url.Parse(uri.ArtifactUri)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse artifact uri: %w", err)
@@ -141,7 +141,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 		return "", err
 	}
 
-	logrus.Infof("mlflow: model downloaded successfully")
+	logrus.Infof("mlflow: model downloaded")
 
 	return destSrc, nil
 }
@@ -184,7 +184,7 @@ func (s3back *S3StorageBackend) DownloadModel(
 		Prefix: aws.String(s3FolderPrefix),
 	})
 
-	logrus.Infof("mlflow: starting download from s3 bucket %s, path %s", bucketName, s3FolderPrefix)
+	logrus.Infof("mlflow: downloading from S3 bucket %s [prefix: %s]", bucketName, s3FolderPrefix)
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)

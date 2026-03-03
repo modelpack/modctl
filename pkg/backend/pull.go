@@ -38,11 +38,11 @@ import (
 
 // Pull pulls an artifact from a registry.
 func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) error {
-	logrus.Infof("pull: starting pull operation for target %s [config: %+v]", target, cfg)
+	logrus.Infof("pull: pulling artifact %s", target)
 
 	// pullByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
 	if cfg.DragonflyEndpoint != "" {
-		logrus.Infof("pull: using dragonfly for target %s", target)
+		logrus.Infof("pull: using dragonfly for %s", target)
 		return b.pullByDragonfly(ctx, target, cfg)
 	}
 
@@ -104,7 +104,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		}
 	}
 
-	logrus.Infof("pull: processing layers for target %s [count: %d]", target, len(manifest.Layers))
+	logrus.Infof("pull: pulling %d layers for %s", len(manifest.Layers), target)
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -134,7 +134,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		return fmt.Errorf("failed to pull blob to local: %w", err)
 	}
 
-	logrus.Infof("pull: successfully processed layers [count: %d]", len(manifest.Layers))
+	logrus.Debugf("pull: layers pulled [count: %d]", len(manifest.Layers))
 
 	// return earlier if extract from remote is enabled as config and manifest
 	// are not needed for this operation.
@@ -163,10 +163,10 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		if err := exportModelArtifact(ctx, dst, manifest, repo, extractCfg); err != nil {
 			return fmt.Errorf("failed to export the artifact to the output directory: %w", err)
 		}
-		logrus.Infof("pull: successfully pulled and extracted artifact %s", target)
+		logrus.Infof("pull: artifact pulled and extracted %s", target)
 	}
 
-	logrus.Infof("pull: successfully pulled artifact %s", target)
+	logrus.Infof("pull: artifact pulled %s", target)
 	return nil
 }
 
@@ -258,7 +258,10 @@ func pullAndExtractFromRemote(ctx context.Context, pb *internalpb.ProgressBar, p
 
 	if err := extractLayer(desc, outputDir, reader); err != nil {
 		if errors.Is(err, codec.ErrAlreadyUpToDate) {
-			logrus.Debugf("pull: skipped extracting blob %s because target is up-to-date", desc.Digest.String())
+			logrus.Debugf(
+				"pull: skipping extraction for blob %s, already up-to-date",
+				desc.Digest.String(),
+			)
 			pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
 			return nil
 		}

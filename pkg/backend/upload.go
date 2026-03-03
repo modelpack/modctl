@@ -30,7 +30,7 @@ import (
 
 // Upload uploads the file to a model artifact repository in advance, but will not push config and manifest.
 func (b *backend) Upload(ctx context.Context, filepath string, cfg *config.Upload) error {
-	logrus.Infof("upload: starting upload operation for file %s [repository: %s]", filepath, cfg.Repo)
+	logrus.Infof("upload: uploading file %s to %s", filepath, cfg.Repo)
 	proc := b.getProcessor(cfg.DestinationDir, filepath, cfg.Raw)
 	if proc == nil {
 		return fmt.Errorf("failed to get processor for file %s", filepath)
@@ -53,6 +53,6 @@ func (b *backend) Upload(ctx context.Context, filepath string, cfg *config.Uploa
 		return fmt.Errorf("failed to process layers: %w", err)
 	}
 
-	logrus.Infof("upload: successfully uploaded file %s [repository: %s]", filepath, cfg.Repo)
+	logrus.Infof("upload: file uploaded %s to %s", filepath, cfg.Repo)
 	return nil
 }

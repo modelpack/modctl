@@ -164,7 +164,7 @@ func (p *ProgressBar) Abort(name string, err error) {
 	p.mu.RUnlock()
 
 	if ok {
-		logrus.Errorf("abort the progress bar[%s] as error occurred: %v", name, err)
+		logrus.Errorf("progress: aborting bar %s: %v", name, err)
 		bar.Abort(true)
 	}
 }

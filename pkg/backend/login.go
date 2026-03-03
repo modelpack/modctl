@@ -32,7 +32,7 @@ import (
 
 // Login logs into a registry.
 func (b *backend) Login(ctx context.Context, registry, username, password string, cfg *config.Login) error {
-	logrus.Infof("login: starting login operation for registry %s [user: %s]", registry, username)
+	logrus.Infof("login: logging in to registry %s [user: %s]", registry, username)
 	// read credentials from docker store.
 	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
 	if err != nil {
@@ -70,6 +70,6 @@ func (b *backend) Login(ctx context.Context, registry, username, password string
 		return err
 	}
 
-	logrus.Infof("login: successfully logged into registry %s [user: %s]", registry, username)
+	logrus.Infof("login: logged in to registry %s [user: %s]", registry, username)
 	return nil
 }

@@ -70,7 +70,7 @@ type InspectedModelArtifactLayer struct {
 
 // Inspect inspects the target from the storage.
 func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspect) (any, error) {
-	logrus.Infof("inspect: starting inspect operation for target %s [config: %+v]", target, cfg)
+	logrus.Infof("inspect: inspecting target %s", target)
 	_, err := ParseReference(target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse target: %w", err)
@@ -129,6 +129,6 @@ func (b *backend) Inspect(ctx context.Context, target string, cfg *config.Inspec
 		})
 	}
 
-	logrus.Infof("inspect: successfully inspected target %s", target)
+	logrus.Infof("inspect: target inspected %s", target)
 	return inspectedModelArtifact, nil
 }

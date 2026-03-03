@@ -112,11 +112,11 @@ func checkMlflowAuth() error {
 	if isAllNonEmpty(databricksEnvs) {
 		return nil
 	} else if isAllNonEmpty(mlflowEnvs) {
-		logrus.Infof("mlflow: detected MlFlow environment variables, setting DATABRICKS_* envs")
+		logrus.Infof("mlflow: detected MLflow environment variables, configuring DATABRICKS credentials")
 	} else {
-		logrus.Warnf("mlflow: please set DATABRICKS_HOST or MLFLOW_TRACKING_URI environment variable")
-		logrus.Warnf("mlflow: authentication for MLflow/Databricks is not configured")
-		logrus.Warnf("mlflow: see https://pkg.go.dev/github.com/databricks/databricks-sdk-go/config for more details on configuration")
+		logrus.Warnf("mlflow: DATABRICKS_HOST or MLFLOW_TRACKING_URI not set")
+		logrus.Warnf("mlflow: MLflow/Databricks authentication not configured")
+		logrus.Warnf("mlflow: see https://pkg.go.dev/github.com/databricks/databricks-sdk-go/config for configuration details")
 
 		return errors.New("mlflow/databricks authentication not configured")
 	}

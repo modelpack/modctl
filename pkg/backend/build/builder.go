@@ -105,7 +105,7 @@ func NewBuilder(outputType OutputType, store storage.Storage, repo, tag string, 
 	cache, err := cache.New(os.TempDir())
 	if err != nil {
 		// Just print the error message because cache is not critical.
-		logrus.Errorf("failed to create cache: %v", err)
+		logrus.Errorf("builder: failed to create cache: %v", err)
 	}
 
 	return &abstractBuilder{
@@ -255,7 +255,7 @@ func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, 
 		}
 	}
 
-	logrus.Infof("builder: calculating digest for file %s", path)
+	logrus.Debugf("builder: calculating digest for file %s", path)
 
 	hash := sha256.New()
 	size, err := io.Copy(hash, reader)
@@ -264,7 +264,7 @@ func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, 
 	}
 	digest := fmt.Sprintf("sha256:%x", hash.Sum(nil))
 
-	logrus.Infof("builder: calculated digest for file %s [digest: %s]", path, digest)
+	logrus.Debugf("builder: calculated digest for file %s [digest: %s]", path, digest)
 
 	// Reset reader for subsequent use.
 	reader, err = resetReader(reader, path, workDirPath, codec)
@@ -302,7 +302,7 @@ func (ab *abstractBuilder) retrieveCache(ctx context.Context, path string, info 
 		return "", 0, false
 	}
 
-	logrus.Infof("builder: retrieved from cache for file %s [digest: %s]", path, item.Digest)
+	logrus.Debugf("builder: cache hit for file %s [digest: %s]", path, item.Digest)
 	return item.Digest, item.Size, true
 }
 
@@ -397,7 +397,10 @@ func addFileMetadata(desc *ocispec.Descriptor, path, relPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
-	logrus.Infof("builder: retrieved metadata for file %s [metadata: %s]", relPath, string(metadataStr))
+	logrus.Debugf(
+		"builder: retrieved metadata for file %s [metadata: %s]",
+		relPath, string(metadataStr),
+	)
 
 	if desc.Annotations == nil {
 		desc.Annotations = make(map[string]string)

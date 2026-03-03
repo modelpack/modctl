@@ -44,7 +44,7 @@ type ModelArtifact struct {
 
 // List lists all the model artifacts.
 func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
-	logrus.Info("list: starting list operation for model artifacts")
+	logrus.Infof("list: listing model artifacts")
 	modelArtifacts := []*ModelArtifact{}
 
 	// list all the repositories.
@@ -79,7 +79,7 @@ func (b *backend) List(ctx context.Context) ([]*ModelArtifact, error) {
 		return modelArtifacts[i].CreatedAt.After(modelArtifacts[j].CreatedAt)
 	})
 
-	logrus.Infof("list: successfully listed model artifacts [count: %d]", len(modelArtifacts))
+	logrus.Infof("list: found %d model artifacts", len(modelArtifacts))
 	return modelArtifacts, nil
 }
 

@@ -25,7 +25,7 @@ import (
 
 // Logout logs out of a registry.
 func (b *backend) Logout(ctx context.Context, registry string) error {
-	logrus.Infof("logout: starting logout operation for registry %s", registry)
+	logrus.Infof("logout: logging out of registry %s", registry)
 	// read credentials from docker store.
 	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{AllowPlaintextPut: true})
 	if err != nil {
@@ -37,6 +37,6 @@ func (b *backend) Logout(ctx context.Context, registry string) error {
 		return err
 	}
 
-	logrus.Infof("logout: successfully logged out of registry %s", registry)
+	logrus.Infof("logout: logged out of registry %s", registry)
 	return nil
 }

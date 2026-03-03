@@ -62,7 +62,7 @@ var (
 
 // Attach attaches user materials into the model artifact which follows the Model Spec.
 func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attach) error {
-	logrus.Infof("attach: starting attach operation for file %s [config: %+v]", filepath, cfg)
+	logrus.Infof("attach: attaching file %s", filepath)
 	srcManifest, err := b.getManifest(ctx, cfg.Source, cfg.OutputRemote, cfg.PlainHTTP, cfg.Insecure)
 	if err != nil {
 		return fmt.Errorf("failed to get source manifest: %w", err)
@@ -73,7 +73,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		return fmt.Errorf("failed to get source model config: %w", err)
 	}
 
-	logrus.Infof("attach: loaded source model config [%+v]", srcModelConfig)
+	logrus.Debugf("attach: loaded source model config [config: %+v]", srcModelConfig)
 
 	proc := b.getProcessor(cfg.DestinationDir, filepath, cfg.Raw)
 	if proc == nil {
@@ -111,7 +111,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 			}
 		}
 
-		logrus.Infof("attach: found existing layer for file %s [%+v]", filepath, foundLayer)
+		logrus.Debugf("attach: found existing layer for file %s [layer: %+v]", filepath, foundLayer)
 		if foundLayer != nil {
 			// Remove the found layer from the layers slice as we need to replace it with the new layer.
 			for i, layer := range layers {
@@ -177,7 +177,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		}
 	}
 
-	logrus.Infof("attach: built model config [%+v]", config)
+	logrus.Debugf("attach: built model config [config: %+v]", config)
 
 	configDesc, err := builder.BuildConfig(ctx, config, hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
@@ -210,7 +210,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
 
-	logrus.Infof("attach: successfully attached file %s", filepath)
+	logrus.Infof("attach: file attached %s", filepath)
 	return nil
 }
 

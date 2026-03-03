@@ -56,7 +56,7 @@ type base struct {
 
 // Process implements the Processor interface, which can be reused by other processors.
 func (b *base) Process(ctx context.Context, builder build.Builder, workDir string, opts ...ProcessOption) ([]ocispec.Descriptor, error) {
-	logrus.Infof("processor: starting %s processing [mediaType: %s, patterns: %v]", b.name, b.mediaType, b.patterns)
+	logrus.Infof("processor: processing %s files [mediaType: %s, patterns: %v]", b.name, b.mediaType, b.patterns)
 
 	processOpts := &processOptions{}
 	for _, opt := range opts {
@@ -101,7 +101,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 	sort.Strings(matchedPaths)
 
-	logrus.Infof("processor: processing %s files [count: %d]", b.name, len(matchedPaths))
+	logrus.Debugf("processor: matched %s files [count: %d]", b.name, len(matchedPaths))
 
 	var (
 		mu          sync.Mutex
@@ -186,7 +186,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		return nil, err
 	}
 
-	logrus.Infof("processor: successfully processed %s files [count: %d]", b.name, len(matchedPaths))
+	logrus.Infof("processor: %s files processed [count: %d]", b.name, len(matchedPaths))
 
 	sort.Slice(descriptors, func(i int, j int) bool {
 		// Sort by filepath by default.
