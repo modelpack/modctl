@@ -31,12 +31,11 @@ var buildConfig = config.NewBuild()
 
 // buildCmd represents the modctl command for build.
 var buildCmd = &cobra.Command{
-	Use:                "build [flags] <path>",
-	Short:              "Build the model artifact with the context by specified path.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "build [flags] <path>",
+	Short:             "Build the model artifact with the context by specified path.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := buildConfig.Validate(); err != nil {
 			return err

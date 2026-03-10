@@ -28,12 +28,11 @@ import (
 
 // logoutCmd represents the modctl command for logout.
 var logoutCmd = &cobra.Command{
-	Use:                "logout [flags]",
-	Short:              "Logout from a registry.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "logout [flags]",
+	Short:             "Logout from a registry.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runLogout(cmd.Context(), args[0])
 	},
