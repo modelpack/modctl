@@ -101,7 +101,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 	sort.Strings(matchedPaths)
 
-	logrus.Debugf("processor: matched %s files [count: %d]", b.name, len(matchedPaths))
+	logrus.Infof("processor: matched %s files [count: %d]", b.name, len(matchedPaths))
 
 	var (
 		mu          sync.Mutex

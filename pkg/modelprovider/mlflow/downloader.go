@@ -39,7 +39,7 @@ func NewMlFlowRegistry(mlflowClient *client.DatabricksClient) (MlFlowClient, err
 
 	if mlflowClient != nil {
 		registry = ml.NewModelRegistry(mlflowClient)
-		logrus.Debugf("mlflow: using provided client for registry API")
+		logrus.Infof("mlflow: using provided client for registry API")
 		return MlFlowClient{registry: registry}, nil
 	}
 
@@ -118,7 +118,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 	if err != nil {
 		return "", errors.Join(errors.New("failed fetch download uri for model"), err)
 	}
-	logrus.Debugf("mlflow: downloading from artifact URI %s", uri.ArtifactUri)
+	logrus.Infof("mlflow: downloading from artifact URI %s", uri.ArtifactUri)
 	parsed, err := url.Parse(uri.ArtifactUri)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse artifact uri: %w", err)

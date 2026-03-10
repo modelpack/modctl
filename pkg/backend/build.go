@@ -95,7 +95,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 
 	layers = append(layers, layerDescs...)
 
-	logrus.Debugf("build: processed layers [count: %d, layers: %+v]", len(layers), layers)
+	logrus.Infof("build: processed layers [count: %d, layers: %+v]", len(layers), layers)
 
 	revision := sourceInfo.Commit
 	if revision != "" && sourceInfo.Dirty {
@@ -119,7 +119,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		return fmt.Errorf("failed to build model config: %w", err)
 	}
 
-	logrus.Debugf("build: built model config [config: %+v]", config)
+	logrus.Infof("build: built model config [config: %+v]", config)
 
 	var configDesc ocispec.Descriptor
 	// Build the model config.

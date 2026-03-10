@@ -134,7 +134,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		return fmt.Errorf("failed to pull blob to local: %w", err)
 	}
 
-	logrus.Debugf("pull: layers pulled [count: %d]", len(manifest.Layers))
+	logrus.Infof("pull: layers pulled [count: %d]", len(manifest.Layers))
 
 	// return earlier if extract from remote is enabled as config and manifest
 	// are not needed for this operation.

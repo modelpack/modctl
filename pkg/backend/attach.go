@@ -73,7 +73,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		return fmt.Errorf("failed to get source model config: %w", err)
 	}
 
-	logrus.Debugf("attach: loaded source model config [config: %+v]", srcModelConfig)
+	logrus.Infof("attach: loaded source model config [config: %+v]", srcModelConfig)
 
 	proc := b.getProcessor(cfg.DestinationDir, filepath, cfg.Raw)
 	if proc == nil {
@@ -111,7 +111,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 			}
 		}
 
-		logrus.Debugf("attach: found existing layer for file %s [layer: %+v]", filepath, foundLayer)
+		logrus.Infof("attach: found existing layer for file %s [layer: %+v]", filepath, foundLayer)
 		if foundLayer != nil {
 			// Remove the found layer from the layers slice as we need to replace it with the new layer.
 			for i, layer := range layers {
@@ -177,7 +177,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		}
 	}
 
-	logrus.Debugf("attach: built model config [config: %+v]", config)
+	logrus.Infof("attach: built model config [config: %+v]", config)
 
 	configDesc, err := builder.BuildConfig(ctx, config, hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
