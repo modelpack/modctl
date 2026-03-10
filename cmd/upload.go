@@ -31,12 +31,11 @@ var uploadConfig = config.NewUpload()
 
 // uploadCmd represents the modctl command for upload.
 var uploadCmd = &cobra.Command{
-	Use:                "upload [flags] <file>",
-	Short:              "Upload a file to the remote end in advance to save time in the later build, applicable to the scenario of uploading while downloading, this function needs to be used together with build.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "upload [flags] <file>",
+	Short:             "Upload a file to the remote end in advance to save time in the later build, applicable to the scenario of uploading while downloading, this function needs to be used together with build.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := uploadConfig.Validate(); err != nil {
 			return err

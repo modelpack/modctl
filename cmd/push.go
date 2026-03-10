@@ -31,12 +31,11 @@ var pushConfig = config.NewPush()
 
 // pushCmd represents the modctl command for push.
 var pushCmd = &cobra.Command{
-	Use:                "push [flags] <target>",
-	Short:              "Push a model artifact to the remote registry.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "push [flags] <target>",
+	Short:             "Push a model artifact to the remote registry.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := pushConfig.Validate(); err != nil {
 			return err

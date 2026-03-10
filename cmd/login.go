@@ -43,10 +43,9 @@ modctl login -u foo registry-1.docker.io
 # login to registry served over http:
 modctl login -u foo --plain-http registry-insecure.io
 `,
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := loginConfig.Validate(); err != nil {
 			return err

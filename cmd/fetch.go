@@ -31,12 +31,11 @@ var fetchConfig = config.NewFetch()
 
 // fetchCmd represents the modctl command for fetch.
 var fetchCmd = &cobra.Command{
-	Use:                "fetch [flags] <target>",
-	Short:              "Fetch can retrieve files from the remote model repository, enabling selective download of partial model files by filtering based on file path patterns.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "fetch [flags] <target>",
+	Short:             "Fetch can retrieve files from the remote model repository, enabling selective download of partial model files by filtering based on file path patterns.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := fetchConfig.Validate(); err != nil {
 			return err
