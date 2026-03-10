@@ -27,7 +27,7 @@ import (
 
 // Tag creates a new tag that refers to the source model artifact.
 func (b *backend) Tag(ctx context.Context, source, target string) error {
-	logrus.Infof("tag: starting tag operation from source %s to target %s", source, target)
+	logrus.Infof("tag: tagging %s as %s", source, target)
 	srcRef, err := ParseReference(source)
 	if err != nil {
 		return fmt.Errorf("failed to parse source: %w", err)
@@ -68,6 +68,6 @@ func (b *backend) Tag(ctx context.Context, source, target string) error {
 		return fmt.Errorf("failed to push manifest: %w", err)
 	}
 
-	logrus.Infof("tag: successfully tagged source %s to target %s", source, target)
+	logrus.Infof("tag: tagged %s as %s", source, target)
 	return nil
 }

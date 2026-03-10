@@ -37,7 +37,7 @@ import (
 
 // Push pushes the image to the registry.
 func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) error {
-	logrus.Infof("push: starting push operation for target %s [config: %+v]", target, cfg)
+	logrus.Infof("push: pushing artifact %s", target)
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -80,7 +80,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("push: processing layers for target %s [count: %d]", target, len(manifest.Layers))
+	logrus.Infof("push: pushing %d layers for %s", len(manifest.Layers), target)
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -123,7 +123,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
 
-	logrus.Infof("push: successfully pushed artifact %s", target)
+	logrus.Infof("push: pushed artifact %s", target)
 	return nil
 }
 

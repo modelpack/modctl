@@ -35,11 +35,11 @@ import (
 
 // Fetch fetches partial files to the output.
 func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) error {
-	logrus.Infof("fetch: starting fetch operation for target %s [config: %+v]", target, cfg)
+	logrus.Infof("fetch: fetching from %s", target)
 
 	// fetchByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
 	if cfg.DragonflyEndpoint != "" {
-		logrus.Infof("fetch: using dragonfly for target %s", target)
+		logrus.Infof("fetch: using dragonfly for %s", target)
 		return b.fetchByDragonfly(ctx, target, cfg)
 	}
 
@@ -104,7 +104,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("fetch: processing matched layers [count: %d]", len(layers))
+	logrus.Infof("fetch: fetching %d matched layers", len(layers))
 	for _, layer := range layers {
 		g.Go(func() error {
 			select {
@@ -127,6 +127,6 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 		return err
 	}
 
-	logrus.Infof("fetch: successfully fetched layers [count: %d]", len(layers))
+	logrus.Infof("fetch: fetched %d layers", len(layers))
 	return nil
 }

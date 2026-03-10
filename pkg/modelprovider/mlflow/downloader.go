@@ -17,7 +17,7 @@ import (
 	"github.com/databricks/databricks-sdk-go/client"
 	"github.com/databricks/databricks-sdk-go/config"
 	"github.com/databricks/databricks-sdk-go/service/ml"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 type MlFlowClient struct {
@@ -39,7 +39,7 @@ func NewMlFlowRegistry(mlflowClient *client.DatabricksClient) (MlFlowClient, err
 
 	if mlflowClient != nil {
 		registry = ml.NewModelRegistry(mlflowClient)
-		log.Println("Use default mlflow client for MlFlowRegistryAPI")
+		logrus.Infof("mlflow: using provided client for registry API")
 		return MlFlowClient{registry: registry}, nil
 	}
 
@@ -83,7 +83,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 
 		pullVersion = versions[0].Version
 
-		log.Printf("Found versions: '%v' for model '%s'\n", pullVersion, modelName)
+		logrus.Infof("mlflow: resolved version %s for model %s", pullVersion, modelName)
 
 	} else {
 
@@ -109,7 +109,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 			pullVersion = modelVersion
 		}
 	}
-	log.Printf("Start pull model from model registry with version %s", pullVersion)
+	logrus.Infof("mlflow: pulling model version %s from registry", pullVersion)
 
 	uri, err := mlfr.registry.GetModelVersionDownloadUri(ctx, ml.GetModelVersionDownloadUriRequest{
 		Name:    modelName,
@@ -118,7 +118,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 	if err != nil {
 		return "", errors.Join(errors.New("failed fetch download uri for model"), err)
 	}
-	log.Printf("Try pull model from uri %s", uri.ArtifactUri)
+	logrus.Infof("mlflow: downloading from artifact URI %s", uri.ArtifactUri)
 	parsed, err := url.Parse(uri.ArtifactUri)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse artifact uri: %w", err)
@@ -141,7 +141,7 @@ func (mlfr *MlFlowClient) PullModelByName(
 		return "", err
 	}
 
-	log.Printf("✅ Model downloaded")
+	logrus.Infof("mlflow: model downloaded")
 
 	return destSrc, nil
 }
@@ -162,7 +162,7 @@ func (s3back *S3StorageBackend) DownloadModel(
 
 	bucketName := parsed.Host
 	s3FolderPrefix := strings.TrimPrefix(parsed.Path, "/")
-	log.Printf("Parsed s3 bucket %s, path %s from path", bucketName, s3FolderPrefix)
+	logrus.Debugf("mlflow: parsed s3 bucket %s, path %s", bucketName, s3FolderPrefix)
 
 	cfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
@@ -170,7 +170,7 @@ func (s3back *S3StorageBackend) DownloadModel(
 		return errors.Join(wrap, err)
 	}
 
-	log.Printf("Region - %s, endpoint - %s", cfg.Region, aws.ToString(cfg.BaseEndpoint))
+	logrus.Debugf("mlflow: aws region %s, endpoint %s", cfg.Region, aws.ToString(cfg.BaseEndpoint))
 
 	s3Client := s3.NewFromConfig(cfg)
 
@@ -184,18 +184,18 @@ func (s3back *S3StorageBackend) DownloadModel(
 		Prefix: aws.String(s3FolderPrefix),
 	})
 
-	log.Printf("Start downloading from s3 bucket %s, path %s", bucketName, s3FolderPrefix)
+	logrus.Infof("mlflow: downloading from S3 bucket %s [prefix: %s]", bucketName, s3FolderPrefix)
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
 		if err != nil {
-			log.Printf("Error listing objects: %v\n", err)
+			logrus.Errorf("mlflow: failed to list objects: %v", err)
 			return err
 		}
 
 		for _, object := range page.Contents {
 			s3Key := *object.Key
-			log.Printf("Downloading object: %s\n", s3Key)
+			logrus.Debugf("mlflow: downloading object %s", s3Key)
 			if strings.HasSuffix(s3Key, "/") { // Skip S3 "folder" markers
 				continue
 			}
@@ -208,10 +208,9 @@ func (s3back *S3StorageBackend) DownloadModel(
 			// Create local directories if they don't exist
 			err = os.MkdirAll(filepath.Dir(localFilePath), 0o755)
 			if err != nil {
-				log.Printf(
-					"Error creating local directory %s: %v\n",
-					filepath.Dir(localFilePath),
-					err,
+				logrus.Errorf(
+					"mlflow: failed to create local directory %s: %v",
+					filepath.Dir(localFilePath), err,
 				)
 				continue
 			}
@@ -219,7 +218,7 @@ func (s3back *S3StorageBackend) DownloadModel(
 			// Download the object
 			file, err := os.Create(localFilePath)
 			if err != nil {
-				log.Printf("Error creating local file %s: %v\n", localFilePath, err)
+				logrus.Errorf("mlflow: failed to create local file %s: %v", localFilePath, err)
 				continue
 			}
 
@@ -230,18 +229,21 @@ func (s3back *S3StorageBackend) DownloadModel(
 			closeErr := file.Close()
 			if err != nil || closeErr != nil {
 				if err != nil {
-					log.Printf("Error downloading object %s: %v\n", s3Key, err)
+					logrus.Errorf("mlflow: failed to download object %s: %v", s3Key, err)
 				}
 				if closeErr != nil {
-					log.Printf("Error closing file %s: %v\n", localFilePath, closeErr)
+					logrus.Errorf("mlflow: failed to close file %s: %v", localFilePath, closeErr)
 				}
 				if removeErr := os.Remove(localFilePath); removeErr != nil &&
 					!errors.Is(removeErr, os.ErrNotExist) {
-					log.Printf("Error removing partial file %s: %v\n", localFilePath, removeErr)
+					logrus.Errorf(
+						"mlflow: failed to remove partial file %s: %v",
+						localFilePath, removeErr,
+					)
 				}
 				continue
 			}
-			log.Printf("Downloaded %s to %s (%d bytes)\n", s3Key, localFilePath, numBytes)
+			logrus.Debugf("mlflow: downloaded %s to %s (%d bytes)", s3Key, localFilePath, numBytes)
 		}
 	}
 
