@@ -45,7 +45,7 @@ import (
 
 // fetchByDragonfly fetches partial files via Dragonfly gRPC service based on pattern matching.
 func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *config.Fetch) error {
-	logrus.Infof("fetch: starting dragonfly fetch operation for target %s", target)
+	logrus.Infof("fetch: fetching from %s via dragonfly", target)
 
 	// Parse reference and initialize remote client.
 	ref, err := ParseReference(target)
@@ -127,7 +127,7 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("fetch: processing matched layers via dragonfly [count: %d]", len(layers))
+	logrus.Infof("fetch: fetching %d matched layers via dragonfly", len(layers))
 	for _, layer := range layers {
 		g.Go(func() error {
 			select {
@@ -149,7 +149,7 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 		return err
 	}
 
-	logrus.Infof("fetch: successfully fetched layers via dragonfly [count: %d]", len(layers))
+	logrus.Infof("fetch: fetched %d layers via dragonfly", len(layers))
 	return nil
 }
 

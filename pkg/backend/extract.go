@@ -42,7 +42,7 @@ const (
 
 // Extract extracts the model artifact.
 func (b *backend) Extract(ctx context.Context, target string, cfg *config.Extract) error {
-	logrus.Infof("extract: starting extract operation for target %s [config: %+v]", target, cfg)
+	logrus.Infof("extract: extracting artifact %s", target)
 	// parse the repository and tag from the target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -71,7 +71,7 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("extract: processing layers for target %s [count: %d]", repo, len(manifest.Layers))
+	logrus.Infof("extract: extracting %d layers for %s", len(manifest.Layers), repo)
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -91,7 +91,10 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 			bufferedReader := bufio.NewReaderSize(reader, defaultBufferSize)
 			if err := extractLayer(layer, cfg.Output, bufferedReader); err != nil {
 				if errors.Is(err, pkgcodec.ErrAlreadyUpToDate) {
-					logrus.Debugf("extract: skipped layer %s because target is up-to-date", layer.Digest.String())
+					logrus.Debugf(
+						"extract: skipping layer %s, already up-to-date",
+						layer.Digest.String(),
+					)
 					return nil
 				}
 
@@ -108,7 +111,7 @@ func exportModelArtifact(ctx context.Context, store storage.Storage, manifest oc
 		return err
 	}
 
-	logrus.Infof("extract: successfully extracted model artifact %s", repo)
+	logrus.Infof("extract: extracted artifact %s", repo)
 	return nil
 }
 

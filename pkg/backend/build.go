@@ -45,7 +45,7 @@ const (
 
 // Build builds the user materials into the model artifact which follows the Model Spec.
 func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string, cfg *config.Build) error {
-	logrus.Infof("build: starting build operation for target %s [config: %+v]", target, cfg)
+	logrus.Infof("build: building artifact %s", target)
 	// parse the repo name and tag name from target.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -95,7 +95,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 
 	layers = append(layers, layerDescs...)
 
-	logrus.Infof("build: processed layers for artifact [count: %d, layers: %+v]", len(layers), layers)
+	logrus.Infof("build: processed layers [count: %d, layers: %+v]", len(layers), layers)
 
 	revision := sourceInfo.Commit
 	if revision != "" && sourceInfo.Dirty {
@@ -158,7 +158,7 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
 
-	logrus.Infof("build: successfully built model artifact %s", target)
+	logrus.Infof("build: built artifact %s", target)
 	return nil
 }
 

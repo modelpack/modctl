@@ -49,7 +49,7 @@ const (
 
 // pullByDragonfly pulls and hardlinks blobs from Dragonfly gRPC service for remote extraction.
 func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *config.Pull) error {
-	logrus.Infof("pull: starting dragonfly pull operation for target %s", target)
+	logrus.Infof("pull: pulling artifact %s via dragonfly", target)
 	// Parse reference and initialize remote client.
 	ref, err := ParseReference(target)
 	if err != nil {
@@ -103,7 +103,7 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("pull: processing layers via dragonfly [count: %d]", len(manifest.Layers))
+	logrus.Infof("pull: pulling %d layers via dragonfly", len(manifest.Layers))
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
@@ -125,7 +125,7 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 		return err
 	}
 
-	logrus.Infof("pull: successfully pulled artifact %s via dragonfly", target)
+	logrus.Infof("pull: pulled artifact %s via dragonfly", target)
 	return nil
 }
 

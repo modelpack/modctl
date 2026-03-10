@@ -95,7 +95,7 @@ func (r *raw) fileNeedsUpdate(fullPath string, desc ocispec.Descriptor) (bool, e
 
 	if string(storedSize) == expectedSize && string(storedDigest) == expectedDigest {
 		// File is up-to-date, no need to write.
-		logrus.Debugf("file %s is up-to-date", fullPath)
+		logrus.Debugf("codec: file %s is up-to-date", fullPath)
 		return false, nil
 	}
 
@@ -129,7 +129,7 @@ func (r *raw) Decode(outputDir, filePath string, reader io.Reader, desc ocispec.
 	// Check if file needs update.
 	needsUpdate, err := r.fileNeedsUpdate(fullPath, desc)
 	if err != nil {
-		logrus.Errorf("failed to check whether the file %s needs to be updated: %s", fullPath, err)
+		logrus.Errorf("codec: failed to check file update status for %s: %s", fullPath, err)
 		needsUpdate = true
 	}
 
@@ -183,7 +183,7 @@ func (r *raw) Decode(outputDir, filePath string, reader io.Reader, desc ocispec.
 	// Store size and digest in xattrs after successful write.
 	// Ignore errors as xattrs might not be supported on all filesystems.
 	if err := r.storeFileMetadata(fullPath, desc); err != nil {
-		logrus.Errorf("failed to store file metadata of %s: %s", fullPath, err)
+		logrus.Errorf("codec: failed to store file metadata for %s: %s", fullPath, err)
 	}
 
 	return nil

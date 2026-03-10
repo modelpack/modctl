@@ -126,14 +126,14 @@ func makeHeader() http.Header {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		logrus.Errorf("failed to get hostname: %v", err)
+		logrus.Errorf("remote: failed to get hostname: %v", err)
 	} else {
 		header.Set("X-Hostname", hostname)
 	}
 
 	ipAddr := getLocalIP()
 	if ipAddr == "" {
-		logrus.Errorf("failed to get local IP address")
+		logrus.Errorf("remote: failed to get local IP address")
 	} else {
 		header.Set("X-Host-Ip", ipAddr)
 	}
