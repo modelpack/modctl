@@ -32,6 +32,7 @@ import (
 // --- Raw Codec Tests ---
 
 func TestRawEncodeDecode(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	content := []byte("hello world raw codec test")
 
@@ -44,6 +45,9 @@ func TestRawEncodeDecode(t *testing.T) {
 	// Encode: should return a reader with the file's content.
 	reader, err := r.Encode(srcPath, dir)
 	require.NoError(t, err)
+	if c, ok := reader.(io.Closer); ok {
+		t.Cleanup(func() { _ = c.Close() })
+	}
 
 	encoded, err := io.ReadAll(reader)
 	require.NoError(t, err)
@@ -63,6 +67,7 @@ func TestRawEncodeDecode(t *testing.T) {
 }
 
 func TestRawEncodeEmpty(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	content := []byte{}
 
@@ -73,6 +78,9 @@ func TestRawEncodeEmpty(t *testing.T) {
 
 	reader, err := r.Encode(srcPath, dir)
 	require.NoError(t, err)
+	if c, ok := reader.(io.Closer); ok {
+		t.Cleanup(func() { _ = c.Close() })
+	}
 
 	encoded, err := io.ReadAll(reader)
 	require.NoError(t, err)
@@ -80,6 +88,7 @@ func TestRawEncodeEmpty(t *testing.T) {
 }
 
 func TestRawDecodeInvalidInput(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := newRaw()
 
@@ -101,6 +110,7 @@ func (e *errorReader) Read([]byte) (int, error) {
 // --- Tar Codec Tests ---
 
 func TestTarArchiveSingleFile(t *testing.T) {
+	t.Parallel()
 	srcDir := t.TempDir()
 	content := []byte("single file content")
 
@@ -111,6 +121,9 @@ func TestTarArchiveSingleFile(t *testing.T) {
 
 	reader, err := c.Encode(filePath, srcDir)
 	require.NoError(t, err)
+	if c, ok := reader.(io.Closer); ok {
+		t.Cleanup(func() { _ = c.Close() })
+	}
 
 	// Read the tar stream fully so it can be used for extraction.
 	tarData, err := io.ReadAll(reader)
@@ -129,6 +142,7 @@ func TestTarArchiveSingleFile(t *testing.T) {
 }
 
 func TestTarArchiveMultipleFiles(t *testing.T) {
+	t.Parallel()
 	srcDir := t.TempDir()
 
 	files := map[string]string{
@@ -148,6 +162,9 @@ func TestTarArchiveMultipleFiles(t *testing.T) {
 	// Archive the entire directory.
 	reader, err := c.Encode(srcDir, filepath.Dir(srcDir))
 	require.NoError(t, err)
+	if c, ok := reader.(io.Closer); ok {
+		t.Cleanup(func() { _ = c.Close() })
+	}
 
 	tarData, err := io.ReadAll(reader)
 	require.NoError(t, err)
@@ -170,6 +187,7 @@ func TestTarArchiveMultipleFiles(t *testing.T) {
 }
 
 func TestTarExtractRoundtrip(t *testing.T) {
+	t.Parallel()
 	srcDir := t.TempDir()
 	content := []byte("roundtrip data 1234567890")
 
@@ -180,6 +198,9 @@ func TestTarExtractRoundtrip(t *testing.T) {
 	// Encode.
 	reader, err := c.Encode(filepath.Join(srcDir, "data.bin"), srcDir)
 	require.NoError(t, err)
+	if c, ok := reader.(io.Closer); ok {
+		t.Cleanup(func() { _ = c.Close() })
+	}
 
 	tarData, err := io.ReadAll(reader)
 	require.NoError(t, err)
@@ -195,6 +216,7 @@ func TestTarExtractRoundtrip(t *testing.T) {
 }
 
 func TestTarInvalidArchive(t *testing.T) {
+	t.Parallel()
 	c := newTar()
 	extractDir := t.TempDir()
 	desc := ocispec.Descriptor{}
