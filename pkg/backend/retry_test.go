@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testRetryOpts overrides defaultRetryOpts with no delay for fast tests.
+// testRetryOpts creates retry options with zero delay so tests run fast and deterministically.
 func testRetryOpts(ctx context.Context, maxAttempts uint) []retry.Option {
 	return []retry.Option{
 		retry.Attempts(maxAttempts),
@@ -78,8 +78,8 @@ func TestRetryStopsOnContextCancel(t *testing.T) {
 		return errors.New("temporary failure")
 	}, testRetryOpts(ctx, 10)...)
 
-	assert.Error(t, err)
-	assert.True(t, attempts >= 2, "should have attempted at least 2 times")
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, 2, attempts)
 }
 
 func TestRetrySucceedsOnFirstAttempt(t *testing.T) {
