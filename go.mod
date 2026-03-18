@@ -1,9 +1,9 @@
 module github.com/modelpack/modctl
 
-go 1.24.1
+go 1.25.5
 
 require (
-	d7y.io/api/v2 v2.2.8
+	d7y.io/api/v2 v2.2.26
 	github.com/antgroup/hugescm v0.18.3
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/aws/aws-sdk-go-v2 v1.41.4
@@ -72,7 +72,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
-	github.com/envoyproxy/protoc-gen-validate v1.3.0 // indirect
+	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
