@@ -42,7 +42,6 @@ func TestIsFileTypeModelPatterns(t *testing.T) {
 		{"train.parquet", true},
 		{"model.ftz", true},
 		{"feats.ark", true},
-		{"events.out.tfevents.1679012345.hostname", true}, // *.tfevents* matches via filepath.Match (wildcards match dots)
 		{"training.db", true},
 
 		// Sharded/variant patterns.
@@ -62,11 +61,28 @@ func TestIsFileTypeModelPatterns(t *testing.T) {
 		// Non-matching files.
 		{"readme.txt", false},
 		{"script.py", false},
+		{"events.out.tfevents.1679012345.hostname", false}, // tfevents moved to DocFilePatterns
 	}
 
 	assert := assert.New(t)
 	for _, tc := range testCases {
 		assert.Equal(tc.expected, IsFileType(tc.filename, ModelFilePatterns), "filename: %s", tc.filename)
+	}
+}
+
+func TestIsFileTypeDocPatternsTfevents(t *testing.T) {
+	testCases := []struct {
+		filename string
+		expected bool
+	}{
+		{"events.out.tfevents.1679012345.hostname", true}, // *.tfevents* matches via filepath.Match (wildcards match dots)
+		{"train.tfevents", true},
+		{"model.safetensors", false}, // model files should not match doc patterns
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testCases {
+		assert.Equal(tc.expected, IsFileType(tc.filename, DocFilePatterns), "filename: %s", tc.filename)
 	}
 }
 

@@ -139,7 +139,6 @@ var (
 		"*.parquet",    // Apache Parquet columnar format
 		"*.ftz",        // FastText compressed model
 		"*.ark",        // Kaldi ark format (speech/audio models)
-		"*.tfevents*",  // TensorBoard event files
 		"*.db",         // Database files (LMDB, etc.)
 	}
 
@@ -305,6 +304,7 @@ var (
 		"SETUP*",         // Setup instructions
 		"*requirements*", // Dependency specifications
 		"*.log",          // Log files
+		"*.tfevents*",    // TensorBoard event files
 
 		// Office documents
 		"*.doc",   // Microsoft Word 97-2003 Document
