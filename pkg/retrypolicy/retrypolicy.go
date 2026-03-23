@@ -51,6 +51,8 @@ const (
 type Config struct {
 	MaxRetryTime time.Duration // 0 = dynamic based on file size
 	NoRetry      bool          // disable retry entirely
+	InitialDelay time.Duration // 0 = use default (5s), for testing
+	MaxJitter    time.Duration // -1 = no jitter, 0 = use default (5s), for testing
 }
 
 // DoOpts configures a single Do call.
@@ -93,6 +95,17 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 
 	sizeStr := humanizeBytes(opts.FileSize)
 
+	delay := initialDelay
+	jitter := maxJitter
+	if cfg.InitialDelay > 0 {
+		delay = cfg.InitialDelay
+	}
+	if cfg.MaxJitter < 0 {
+		jitter = 0
+	} else if cfg.MaxJitter > 0 {
+		jitter = cfg.MaxJitter
+	}
+
 	return retry.Do(
 		func() error {
 			return fn(deadlineCtx)
@@ -100,9 +113,9 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 		retry.Attempts(0),
 		retry.Context(deadlineCtx),
 		retry.DelayType(retry.BackOffDelay),
-		retry.Delay(initialDelay),
+		retry.Delay(delay),
 		retry.MaxDelay(maxBackoff),
-		retry.MaxJitter(maxJitter),
+		retry.MaxJitter(jitter),
 		retry.LastErrorOnly(true),
 		retry.WrapContextErrorWithLastError(true),
 		retry.RetryIf(func(err error) bool {
@@ -180,8 +193,8 @@ func IsRetryable(err error) bool {
 		return false
 	}
 
-	// context.Canceled is never retryable — it means user/system cancellation.
-	if errors.Is(err, context.Canceled) {
+	// context.Canceled and context.DeadlineExceeded are never retryable.
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
 	}
 

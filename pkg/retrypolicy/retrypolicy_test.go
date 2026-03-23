@@ -133,6 +133,16 @@ func TestIsRetryable(t *testing.T) {
 			want: false,
 		},
 		{
+			name: "context.DeadlineExceeded",
+			err:  context.DeadlineExceeded,
+			want: false,
+		},
+		{
+			name: "wrapped context.DeadlineExceeded",
+			err:  fmt.Errorf("operation timed out: %w", context.DeadlineExceeded),
+			want: false,
+		},
+		{
 			name: "HTTP 500 server error",
 			err:  fmt.Errorf("PUT /blobs/uploads: response status code 500: internal server error"),
 			want: true,
@@ -344,6 +354,7 @@ func TestDo_RetryOnTransientError(t *testing.T) {
 	}, DoOpts{
 		FileSize: 100,
 		FileName: "test.bin",
+		Config:   &Config{InitialDelay: 10 * time.Millisecond, MaxJitter: -1},
 	})
 
 	if err != nil {
@@ -406,6 +417,7 @@ func TestDo_ParentContextCancel(t *testing.T) {
 	}, DoOpts{
 		FileSize: 100,
 		FileName: "test.bin",
+		Config:   &Config{InitialDelay: 10 * time.Millisecond, MaxJitter: -1},
 	})
 
 	if err == nil {
@@ -427,6 +439,7 @@ func TestDo_OnRetryCallback(t *testing.T) {
 	}, DoOpts{
 		FileSize: 100,
 		FileName: "test.bin",
+		Config:   &Config{InitialDelay: 10 * time.Millisecond, MaxJitter: -1},
 		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 			retryAttempts = append(retryAttempts, attempt)
 			retryReasons = append(retryReasons, reason)
@@ -458,7 +471,9 @@ func TestDo_ConfigMaxRetryTimeOverride(t *testing.T) {
 		FileSize: 100,
 		FileName: "test.bin",
 		Config: &Config{
-			MaxRetryTime: 8 * time.Second,
+			MaxRetryTime: 1 * time.Second,
+			InitialDelay: 50 * time.Millisecond,
+			MaxJitter:    -1,
 		},
 	})
 
@@ -467,9 +482,9 @@ func TestDo_ConfigMaxRetryTimeOverride(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error after retry timeout, got nil")
 	}
-	// Should have run for approximately MaxRetryTime (8s), not the dynamic default (10min).
-	if elapsed > 30*time.Second {
-		t.Errorf("expected retry to terminate within ~8s, but elapsed %v", elapsed)
+	// Should have run for approximately MaxRetryTime (1s), not the dynamic default (10min).
+	if elapsed > 5*time.Second {
+		t.Errorf("expected retry to terminate within ~1s, but elapsed %v", elapsed)
 	}
 	if atomic.LoadInt32(&callCount) < 2 {
 		t.Errorf("expected at least 2 attempts, got %d", callCount)

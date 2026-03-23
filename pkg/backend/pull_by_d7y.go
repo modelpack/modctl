@@ -201,10 +201,10 @@ func processLayer(ctx context.Context, pb *internalpb.ProgressBar, client dfdaem
 		}
 	}
 
-	err := retrypolicy.Do(ctx, func(ctx context.Context) error {
+	err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 		logrus.Debugf("pull: processing layer %s", desc.Digest)
 		cfg.Hooks.BeforePullLayer(desc, manifest) // Call before hook
-		err := downloadAndExtractLayer(ctx, pb, client, ref, desc, authToken, cfg)
+		err := downloadAndExtractLayer(rctx, pb, client, ref, desc, authToken, cfg)
 		cfg.Hooks.AfterPullLayer(desc, err) // Call after hook
 		if err != nil {
 			err = fmt.Errorf("pull: failed to download and extract layer %s: %w", desc.Digest, err)

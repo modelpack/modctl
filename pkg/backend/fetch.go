@@ -130,8 +130,8 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			}
 
 			logrus.Debugf("fetch: processing layer %s", layer.Digest)
-			if err := retrypolicy.Do(ctx, func(ctx context.Context) error {
-				return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer)
+			if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
+				return pullAndExtractFromRemote(rctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer)
 			}, retrypolicy.DoOpts{
 				FileSize: layer.Size,
 				FileName: annoFilepath,

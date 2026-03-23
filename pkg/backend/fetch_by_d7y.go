@@ -177,10 +177,10 @@ func fetchLayerByDragonfly(ctx context.Context, pb *internalpb.ProgressBar, clie
 		}
 	}
 
-	err := retrypolicy.Do(ctx, func(ctx context.Context) error {
+	err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 		logrus.Debugf("fetch: processing layer %s", desc.Digest)
 		cfg.Hooks.BeforePullLayer(desc, manifest) // Call before hook
-		err := downloadAndExtractFetchLayer(ctx, pb, client, ref, desc, authToken, cfg)
+		err := downloadAndExtractFetchLayer(rctx, pb, client, ref, desc, authToken, cfg)
 		cfg.Hooks.AfterPullLayer(desc, err) // Call after hook
 		if err != nil {
 			err = fmt.Errorf("pull: failed to download and extract layer %s: %w", desc.Digest, err)
