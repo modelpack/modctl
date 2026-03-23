@@ -131,22 +131,33 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		FileSize: manifest.Config.Size,
 		FileName: "config",
 		Config:   &cfg.RetryConfig,
+		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+			prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
+				internalpb.NormalizePrompt("Copying config"), attempt, reason, backoff.Truncate(time.Second))
+			pb.Add(prompt, manifest.Config.Digest.String(), manifest.Config.Size, nil)
+		},
 	}); err != nil {
 		return fmt.Errorf("failed to push config to remote: %w", err)
 	}
 
 	// copy the manifest.
+	manifestDesc := ocispec.Descriptor{
+		MediaType: manifest.MediaType,
+		Size:      int64(len(manifestRaw)),
+		Digest:    godigest.FromBytes(manifestRaw),
+		Data:      manifestRaw,
+	}
 	if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
-		return pushIfNotExist(rctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, ocispec.Descriptor{
-			MediaType: manifest.MediaType,
-			Size:      int64(len(manifestRaw)),
-			Digest:    godigest.FromBytes(manifestRaw),
-			Data:      manifestRaw,
-		}, repo, tag)
+		return pushIfNotExist(rctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, manifestDesc, repo, tag)
 	}, retrypolicy.DoOpts{
-		FileSize: int64(len(manifestRaw)),
+		FileSize: manifestDesc.Size,
 		FileName: "manifest",
 		Config:   &cfg.RetryConfig,
+		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+			prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
+				internalpb.NormalizePrompt("Copying manifest"), attempt, reason, backoff.Truncate(time.Second))
+			pb.Add(prompt, manifestDesc.Digest.String(), manifestDesc.Size, nil)
+		},
 	}); err != nil {
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
