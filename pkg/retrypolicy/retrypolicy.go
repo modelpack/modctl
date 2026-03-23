@@ -219,7 +219,19 @@ func IsRetryable(err error) bool {
 		return true
 	}
 
-	// Unknown errors default to retryable.
+	// Local / permanent errors are not retryable.
+	if strings.Contains(errMsg, "permission denied") ||
+		strings.Contains(errMsg, "no space left on device") ||
+		strings.Contains(errMsg, "file exists") ||
+		strings.Contains(errMsg, "not a directory") ||
+		strings.Contains(errMsg, "is a directory") ||
+		strings.Contains(errMsg, "no such file or directory") ||
+		strings.Contains(errMsg, "invalid argument") {
+		return false
+	}
+
+	// Unknown errors default to retryable with a warning.
+	log.WithField("error", errMsg).Warn("[RETRY] unknown error treated as retryable")
 	return true
 }
 

@@ -98,13 +98,13 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	var mu sync.Mutex
 	var errs []error
 
-	var fn func(desc ocispec.Descriptor) error
+	var fn func(ctx context.Context, desc ocispec.Descriptor) error
 	if cfg.ExtractFromRemote {
-		fn = func(desc ocispec.Descriptor) error {
+		fn = func(ctx context.Context, desc ocispec.Descriptor) error {
 			return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, cfg.ExtractDir, desc)
 		}
 	} else {
-		fn = func(desc ocispec.Descriptor) error {
+		fn = func(ctx context.Context, desc ocispec.Descriptor) error {
 			return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, dst, desc, repo, tag)
 		}
 	}
@@ -122,7 +122,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 				logrus.Debugf("pull: processing layer %s", layer.Digest)
 				// call the before hook.
 				cfg.Hooks.BeforePullLayer(layer, manifest)
-				err := fn(layer)
+				err := fn(retryCtx, layer)
 				// call the after hook.
 				cfg.Hooks.AfterPullLayer(layer, err)
 				if err != nil {

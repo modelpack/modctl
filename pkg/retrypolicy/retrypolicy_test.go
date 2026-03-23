@@ -207,6 +207,21 @@ func TestIsRetryable(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "permission denied - not retryable",
+			err:  fmt.Errorf("open /data/model.bin: permission denied"),
+			want: false,
+		},
+		{
+			name: "no space left on device - not retryable",
+			err:  fmt.Errorf("write /data/model.bin: no space left on device"),
+			want: false,
+		},
+		{
+			name: "no such file or directory - not retryable",
+			err:  fmt.Errorf("open /data/model.bin: no such file or directory"),
+			want: false,
+		},
+		{
 			name: "unknown error - defaults to retryable",
 			err:  errors.New("something totally unexpected happened"),
 			want: true,
