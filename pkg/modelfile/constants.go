@@ -63,7 +63,8 @@ var (
 		"*.safetensors", // Safe and efficient tensor serialization format
 
 		// PyTorch formats.
-		"*.bin", // General binary format
+		"*.bin",   // General binary format
+		"*.bin.*", // Sharded binary files (e.g., model.bin.1)
 		"*.pt",  // PyTorch model
 		"*.pth", // PyTorch model (alternative extension)
 		"*.mar", // PyTorch Model Archive
@@ -82,7 +83,8 @@ var (
 		"*.index",  // TensorFlow checkpoint index
 
 		// GGML formats.
-		"*.gguf", // GGML Universal Format
+		"*.gguf",   // GGML Universal Format
+		"*.gguf.*", // Partitioned GGUF files
 		"*.ggml", // GGML format (legacy)
 		"*.ggmf", // GGMF format (deprecated)
 		"*.ggjt", // GGJT format (deprecated)
@@ -125,11 +127,20 @@ var (
 		"*.mleap",      // MLeap format (Spark ML)
 		"*.surml",      // SurrealML format
 		"*.llamafile",  // Llamafile format
+		"*.llamafile.*", // Llamafile variants
 		"*.caffemodel", // Caffe model format
 		"*.prototxt",   // Caffe model definition
 		"*.dlc",        // Qualcomm Deep Learning Container
 		"*.circle",     // Samsung Circle format
 		"*.nb",         // Neural Network Binary format
+
+		// Data and dataset formats.
+		"*.arrow",      // Apache Arrow columnar format
+		"*.parquet",    // Apache Parquet columnar format
+		"*.ftz",        // FastText compressed model
+		"*.ark",        // Kaldi ark format (speech/audio models)
+		"*.tfevents*",  // TensorBoard event files
+		"*.db",         // Database files (LMDB, etc.)
 	}
 
 	// Code file patterns - supported script and notebook files.
