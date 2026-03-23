@@ -19,15 +19,17 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	common "d7y.io/api/v2/pkg/apis/common/v2"
 	dfdaemon "d7y.io/api/v2/pkg/apis/dfdaemon/v2"
-	"github.com/avast/retry-go/v4"
 	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -41,6 +43,7 @@ import (
 	"github.com/modelpack/modctl/pkg/archiver"
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/retrypolicy"
 )
 
 const (
@@ -100,8 +103,11 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 	defer pb.Stop()
 
 	// Process layers concurrently.
-	g, ctx := errgroup.WithContext(ctx)
+	g := new(errgroup.Group)
 	g.SetLimit(cfg.Concurrency)
+
+	var mu sync.Mutex
+	var errs []error
 
 	logrus.Infof("pull: pulling %d layers via dragonfly", len(manifest.Layers))
 	for _, layer := range manifest.Layers {
@@ -114,14 +120,18 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 
 			logrus.Debugf("pull: processing layer %s via dragonfly", layer.Digest)
 			if err := processLayer(ctx, pb, dfdaemon.NewDfdaemonDownloadClient(conn), ref, manifest, layer, authToken, cfg); err != nil {
-				return err
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			} else {
+				logrus.Debugf("pull: successfully processed layer %s via dragonfly", layer.Digest)
 			}
-			logrus.Debugf("pull: successfully processed layer %s via dragonfly", layer.Digest)
 			return nil
 		})
 	}
 
-	if err := g.Wait(); err != nil {
+	_ = g.Wait()
+	if err := errors.Join(errs...); err != nil {
 		return err
 	}
 
@@ -179,7 +189,16 @@ func buildBlobURL(ref Referencer, plainHTTP bool, digest string) string {
 
 // processLayer handles downloading and extracting a single layer.
 func processLayer(ctx context.Context, pb *internalpb.ProgressBar, client dfdaemon.DfdaemonDownloadClient, ref Referencer, manifest ocispec.Manifest, desc ocispec.Descriptor, authToken string, cfg *config.Pull) error {
-	err := retry.Do(func() error {
+	var annoFilepath string
+	if desc.Annotations != nil {
+		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
+			annoFilepath = desc.Annotations[modelspec.AnnotationFilepath]
+		} else {
+			annoFilepath = desc.Annotations[legacymodelspec.AnnotationFilepath]
+		}
+	}
+
+	err := retrypolicy.Do(ctx, func(ctx context.Context) error {
 		logrus.Debugf("pull: processing layer %s", desc.Digest)
 		cfg.Hooks.BeforePullLayer(desc, manifest) // Call before hook
 		err := downloadAndExtractLayer(ctx, pb, client, ref, desc, authToken, cfg)
@@ -190,7 +209,18 @@ func processLayer(ctx context.Context, pb *internalpb.ProgressBar, client dfdaem
 		}
 
 		return err
-	}, append(defaultRetryOpts, retry.Context(ctx))...)
+	}, retrypolicy.DoOpts{
+		FileSize: desc.Size,
+		FileName: annoFilepath,
+		Config:   &cfg.RetryConfig,
+		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+			if bar := pb.Get(desc.Digest.String()); bar != nil {
+				bar.SetRefill(bar.Current())
+				bar.SetCurrent(0)
+				bar.EwmaSetCurrent(0, time.Second)
+			}
+		},
+	})
 
 	return err
 }

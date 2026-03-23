@@ -18,6 +18,7 @@ package processor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -26,7 +27,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/avast/retry-go/v4"
 	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -36,6 +36,7 @@ import (
 	internalpb "github.com/modelpack/modctl/internal/pb"
 	"github.com/modelpack/modctl/pkg/backend/build"
 	"github.com/modelpack/modctl/pkg/backend/build/hooks"
+	"github.com/modelpack/modctl/pkg/retrypolicy"
 	"github.com/modelpack/modctl/pkg/storage"
 )
 
@@ -105,14 +106,11 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 	var (
 		mu          sync.Mutex
-		eg          *errgroup.Group
 		descriptors []ocispec.Descriptor
+		errs        []error
 	)
 
-	// Initialize errgroup with a context can be canceled.
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	eg, ctx = errgroup.WithContext(ctx)
+	eg := new(errgroup.Group)
 
 	// Set default concurrency limit to 1 if not specified.
 	if processOpts.concurrency > 0 {
@@ -137,11 +135,17 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		eg.Go(func() error {
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return nil
 			default:
 			}
 
-			if err := retry.Do(func() error {
+			// Get file size for dynamic retry parameters.
+			var fileSize int64
+			if fi, err := os.Stat(path); err == nil {
+				fileSize = fi.Size()
+			}
+
+			if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 				logrus.Debugf("processor: processing %s file %s", b.name, path)
 
 				var destPath string
@@ -149,7 +153,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 					destPath = filepath.Join(b.destDir, filepath.Base(path))
 				}
 
-				desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, destPath, hooks.NewHooks(
+				desc, err := builder.BuildLayer(rctx, b.mediaType, workDir, path, destPath, hooks.NewHooks(
 					hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 						return tracker.Add(internalpb.NormalizePrompt("Building layer"), name, size, reader)
 					}),
@@ -170,19 +174,24 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 				mu.Unlock()
 
 				return nil
-			}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
+			}, retrypolicy.DoOpts{
+				FileSize: fileSize,
+				FileName: filepath.Base(path),
+				Config:   processOpts.retryConfig,
+			}); err != nil {
 				logrus.Error(err)
-				// Cancel manually to abort other tasks because if one fails,
-				// we should abort all to avoid useless waiting.
-				cancel()
-				return err
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
 			}
 
 			return nil
 		})
 	}
 
-	if err := eg.Wait(); err != nil {
+	_ = eg.Wait()
+
+	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
 

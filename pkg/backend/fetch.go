@@ -19,7 +19,10 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
 	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
@@ -31,6 +34,7 @@ import (
 	internalpb "github.com/modelpack/modctl/internal/pb"
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/retrypolicy"
 )
 
 // Fetch fetches partial files to the output.
@@ -101,8 +105,11 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	pb.Start()
 	defer pb.Stop()
 
-	g, ctx := errgroup.WithContext(ctx)
+	g := new(errgroup.Group)
 	g.SetLimit(cfg.Concurrency)
+
+	var mu sync.Mutex
+	var errs []error
 
 	logrus.Infof("fetch: fetching %d matched layers", len(layers))
 	for _, layer := range layers {
@@ -113,17 +120,42 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			default:
 			}
 
-			logrus.Debugf("fetch: processing layer %s", layer.Digest)
-			if err := pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer); err != nil {
-				return err
+			var annoFilepath string
+			if layer.Annotations != nil {
+				if layer.Annotations[modelspec.AnnotationFilepath] != "" {
+					annoFilepath = layer.Annotations[modelspec.AnnotationFilepath]
+				} else {
+					annoFilepath = layer.Annotations[legacymodelspec.AnnotationFilepath]
+				}
 			}
 
-			logrus.Debugf("fetch: successfully processed layer %s", layer.Digest)
+			logrus.Debugf("fetch: processing layer %s", layer.Digest)
+			if err := retrypolicy.Do(ctx, func(ctx context.Context) error {
+				return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer)
+			}, retrypolicy.DoOpts{
+				FileSize: layer.Size,
+				FileName: annoFilepath,
+				Config:   &cfg.RetryConfig,
+				OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+					if bar := pb.Get(layer.Digest.String()); bar != nil {
+						bar.SetRefill(bar.Current())
+						bar.SetCurrent(0)
+						bar.EwmaSetCurrent(0, time.Second)
+					}
+				},
+			}); err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			} else {
+				logrus.Debugf("fetch: successfully processed layer %s", layer.Digest)
+			}
 			return nil
 		})
 	}
 
-	if err := g.Wait(); err != nil {
+	_ = g.Wait()
+	if err := errors.Join(errs...); err != nil {
 		return err
 	}
 
