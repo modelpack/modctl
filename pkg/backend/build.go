@@ -292,8 +292,9 @@ func estimateBuildSize(workDir string, mf modelfile.Modelfile) int64 {
 			continue
 		}
 		if info.IsDir() {
-			_ = filepath.Walk(path, func(_ string, fi os.FileInfo, err error) error {
+			_ = filepath.Walk(path, func(walkPath string, fi os.FileInfo, err error) error {
 				if err != nil {
+					logrus.Debugf("build: failed to access path %s for size estimation: %v", walkPath, err)
 					return nil
 				}
 				if !fi.IsDir() {
