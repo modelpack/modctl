@@ -62,7 +62,7 @@ func TestGit(t *testing.T) {
 		Author: &object.Signature{
 			Name:  "Test User",
 			Email: "test@example.com",
-			When:  time.Now(),
+			When:  time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 		},
 	})
 	require.NoError(t, err)
