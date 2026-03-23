@@ -120,6 +120,9 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	}
 
 	g.Wait()
+	if ctx.Err() != nil {
+		return fmt.Errorf("push cancelled: %w", ctx.Err())
+	}
 	if len(errs) > 0 {
 		return fmt.Errorf("failed to push blob to remote: %w", errors.Join(errs...))
 	}

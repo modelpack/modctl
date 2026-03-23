@@ -155,6 +155,9 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	}
 
 	_ = g.Wait()
+	if ctx.Err() != nil {
+		return fmt.Errorf("fetch cancelled: %w", ctx.Err())
+	}
 	if err := errors.Join(errs...); err != nil {
 		return err
 	}

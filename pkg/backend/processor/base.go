@@ -191,6 +191,10 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 
 	_ = eg.Wait()
 
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("processing cancelled: %w", ctx.Err())
+	}
+
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}

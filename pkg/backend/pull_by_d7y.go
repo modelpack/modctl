@@ -131,6 +131,9 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 	}
 
 	_ = g.Wait()
+	if ctx.Err() != nil {
+		return fmt.Errorf("pull cancelled: %w", ctx.Err())
+	}
 	if err := errors.Join(errs...); err != nil {
 		return err
 	}

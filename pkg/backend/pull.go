@@ -150,6 +150,9 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	_ = g.Wait()
+	if ctx.Err() != nil {
+		return fmt.Errorf("pull cancelled: %w", ctx.Err())
+	}
 	if len(errs) > 0 {
 		return fmt.Errorf("failed to pull blob to local: %w", errors.Join(errs...))
 	}
