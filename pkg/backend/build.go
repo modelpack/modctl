@@ -34,6 +34,7 @@ import (
 	"github.com/modelpack/modctl/pkg/backend/build/hooks"
 	"github.com/modelpack/modctl/pkg/backend/processor"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/diskspace"
 	"github.com/modelpack/modctl/pkg/modelfile"
 	"github.com/modelpack/modctl/pkg/source"
 )
@@ -65,6 +66,14 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	sourceInfo, err := getSourceInfo(workDir, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to get source info: %w", err)
+	}
+
+	// Check disk space before building (only for local output).
+	if !cfg.OutputRemote {
+		totalSize := estimateBuildSize(workDir, modelfile)
+		if err := diskspace.Check(b.storageDir, totalSize); err != nil {
+			logrus.Warnf("build: %v", err)
+		}
 	}
 
 	// using the local output by default.
@@ -262,4 +271,40 @@ func getSourceInfo(workspace string, buildConfig *config.Build) (*source.Info, e
 	}
 
 	return info, nil
+}
+
+// estimateBuildSize estimates the total size of files that will be built by summing
+// the sizes of all files referenced in the modelfile.
+func estimateBuildSize(workDir string, mf modelfile.Modelfile) int64 {
+	var totalSize int64
+
+	files := []string{}
+	files = append(files, mf.GetConfigs()...)
+	files = append(files, mf.GetModels()...)
+	files = append(files, mf.GetCodes()...)
+	files = append(files, mf.GetDocs()...)
+
+	for _, file := range files {
+		path := filepath.Join(workDir, file)
+		info, err := os.Stat(path)
+		if err != nil {
+			logrus.Debugf("build: failed to stat file %s for size estimation: %v", path, err)
+			continue
+		}
+		if info.IsDir() {
+			_ = filepath.Walk(path, func(_ string, fi os.FileInfo, err error) error {
+				if err != nil {
+					return nil
+				}
+				if !fi.IsDir() {
+					totalSize += fi.Size()
+				}
+				return nil
+			})
+		} else {
+			totalSize += info.Size()
+		}
+	}
+
+	return totalSize
 }

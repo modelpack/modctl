@@ -33,6 +33,7 @@ import (
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/codec"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/diskspace"
 	"github.com/modelpack/modctl/pkg/storage"
 )
 
@@ -71,6 +72,21 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	logrus.Debugf("pull: loaded manifest for target %s [manifest: %+v]", target, manifest)
+
+	// Check disk space before pulling layers.
+	var totalSize int64
+	for _, layer := range manifest.Layers {
+		totalSize += layer.Size
+	}
+	totalSize += manifest.Config.Size
+
+	targetDir := b.storageDir
+	if cfg.ExtractFromRemote && cfg.ExtractDir != "" {
+		targetDir = cfg.ExtractDir
+	}
+	if err := diskspace.Check(targetDir, totalSize); err != nil {
+		logrus.Warnf("pull: %v", err)
+	}
 
 	// TODO: need refactor as currently use a global flag to control the progress bar render.
 	if cfg.DisableProgress {
