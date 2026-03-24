@@ -32,6 +32,60 @@ func TestIsFileType(t *testing.T) {
 	}
 }
 
+func TestIsFileTypeModelPatterns(t *testing.T) {
+	testCases := []struct {
+		filename string
+		expected bool
+	}{
+		// New data/dataset formats.
+		{"dataset.arrow", true},
+		{"train.parquet", true},
+		{"model.ftz", true},
+		{"feats.ark", true},
+		{"training.db", true},
+
+		// Sharded/variant patterns.
+		{"model.bin.1", true},
+		{"model.bin.part2", true},
+		{"model.gguf.part1", true},
+		{"model.gguf.00001-of-00003", true},
+		{"model.llamafile.zip", true},
+		{"model.llamafile.gz", true},
+
+		// Existing patterns still work.
+		{"model.safetensors", true},
+		{"model.bin", true},
+		{"model.gguf", true},
+		{"model.llamafile", true},
+
+		// Non-matching files.
+		{"readme.txt", false},
+		{"script.py", false},
+		{"events.out.tfevents.1679012345.hostname", false}, // tfevents moved to DocFilePatterns
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testCases {
+		assert.Equal(tc.expected, IsFileType(tc.filename, ModelFilePatterns), "filename: %s", tc.filename)
+	}
+}
+
+func TestIsFileTypeDocPatternsTfevents(t *testing.T) {
+	testCases := []struct {
+		filename string
+		expected bool
+	}{
+		{"events.out.tfevents.1679012345.hostname", true}, // *.tfevents* matches via filepath.Match (wildcards match dots)
+		{"train.tfevents", true},
+		{"model.safetensors", false}, // model files should not match doc patterns
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testCases {
+		assert.Equal(tc.expected, IsFileType(tc.filename, DocFilePatterns), "filename: %s", tc.filename)
+	}
+}
+
 func TestIsSkippable(t *testing.T) {
 	testCases := []struct {
 		filename string
