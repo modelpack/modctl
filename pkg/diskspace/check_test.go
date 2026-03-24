@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2025 The CNAI Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,11 +62,35 @@ func TestCheck_NonExistentDirWalksUp(t *testing.T) {
 	}
 }
 
+func TestCheck_EmptyPath(t *testing.T) {
+	// Empty string should walk up to root and succeed for small size
+	err := Check("", 1)
+	if err != nil {
+		t.Errorf("expected nil error for empty path with 1 byte, got: %v", err)
+	}
+}
+
+func TestCheck_RootDir(t *testing.T) {
+	err := Check("/", 1)
+	if err != nil {
+		t.Errorf("expected nil error for root dir with 1 byte, got: %v", err)
+	}
+}
+
+func TestCheck_DeeplyNestedNonExistentDir(t *testing.T) {
+	err := Check("/tmp/a/b/c/d/e/f/g/h", 1)
+	if err != nil {
+		t.Errorf("expected nil error for deeply nested non-existent path, got: %v", err)
+	}
+}
+
 func TestFormatBytes(t *testing.T) {
 	tests := []struct {
 		bytes    int64
 		expected string
 	}{
+		{-1, "0 B"},
+		{-1024, "0 B"},
 		{0, "0 B"},
 		{500, "500 B"},
 		{1024, "1.00 KB"},

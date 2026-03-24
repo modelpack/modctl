@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2025 The CNAI Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package diskspace
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -59,7 +60,16 @@ func Check(dir string, requiredBytes int64) error {
 	}
 
 	// Available space for non-root users.
-	availableBytes := int64(stat.Bavail) * int64(stat.Bsize)
+	// Guard against overflow: on Linux Bavail is uint64, and values exceeding
+	// math.MaxInt64 would wrap negative when cast to int64. Cap at MaxInt64.
+	bavail := stat.Bavail
+	bsize := uint64(stat.Bsize)
+	var availableBytes int64
+	if bavail > 0 && bsize > uint64(math.MaxInt64)/bavail {
+		availableBytes = math.MaxInt64
+	} else {
+		availableBytes = int64(bavail * bsize)
+	}
 	requiredWithMargin := int64(float64(requiredBytes) * safetyMargin)
 
 	if availableBytes < requiredWithMargin {
@@ -74,6 +84,10 @@ func Check(dir string, requiredBytes int64) error {
 
 // formatBytes formats bytes into a human-readable string.
 func formatBytes(bytes int64) string {
+	if bytes < 0 {
+		return "0 B"
+	}
+
 	const (
 		kb = 1024
 		mb = kb * 1024
