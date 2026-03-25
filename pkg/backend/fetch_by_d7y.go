@@ -28,6 +28,7 @@ import (
 	common "d7y.io/api/v2/pkg/apis/common/v2"
 	dfdaemon "d7y.io/api/v2/pkg/apis/dfdaemon/v2"
 	"github.com/avast/retry-go/v4"
+	"github.com/bmatcuk/doublestar/v4"
 	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -44,7 +45,7 @@ import (
 
 // fetchByDragonfly fetches partial files via Dragonfly gRPC service based on pattern matching.
 func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *config.Fetch) error {
-	logrus.Infof("fetch: starting dragonfly fetch operation for target %s", target)
+	logrus.Infof("fetch: fetching from %s via dragonfly", target)
 
 	// Parse reference and initialize remote client.
 	ref, err := ParseReference(target)
@@ -81,7 +82,10 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 				if path == "" {
 					path = anno[legacymodelspec.AnnotationFilepath]
 				}
-				matched, err := filepath.Match(pattern, path)
+				// Use doublestar.PathMatch for pattern matching to support ** recursive matching
+				// PathMatch uses the system's native path separator (like filepath.Match) while
+				// also supporting recursive patterns like **/*.json
+				matched, err := doublestar.PathMatch(pattern, path)
 				if err != nil {
 					return fmt.Errorf("failed to match pattern: %w", err)
 				}
@@ -123,7 +127,7 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("fetch: processing matched layers via dragonfly [count: %d]", len(layers))
+	logrus.Infof("fetch: fetching %d matched layers via dragonfly", len(layers))
 	for _, layer := range layers {
 		g.Go(func() error {
 			select {
@@ -145,7 +149,7 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 		return err
 	}
 
-	logrus.Infof("fetch: successfully fetched layers via dragonfly [count: %d]", len(layers))
+	logrus.Infof("fetch: fetched %d layers via dragonfly", len(layers))
 	return nil
 }
 

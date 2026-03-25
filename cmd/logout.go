@@ -28,14 +28,13 @@ import (
 
 // logoutCmd represents the modctl command for logout.
 var logoutCmd = &cobra.Command{
-	Use:                "logout [flags]",
-	Short:              "Logout from a registry.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "logout [flags]",
+	Short:             "Logout from a registry.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runLogout(context.Background(), args[0])
+		return runLogout(cmd.Context(), args[0])
 	},
 }
 
@@ -44,13 +43,13 @@ func init() {
 	flags := logoutCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache logout flags to viper: %w", err))
+		panic(fmt.Errorf("bind logout flags to viper: %w", err))
 	}
 }
 
 // runLogout runs the logout modctl.
 func runLogout(ctx context.Context, registry string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

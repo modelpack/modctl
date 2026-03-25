@@ -29,8 +29,8 @@ import (
 	"syscall"
 	"time"
 
-	modelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	sha256 "github.com/minio/sha256-simd"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	spec "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -105,7 +105,7 @@ func NewBuilder(outputType OutputType, store storage.Storage, repo, tag string, 
 	cache, err := cache.New(os.TempDir())
 	if err != nil {
 		// Just print the error message because cache is not critical.
-		logrus.Errorf("failed to create cache: %v", err)
+		logrus.Errorf("builder: failed to create cache: %v", err)
 	}
 
 	return &abstractBuilder{
@@ -302,7 +302,7 @@ func (ab *abstractBuilder) retrieveCache(ctx context.Context, path string, info 
 		return "", 0, false
 	}
 
-	logrus.Infof("builder: retrieved from cache for file %s [digest: %s]", path, item.Digest)
+	logrus.Infof("builder: cache hit for file %s [digest: %s]", path, item.Digest)
 	return item.Digest, item.Size, true
 }
 
@@ -397,7 +397,10 @@ func addFileMetadata(desc *ocispec.Descriptor, path, relPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
-	logrus.Infof("builder: retrieved metadata for file %s [metadata: %s]", relPath, string(metadataStr))
+	logrus.Infof(
+		"builder: retrieved metadata for file %s [metadata: %s]",
+		relPath, string(metadataStr),
+	)
 
 	if desc.Annotations == nil {
 		desc.Annotations = make(map[string]string)

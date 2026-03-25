@@ -65,10 +65,9 @@ Full URLs with domain names will auto-detect the provider.`,
 
   # Generate with metadata overrides
   modctl modelfile generate ./my-model-dir --name my-custom-model --family llama3`,
-	Args:               cobra.MaximumNArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Args:              cobra.MaximumNArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If model-url is provided, path is optional
 		workspace := "."
@@ -92,7 +91,7 @@ Full URLs with domain names will auto-detect the provider.`,
 			return err
 		}
 
-		return runGenerate(context.Background())
+		return runGenerate(cmd.Context())
 	},
 }
 
@@ -106,7 +105,7 @@ func init() {
 	flags.StringVar(&generateConfig.ParamSize, "param-size", "", "specify number of model parameters, such as 8b, 16b, 32b, etc")
 	flags.StringVar(&generateConfig.Precision, "precision", "", "specify model precision, such as bf16, fp16, int8, etc")
 	flags.StringVar(&generateConfig.Quantization, "quantization", "", "specify model quantization, such as awq, gptq, etc")
-	flags.StringVarP(&generateConfig.Output, "output", "O", ".", "specify the output path of modelfilem, must be a directory")
+	flags.StringVarP(&generateConfig.Output, "output", "O", ".", "specify the output path of modelfile, must be a directory")
 	flags.BoolVar(&generateConfig.IgnoreUnrecognizedFileTypes, "ignore-unrecognized-file-types", false, "ignore the unrecognized file types in the workspace")
 	flags.BoolVar(&generateConfig.Overwrite, "overwrite", false, "overwrite the existing modelfile")
 	flags.StringVar(&generateConfig.ModelURL, "model-url", "", "download model from a supported provider (full URL or short-form with --provider)")
@@ -119,7 +118,7 @@ func init() {
 	flags.MarkHidden("ignore-unrecognized-file-types")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind generate flags to viper: %w", err))
 	}
 }
 

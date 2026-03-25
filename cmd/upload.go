@@ -36,13 +36,12 @@ var uploadCmd = &cobra.Command{
 	Args:               cobra.ExactArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := uploadConfig.Validate(); err != nil {
 			return err
 		}
 
-		return runUpload(context.Background(), args[0])
+		return runUpload(cmd.Context(), args[0])
 	},
 }
 
@@ -56,13 +55,13 @@ func init() {
 	flags.StringVar(&uploadConfig.DestinationDir, "destination-dir", "", "destination directory for the uploaded file should be specified as a relative path; by default, it will match the original directory of the uploaded file")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind upload flags to viper: %w", err))
 	}
 }
 
 // runUpload runs the upload modctl.
 func runUpload(ctx context.Context, filepath string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

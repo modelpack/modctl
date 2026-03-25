@@ -53,16 +53,16 @@ const (
 var (
 	// mediaTypePriorityMap defines the priority for layer sorting by group.
 	mediaTypePriorityMap = map[string]int{
-		legacymodelspec.MediaTypeModelWeightConfig: modelWeightConfigPriority,
-		legacymodelspec.MediaTypeModelWeight:       modelWeightPriority,
-		legacymodelspec.MediaTypeModelCode:         modelCodePriority,
-		legacymodelspec.MediaTypeModelDoc:          modelDocPriority,
+		modelspec.MediaTypeModelWeightConfig: modelWeightConfigPriority,
+		modelspec.MediaTypeModelWeight:       modelWeightPriority,
+		modelspec.MediaTypeModelCode:         modelCodePriority,
+		modelspec.MediaTypeModelDoc:          modelDocPriority,
 	}
 )
 
 // Attach attaches user materials into the model artifact which follows the Model Spec.
 func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attach) error {
-	logrus.Infof("attach: starting attach operation for file %s [config: %+v]", filepath, cfg)
+	logrus.Infof("attach: attaching file %s", filepath)
 	srcManifest, err := b.getManifest(ctx, cfg.Source, cfg.OutputRemote, cfg.PlainHTTP, cfg.Insecure)
 	if err != nil {
 		return fmt.Errorf("failed to get source manifest: %w", err)
@@ -73,7 +73,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		return fmt.Errorf("failed to get source model config: %w", err)
 	}
 
-	logrus.Infof("attach: loaded source model config [%+v]", srcModelConfig)
+	logrus.Infof("attach: loaded source model config [config: %+v]", srcModelConfig)
 
 	proc := b.getProcessor(cfg.DestinationDir, filepath, cfg.Raw)
 	if proc == nil {
@@ -111,7 +111,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 			}
 		}
 
-		logrus.Infof("attach: found existing layer for file %s [%+v]", filepath, foundLayer)
+		logrus.Infof("attach: found existing layer for file %s [layer: %+v]", filepath, foundLayer)
 		if foundLayer != nil {
 			// Remove the found layer from the layers slice as we need to replace it with the new layer.
 			for i, layer := range layers {
@@ -143,7 +143,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		}
 	}
 
-	var config legacymodelspec.Model
+	var config modelspec.Model
 	if !cfg.Config {
 		var reasoning bool
 		if srcModelConfig.Config.Capabilities != nil && srcModelConfig.Config.Capabilities.Reasoning != nil {
@@ -177,7 +177,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		}
 	}
 
-	logrus.Infof("attach: built model config [%+v]", config)
+	logrus.Infof("attach: built model config [config: %+v]", config)
 
 	configDesc, err := builder.BuildConfig(ctx, config, hooks.NewHooks(
 		hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
@@ -210,7 +210,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
 
-	logrus.Infof("attach: successfully attached file %s", filepath)
+	logrus.Infof("attach: attached file %s", filepath)
 	return nil
 }
 
@@ -307,33 +307,33 @@ func (b *backend) getModelConfig(ctx context.Context, reference string, desc oci
 
 func (b *backend) getProcessor(destDir, filepath string, rawMediaType bool) processor.Processor {
 	if modelfile.IsFileType(filepath, modelfile.ConfigFilePatterns) {
-		mediaType := legacymodelspec.MediaTypeModelWeightConfig
+		mediaType := modelspec.MediaTypeModelWeightConfig
 		if rawMediaType {
-			mediaType = legacymodelspec.MediaTypeModelWeightConfigRaw
+			mediaType = modelspec.MediaTypeModelWeightConfigRaw
 		}
 		return processor.NewModelConfigProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.ModelFilePatterns) {
-		mediaType := legacymodelspec.MediaTypeModelWeight
+		mediaType := modelspec.MediaTypeModelWeight
 		if rawMediaType {
-			mediaType = legacymodelspec.MediaTypeModelWeightRaw
+			mediaType = modelspec.MediaTypeModelWeightRaw
 		}
 		return processor.NewModelProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.CodeFilePatterns) {
-		mediaType := legacymodelspec.MediaTypeModelCode
+		mediaType := modelspec.MediaTypeModelCode
 		if rawMediaType {
-			mediaType = legacymodelspec.MediaTypeModelCodeRaw
+			mediaType = modelspec.MediaTypeModelCodeRaw
 		}
 		return processor.NewCodeProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}
 
 	if modelfile.IsFileType(filepath, modelfile.DocFilePatterns) {
-		mediaType := legacymodelspec.MediaTypeModelDoc
+		mediaType := modelspec.MediaTypeModelDoc
 		if rawMediaType {
-			mediaType = legacymodelspec.MediaTypeModelDocRaw
+			mediaType = modelspec.MediaTypeModelDocRaw
 		}
 		return processor.NewDocProcessor(b.store, mediaType, []string{filepath}, destDir)
 	}

@@ -31,18 +31,17 @@ var pullConfig = config.NewPull()
 
 // pullCmd represents the modctl command for pull.
 var pullCmd = &cobra.Command{
-	Use:                "pull [flags] <target>",
-	Short:              "Pull a model artifact from the remote registry.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "pull [flags] <target>",
+	Short:             "Pull a model artifact from the remote registry.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := pullConfig.Validate(); err != nil {
 			return err
 		}
 
-		return runPull(context.Background(), args[0])
+		return runPull(cmd.Context(), args[0])
 	},
 }
 
@@ -58,13 +57,13 @@ func init() {
 	flags.StringVar(&pullConfig.DragonflyEndpoint, "dragonfly-endpoint", "", "specify the dragonfly endpoint for the pull operation, which will download and hardlink the blob by dragonfly GRPC service, this mode requires extract-from-remote must be true")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache pull flags to viper: %w", err))
+		panic(fmt.Errorf("bind pull flags to viper: %w", err))
 	}
 }
 
 // runPull runs the pull modctl.
 func runPull(ctx context.Context, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

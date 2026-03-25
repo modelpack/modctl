@@ -31,18 +31,17 @@ var pushConfig = config.NewPush()
 
 // pushCmd represents the modctl command for push.
 var pushCmd = &cobra.Command{
-	Use:                "push [flags] <target>",
-	Short:              "Push a model artifact to the remote registry.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "push [flags] <target>",
+	Short:             "Push a model artifact to the remote registry.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := pushConfig.Validate(); err != nil {
 			return err
 		}
 
-		return runPush(context.Background(), args[0])
+		return runPush(cmd.Context(), args[0])
 	},
 }
 
@@ -56,13 +55,13 @@ func init() {
 	flags.MarkHidden("nydusify")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache push flags to viper: %w", err))
+		panic(fmt.Errorf("bind push flags to viper: %w", err))
 	}
 }
 
 // runPush runs the push modctl.
 func runPush(ctx context.Context, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

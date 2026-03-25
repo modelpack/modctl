@@ -33,9 +33,8 @@ var tagCmd = &cobra.Command{
 	Args:               cobra.ExactArgs(2),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runTag(context.Background(), args[0], args[1])
+		return runTag(cmd.Context(), args[0], args[1])
 	},
 }
 
@@ -44,13 +43,13 @@ func init() {
 	flags := tagCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache tag flags to viper: %w", err))
+		panic(fmt.Errorf("bind tag flags to viper: %w", err))
 	}
 }
 
 // runTag runs the tag modctl.
 func runTag(ctx context.Context, source, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

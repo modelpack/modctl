@@ -32,30 +32,29 @@ var pruneConfig = config.NewPrune()
 // pruneCmd represents the modctl command for prune.
 var pruneCmd = &cobra.Command{
 	Use:                "prune [flags]",
-	Short:              "Prune removes unused manifests and blobs from local storage (destructive operation).",
+	Short:              "Remove unused manifests and blobs from local storage (destructive operation).",
 	Args:               cobra.NoArgs,
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runPrune(context.Background())
+		return runPrune(cmd.Context())
 	},
 }
 
 // init initializes prune command.
 func init() {
-	flags := rmCmd.Flags()
+	flags := pruneCmd.Flags()
 	flags.BoolVar(&pruneConfig.DryRun, "dry-run", false, "do not remove any blobs, just print what would be removed")
 	flags.BoolVar(&pruneConfig.RemoveUntagged, "remove-untagged", true, "remove untagged manifests")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache rm flags to viper: %w", err))
+		panic(fmt.Errorf("bind prune flags to viper: %w", err))
 	}
 }
 
 // runPrune runs the prune modctl.
 func runPrune(ctx context.Context) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

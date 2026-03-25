@@ -31,18 +31,17 @@ var fetchConfig = config.NewFetch()
 
 // fetchCmd represents the modctl command for fetch.
 var fetchCmd = &cobra.Command{
-	Use:                "fetch [flags] <target>",
-	Short:              "Fetch can retrieve files from the remote model repository, enabling selective download of partial model files by filtering based on file path patterns.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "fetch [flags] <target>",
+	Short:             "Fetch can retrieve files from the remote model repository, enabling selective download of partial model files by filtering based on file path patterns.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := fetchConfig.Validate(); err != nil {
 			return err
 		}
 
-		return runFetch(context.Background(), args[0])
+		return runFetch(cmd.Context(), args[0])
 	},
 }
 
@@ -58,13 +57,13 @@ func init() {
 	flags.StringVar(&fetchConfig.DragonflyEndpoint, "dragonfly-endpoint", "", "specify the dragonfly endpoint for the pull operation, which will download and hardlink the blob by dragonfly GRPC service.")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache pull flags to viper: %w", err))
+		panic(fmt.Errorf("bind fetch flags to viper: %w", err))
 	}
 }
 
 // runFetch runs the fetch modctl.
 func runFetch(ctx context.Context, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

@@ -27,11 +27,10 @@ import (
 
 // versionCmd represents the modctl command for version.
 var versionCmd = &cobra.Command{
-	Use:                "version",
-	Short:              "A command line tool for modctl version",
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "version",
+	Short:             "A command line tool for modctl version",
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runVersion()
 	},
@@ -39,7 +38,7 @@ var versionCmd = &cobra.Command{
 
 // init initializes version command.
 func init() {
-	flags := rmCmd.Flags()
+	flags := versionCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind version flags to viper: %w", err))

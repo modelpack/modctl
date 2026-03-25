@@ -31,18 +31,17 @@ var buildConfig = config.NewBuild()
 
 // buildCmd represents the modctl command for build.
 var buildCmd = &cobra.Command{
-	Use:                "build [flags] <path>",
-	Short:              "Build the model artifact with the context by specified path.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "build [flags] <path>",
+	Short:             "Build the model artifact with the context by specified path.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := buildConfig.Validate(); err != nil {
 			return err
 		}
 
-		return runBuild(context.Background(), args[0])
+		return runBuild(cmd.Context(), args[0])
 	},
 }
 
@@ -64,13 +63,13 @@ func init() {
 	flags.BoolVar(&buildConfig.NoCreationTime, "no-creation-time", false, "turning on this flag will not set createdAt in the config, which will be helpful for repeated builds")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind build flags to viper: %w", err))
 	}
 }
 
 // runBuild runs the build modctl.
 func runBuild(ctx context.Context, workDir string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

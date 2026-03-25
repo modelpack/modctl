@@ -20,8 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 
+	"github.com/bmatcuk/doublestar/v4"
 	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -35,11 +35,11 @@ import (
 
 // Fetch fetches partial files to the output.
 func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) error {
-	logrus.Infof("fetch: starting fetch operation for target %s [config: %+v]", target, cfg)
+	logrus.Infof("fetch: fetching from %s", target)
 
 	// fetchByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
 	if cfg.DragonflyEndpoint != "" {
-		logrus.Infof("fetch: using dragonfly for target %s", target)
+		logrus.Infof("fetch: using dragonfly for %s", target)
 		return b.fetchByDragonfly(ctx, target, cfg)
 	}
 
@@ -78,7 +78,10 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 				if path == "" {
 					path = anno[legacymodelspec.AnnotationFilepath]
 				}
-				matched, err := filepath.Match(pattern, path)
+				// Use doublestar.PathMatch for pattern matching to support ** recursive matching
+				// PathMatch uses the system's native path separator (like filepath.Match) while
+				// also supporting recursive patterns like **/*.json
+				matched, err := doublestar.PathMatch(pattern, path)
 				if err != nil {
 					return fmt.Errorf("failed to match pattern: %w", err)
 				}
@@ -101,7 +104,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
-	logrus.Infof("fetch: processing matched layers [count: %d]", len(layers))
+	logrus.Infof("fetch: fetching %d matched layers", len(layers))
 	for _, layer := range layers {
 		g.Go(func() error {
 			select {
@@ -124,6 +127,6 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 		return err
 	}
 
-	logrus.Infof("fetch: successfully fetched layers [count: %d]", len(layers))
+	logrus.Infof("fetch: fetched %d layers", len(layers))
 	return nil
 }

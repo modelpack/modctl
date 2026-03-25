@@ -31,18 +31,17 @@ var attachConfig = config.NewAttach()
 
 // attachCmd represents the modctl command for attach.
 var attachCmd = &cobra.Command{
-	Use:                "attach [flags] <file>",
-	Short:              "Attach the file to an existing model artifact.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "attach [flags] <file>",
+	Short:             "Attach the file to an existing model artifact.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := attachConfig.Validate(); err != nil {
 			return err
 		}
 
-		return runAttach(context.Background(), args[0])
+		return runAttach(cmd.Context(), args[0])
 	},
 }
 
@@ -62,13 +61,13 @@ func init() {
 	flags.BoolVar(&attachConfig.Config, "config", false, "turning on this flag will overwrite model artifact config layer")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind attach flags to viper: %w", err))
 	}
 }
 
 // runAttach runs the attach modctl.
 func runAttach(ctx context.Context, filepath string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

@@ -32,14 +32,13 @@ var inspectConfig = config.NewInspect()
 
 // inspectCmd represents the modctl command for inspect.
 var inspectCmd = &cobra.Command{
-	Use:                "inspect [flags] <target>",
-	Short:              "Inspect can help to analyze the composition of model artifact.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "inspect [flags] <target>",
+	Short:             "Inspect can help to analyze the composition of model artifact.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runInspect(context.Background(), args[0])
+		return runInspect(cmd.Context(), args[0])
 	},
 }
 
@@ -52,13 +51,13 @@ func init() {
 	flags.BoolVar(&inspectConfig.Config, "config", false, "inspect the config of the model artifact")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache inspect flags to viper: %w", err))
+		panic(fmt.Errorf("bind inspect flags to viper: %w", err))
 	}
 }
 
 // runInspect runs the inspect modctl.
 func runInspect(ctx context.Context, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

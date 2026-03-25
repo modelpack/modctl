@@ -38,7 +38,7 @@ var listCmd = &cobra.Command{
 	SilenceUsage:       true,
 	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runList(context.Background())
+		return runList(cmd.Context())
 	},
 }
 
@@ -47,13 +47,13 @@ func init() {
 	flags := listCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache list flags to viper: %w", err))
+		panic(fmt.Errorf("bind list flags to viper: %w", err))
 	}
 }
 
 // runList runs the list modctl.
 func runList(ctx context.Context) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

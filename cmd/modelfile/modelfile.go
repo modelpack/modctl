@@ -23,12 +23,11 @@ import (
 
 // RootCmd represents the modelfile tools command for modelfile operation.
 var RootCmd = &cobra.Command{
-	Use:                "modelfile",
-	Short:              "A command line tool for modelfile operation",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "modelfile",
+	Short:             "A command line tool for modelfile operation",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return nil
 	},

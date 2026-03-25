@@ -104,6 +104,12 @@ Before the `pull` or `push` command, you need to login the registry:
 $ modctl login -u username -p password example.registry.com
 ```
 
+Logout from a registry:
+
+```shell
+$ modctl logout example.registry.com
+```
+
 Pull the model artifact from the registry:
 
 ```shell
@@ -167,6 +173,22 @@ The `upload` command allows you to pre-upload a file to a repository. This is us
 $ modctl upload model-00001-of-00003.safetensors --repo registry.com/models/llama3
 ```
 
+
+### Tag
+
+Tag an existing model artifact with a new reference:
+
+```shell
+$ modctl tag registry.com/models/llama3:v1.0.0 registry.com/models/llama3:v1.0.1
+```
+
+### Inspect
+
+Inspect metadata for a model artifact:
+
+```shell
+$ modctl inspect registry.com/models/llama3:v1.0.0
+```
 
 ### Cleanup
 

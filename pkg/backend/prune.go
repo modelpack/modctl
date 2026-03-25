@@ -25,7 +25,7 @@ import (
 
 // Prune prunes the unused blobs and clean up the storage.
 func (b *backend) Prune(ctx context.Context, dryRun, removeUntagged bool) error {
-	logrus.Infof("prune: starting prune operation for unused blobs and storage cleanup")
+	logrus.Infof("prune: pruning unused blobs")
 
 	if err := b.store.PerformGC(ctx, dryRun, removeUntagged); err != nil {
 		return fmt.Errorf("faile to perform gc: %w", err)
@@ -35,6 +35,6 @@ func (b *backend) Prune(ctx context.Context, dryRun, removeUntagged bool) error 
 		return fmt.Errorf("failed to perform purge uploads: %w", err)
 	}
 
-	logrus.Infof("prune: successfully pruned unused blobs and cleaned up storage")
+	logrus.Infof("prune: pruned unused blobs")
 	return nil
 }

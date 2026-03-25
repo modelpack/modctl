@@ -28,14 +28,13 @@ import (
 
 // rmCmd represents the modctl command for rm.
 var rmCmd = &cobra.Command{
-	Use:                "rm [flags] <target>",
-	Short:              "Remove a model artifact from the local storage.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "rm [flags] <target>",
+	Short:             "Remove a model artifact from the local storage.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runRm(context.Background(), args[0])
+		return runRm(cmd.Context(), args[0])
 	},
 }
 
@@ -44,13 +43,13 @@ func init() {
 	flags := rmCmd.Flags()
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache rm flags to viper: %w", err))
+		panic(fmt.Errorf("bind rm flags to viper: %w", err))
 	}
 }
 
 // runRm runs the rm modctl.
 func runRm(ctx context.Context, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

@@ -31,18 +31,17 @@ var extractConfig = config.NewExtract()
 
 // extractCmd represents the modctl command for extract.
 var extractCmd = &cobra.Command{
-	Use:                "extract <target> --output <output>",
-	Short:              "Extract the model artifact to the output path, which can restore the initial state of the model files.",
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Use:               "extract <target> --output <output>",
+	Short:             "Extract the model artifact to the output path, which can restore the initial state of the model files.",
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := extractConfig.Validate(); err != nil {
 			return err
 		}
 
-		return runExtract(context.Background(), args[0])
+		return runExtract(cmd.Context(), args[0])
 	},
 }
 
@@ -53,13 +52,13 @@ func init() {
 	flags.IntVar(&extractConfig.Concurrency, "concurrency", extractConfig.Concurrency, "specify the concurrency for extracting the model artifact")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache extract flags to viper: %w", err))
+		panic(fmt.Errorf("bind extract flags to viper: %w", err))
 	}
 }
 
 // runExtract runs the extract modctl.
 func runExtract(ctx context.Context, target string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}

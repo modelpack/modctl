@@ -43,10 +43,9 @@ modctl login -u foo registry-1.docker.io
 # login to registry served over http:
 modctl login -u foo --plain-http registry-insecure.io
 `,
-	Args:               cobra.ExactArgs(1),
-	DisableAutoGenTag:  true,
-	SilenceUsage:       true,
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	Args:              cobra.ExactArgs(1),
+	DisableAutoGenTag: true,
+	SilenceUsage:      true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := loginConfig.Validate(); err != nil {
 			return err
@@ -67,13 +66,13 @@ func init() {
 	flags.BoolVar(&loginConfig.Insecure, "insecure", false, "Allow insecure connections to registry")
 
 	if err := viper.BindPFlags(flags); err != nil {
-		panic(fmt.Errorf("bind cache login flags to viper: %w", err))
+		panic(fmt.Errorf("bind login flags to viper: %w", err))
 	}
 }
 
 // runLogin runs the login modctl.
 func runLogin(ctx context.Context, registry string) error {
-	b, err := backend.New(rootConfig.StoargeDir)
+	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
 	}
