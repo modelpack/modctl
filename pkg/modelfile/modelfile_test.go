@@ -676,6 +676,141 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			expectCodes:   []string{"valid_dir/model.py"},
 			expectName:    "skip-test",
 		},
+		{
+			name: "include all hidden files with recursive pattern",
+			setupFiles: map[string]string{
+				"config.json":                 "",
+				"model.bin":                   "",
+				".hidden_config.json":         "",
+				".hidden_dir/model.bin":       "",
+				".hidden_dir/.nested.py":      "",
+				"normal_dir/.hidden_code.py":  "",
+				"normal_dir/visible.py":       "",
+			},
+			setupDirs: []string{
+				".hidden_dir",
+				"normal_dir",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:            "include-all-hidden",
+				IncludePatterns: []string{"**/.*"},
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json", ".hidden_config.json"},
+			expectModels:  []string{"model.bin", ".hidden_dir/model.bin"},
+			expectCodes:   []string{".hidden_dir/.nested.py", "normal_dir/.hidden_code.py", "normal_dir/visible.py"},
+			expectName:    "include-all-hidden",
+		},
+		{
+			name: "include specific hidden directory",
+			setupFiles: map[string]string{
+				"config.json":        "",
+				"model.bin":          "",
+				".weights/extra.bin": "",
+				".weights/data.bin":  "",
+				".other/secret.py":   "",
+			},
+			setupDirs: []string{
+				".weights",
+				".other",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:            "include-weights-dir",
+				IncludePatterns: []string{".weights/**"},
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json"},
+			expectModels:  []string{"model.bin", ".weights/extra.bin", ".weights/data.bin"},
+			expectCodes:   []string{},
+			expectName:    "include-weights-dir",
+		},
+		{
+			name: "include with exclude override",
+			setupFiles: map[string]string{
+				"config.json":     "",
+				"model.bin":       "",
+				".hidden.py":      "",
+				".env":            "",
+				"sub/.secret.yml": "",
+			},
+			setupDirs: []string{
+				"sub",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:            "include-exclude",
+				IncludePatterns: []string{"**/.*"},
+				ExcludePatterns: []string{"**/.env"},
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json", "sub/.secret.yml"},
+			expectModels:  []string{"model.bin"},
+			expectCodes:   []string{".hidden.py"},
+			expectName:    "include-exclude",
+		},
+		{
+			name: "no include patterns regression",
+			setupFiles: map[string]string{
+				"config.json":        "",
+				"model.bin":          "",
+				".hidden_file":       "",
+				".hidden_dir/x.py":   "",
+			},
+			setupDirs: []string{
+				".hidden_dir",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "no-include-regression",
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json"},
+			expectModels:  []string{"model.bin"},
+			expectCodes:   []string{},
+			expectName:    "no-include-regression",
+		},
+		{
+			name: "multiple include patterns",
+			setupFiles: map[string]string{
+				"config.json":           "",
+				"model.bin":             "",
+				".hidden.py":            "",
+				"__pycache__/cache.pyc": "",
+			},
+			setupDirs: []string{
+				"__pycache__",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:            "multi-include",
+				IncludePatterns: []string{".*", "**/__pycache__/**"},
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json"},
+			expectModels:  []string{"model.bin"},
+			expectCodes:   []string{".hidden.py", "__pycache__/cache.pyc"},
+			expectName:    "multi-include",
+		},
+		{
+			name: "skippable dirs not matching include are still skipped",
+			setupFiles: map[string]string{
+				"config.json":        "",
+				"model.bin":          "",
+				".git/objects/pack":  "",
+				".weights/model.bin": "",
+			},
+			setupDirs: []string{
+				".git",
+				".git/objects",
+				".weights",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:            "selective-include",
+				IncludePatterns: []string{".weights/**"},
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json"},
+			expectModels:  []string{"model.bin", ".weights/model.bin"},
+			expectCodes:   []string{},
+			expectName:    "selective-include",
+		},
 	}
 
 	assert := assert.New(t)
