@@ -10,13 +10,13 @@ import (
 
 func TestNewPathFilter(t *testing.T) {
 	testcases := []struct {
-		name             string
-		exclude          []string
-		include          []string
-		expectedExclude  []string
-		expectedInclude  []string
-		expectError      bool
-		errorMsg         string
+		name            string
+		exclude         []string
+		include         []string
+		expectedExclude []string
+		expectedInclude []string
+		expectError     bool
+		errorMsg        string
 	}{
 		{
 			name:            "normal exclude patterns",

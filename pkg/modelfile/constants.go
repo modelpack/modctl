@@ -65,12 +65,12 @@ var (
 		// PyTorch formats.
 		"*.bin",   // General binary format
 		"*.bin.*", // Sharded binary files (e.g., model.bin.1)
-		"*.pt",  // PyTorch model
-		"*.pth", // PyTorch model (alternative extension)
-		"*.mar", // PyTorch Model Archive
-		"*.pte", // PyTorch ExecuTorch format
-		"*.pt2", // PyTorch 2.0 export format
-		"*.ptl", // PyTorch Mobile format
+		"*.pt",    // PyTorch model
+		"*.pth",   // PyTorch model (alternative extension)
+		"*.mar",   // PyTorch Model Archive
+		"*.pte",   // PyTorch ExecuTorch format
+		"*.pt2",   // PyTorch 2.0 export format
+		"*.ptl",   // PyTorch Mobile format
 
 		// TensorFlow formats.
 		"*.tflite", // TensorFlow Lite
@@ -85,16 +85,16 @@ var (
 		// GGML formats.
 		"*.gguf",   // GGML Universal Format
 		"*.gguf.*", // Partitioned GGUF files
-		"*.ggml", // GGML format (legacy)
-		"*.ggmf", // GGMF format (deprecated)
-		"*.ggjt", // GGJT format (deprecated)
-		"*.q4_0", // GGML Q4_0 quantization
-		"*.q4_1", // GGML Q4_1 quantization
-		"*.q5_0", // GGML Q5_0 quantization
-		"*.q5_1", // GGML Q5_1 quantization
-		"*.q8_0", // GGML Q8_0 quantization
-		"*.f16",  // GGML F16 format
-		"*.f32",  // GGML F32 format
+		"*.ggml",   // GGML format (legacy)
+		"*.ggmf",   // GGMF format (deprecated)
+		"*.ggjt",   // GGJT format (deprecated)
+		"*.q4_0",   // GGML Q4_0 quantization
+		"*.q4_1",   // GGML Q4_1 quantization
+		"*.q5_0",   // GGML Q5_0 quantization
+		"*.q5_1",   // GGML Q5_1 quantization
+		"*.q8_0",   // GGML Q8_0 quantization
+		"*.f16",    // GGML F16 format
+		"*.f32",    // GGML F32 format
 
 		// checkpoint formats.
 		"*.ckpt",       // Checkpoint format
@@ -109,37 +109,37 @@ var (
 		"*.vocab",     // Vocabulary files (when binary)
 
 		// Other ML frameworks.
-		"*.ot",         // OpenVINO format
-		"*.engine",     // TensorRT format
-		"*.trt",        // TensorRT format (alternative extension)
-		"*.onnx",       // Open Neural Network Exchange format
-		"*.msgpack",    // MessagePack serialization
-		"*.model",      // Some NLP frameworks
-		"*.pkl",        // Pickle format
-		"*.pickle",     // Pickle format (alternative extension)
-		"*.keras",      // Keras native format
-		"*.joblib",     // Joblib serialization (scikit-learn)
-		"*.npy",        // NumPy array format
-		"*.npz",        // NumPy compressed archive
-		"*.nc",         // NetCDF format
-		"*.mlmodel",    // Apple Core ML format
-		"*.coreml",     // Apple Core ML format (alternative)
-		"*.mleap",      // MLeap format (Spark ML)
-		"*.surml",      // SurrealML format
-		"*.llamafile",  // Llamafile format
+		"*.ot",          // OpenVINO format
+		"*.engine",      // TensorRT format
+		"*.trt",         // TensorRT format (alternative extension)
+		"*.onnx",        // Open Neural Network Exchange format
+		"*.msgpack",     // MessagePack serialization
+		"*.model",       // Some NLP frameworks
+		"*.pkl",         // Pickle format
+		"*.pickle",      // Pickle format (alternative extension)
+		"*.keras",       // Keras native format
+		"*.joblib",      // Joblib serialization (scikit-learn)
+		"*.npy",         // NumPy array format
+		"*.npz",         // NumPy compressed archive
+		"*.nc",          // NetCDF format
+		"*.mlmodel",     // Apple Core ML format
+		"*.coreml",      // Apple Core ML format (alternative)
+		"*.mleap",       // MLeap format (Spark ML)
+		"*.surml",       // SurrealML format
+		"*.llamafile",   // Llamafile format
 		"*.llamafile.*", // Llamafile variants
-		"*.caffemodel", // Caffe model format
-		"*.prototxt",   // Caffe model definition
-		"*.dlc",        // Qualcomm Deep Learning Container
-		"*.circle",     // Samsung Circle format
-		"*.nb",         // Neural Network Binary format
+		"*.caffemodel",  // Caffe model format
+		"*.prototxt",    // Caffe model definition
+		"*.dlc",         // Qualcomm Deep Learning Container
+		"*.circle",      // Samsung Circle format
+		"*.nb",          // Neural Network Binary format
 
 		// Data and dataset formats.
-		"*.arrow",      // Apache Arrow columnar format
-		"*.parquet",    // Apache Parquet columnar format
-		"*.ftz",        // FastText compressed model
-		"*.ark",        // Kaldi ark format (speech/audio models)
-		"*.db",         // Database files (LMDB, etc.)
+		"*.arrow",   // Apache Arrow columnar format
+		"*.parquet", // Apache Parquet columnar format
+		"*.ftz",     // FastText compressed model
+		"*.ark",     // Kaldi ark format (speech/audio models)
+		"*.db",      // Database files (LMDB, etc.)
 	}
 
 	// Code file patterns - supported script and notebook files.

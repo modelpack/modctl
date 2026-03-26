@@ -679,13 +679,13 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 		{
 			name: "include all hidden files with recursive pattern",
 			setupFiles: map[string]string{
-				"config.json":                 "",
-				"model.bin":                   "",
-				".hidden_config.json":         "",
-				".hidden_dir/model.bin":       "",
-				".hidden_dir/.nested.py":      "",
-				"normal_dir/.hidden_code.py":  "",
-				"normal_dir/visible.py":       "",
+				"config.json":                "",
+				"model.bin":                  "",
+				".hidden_config.json":        "",
+				".hidden_dir/model.bin":      "",
+				".hidden_dir/.nested.py":     "",
+				"normal_dir/.hidden_code.py": "",
+				"normal_dir/visible.py":      "",
 			},
 			setupDirs: []string{
 				".hidden_dir",
@@ -750,10 +750,10 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 		{
 			name: "no include patterns regression",
 			setupFiles: map[string]string{
-				"config.json":        "",
-				"model.bin":          "",
-				".hidden_file":       "",
-				".hidden_dir/x.py":   "",
+				"config.json":      "",
+				"model.bin":        "",
+				".hidden_file":     "",
+				".hidden_dir/x.py": "",
 			},
 			setupDirs: []string{
 				".hidden_dir",
