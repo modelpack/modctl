@@ -64,7 +64,16 @@ Full URLs with domain names will auto-detect the provider.`,
   modctl modelfile generate ./my-model-dir --output ./output/modelfile.yaml
 
   # Generate with metadata overrides
-  modctl modelfile generate ./my-model-dir --name my-custom-model --family llama3`,
+  modctl modelfile generate ./my-model-dir --name my-custom-model --family llama3
+
+  # Include hidden files at any depth
+  modctl modelfile generate ./my-model-dir --include "**/.*"
+
+  # Include a specific hidden directory
+  modctl modelfile generate ./my-model-dir --include ".weights/**"
+
+  # Include hidden files but exclude sensitive ones
+  modctl modelfile generate ./my-model-dir --include "**/.*" --exclude "**/.env"`,
 	Args:              cobra.MaximumNArgs(1),
 	DisableAutoGenTag: true,
 	SilenceUsage:      true,
