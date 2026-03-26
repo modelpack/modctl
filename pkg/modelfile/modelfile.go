@@ -258,7 +258,7 @@ func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig)
 	var totalSize int64
 
 	// Initialize exclude patterns
-	filter, err := NewPathFilter(config.ExcludePatterns...)
+	filter, err := NewPathFilter(config.ExcludePatterns, config.IncludePatterns)
 	if err != nil {
 		return err
 	}
