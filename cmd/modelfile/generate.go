@@ -112,6 +112,10 @@ func init() {
 	flags.StringVarP(&generateConfig.Provider, "provider", "p", "", "explicitly specify the provider for short-form URLs (huggingface, modelscope)")
 	flags.StringVar(&generateConfig.DownloadDir, "download-dir", "", "custom directory for downloading models (default: system temp directory)")
 	flags.StringArrayVar(&generateConfig.ExcludePatterns, "exclude", []string{}, "specify glob patterns to exclude files/directories (e.g. *.log, checkpoints/*)")
+	flags.StringArrayVar(&generateConfig.IncludePatterns, "include", []string{},
+		"glob patterns to include files/directories that are normally skipped (e.g. hidden files).\n"+
+			"Uses doublestar syntax (*, **, ?, [...], {a,b}), matching against relative paths from workspace root.\n"+
+			"Note: broad patterns like **/.*  may include large directories (.git) or sensitive files (.env)")
 
 	// Mark the ignore-unrecognized-file-types flag as deprecated and hidden
 	flags.MarkDeprecated("ignore-unrecognized-file-types", "this flag will be removed in the next release")
