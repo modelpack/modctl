@@ -111,8 +111,8 @@ func checkHuggingFaceAuth() error {
 
 	// Try using whoami command with available CLI tool
 	for _, cli := range []string{"hf", "huggingface-cli"} {
-		if _, err := exec.LookPath(cli); err == nil {
-			cmd := exec.Command(cli, "whoami")
+		if path, err := exec.LookPath(cli); err == nil {
+			cmd := exec.Command(path, "whoami")
 			cmd.Stdout = io.Discard
 			cmd.Stderr = io.Discard
 			if err := cmd.Run(); err == nil {

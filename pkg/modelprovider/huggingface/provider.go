@@ -48,15 +48,16 @@ func (p *Provider) SupportsURL(url string) bool {
 	return strings.Contains(url, "huggingface.co")
 }
 
-// findHFCLI returns the path of the first available HuggingFace CLI tool.
+// findHFCLI returns the path of the first available HuggingFace CLI tool
+// and whether it is the legacy huggingface-cli.
 // It checks for the modern `hf` CLI first, then falls back to `huggingface-cli`.
-func findHFCLI() (string, error) {
+func findHFCLI() (path string, isLegacy bool, err error) {
 	for _, cli := range []string{"hf", "huggingface-cli"} {
 		if path, err := exec.LookPath(cli); err == nil {
-			return path, nil
+			return path, cli == "huggingface-cli", nil
 		}
 	}
-	return "", fmt.Errorf("neither 'hf' nor 'huggingface-cli' found in PATH. Please install the HuggingFace CLI: pip install huggingface_hub[cli]")
+	return "", false, fmt.Errorf("neither 'hf' nor 'huggingface-cli' found in PATH. Please install the HuggingFace CLI: pip install huggingface_hub[cli]")
 }
 
 // DownloadModel downloads a model from HuggingFace using the HuggingFace CLI
@@ -69,7 +70,7 @@ func (p *Provider) DownloadModel(ctx context.Context, modelURL, destDir string) 
 	repoID := fmt.Sprintf("%s/%s", owner, repo)
 
 	// Find available HuggingFace CLI tool (hf or huggingface-cli)
-	cliPath, err := findHFCLI()
+	cliPath, isLegacy, err := findHFCLI()
 	if err != nil {
 		return "", err
 	}
@@ -86,7 +87,7 @@ func (p *Provider) DownloadModel(ctx context.Context, modelURL, destDir string) 
 	// --local-dir-use-symlinks to ensure files are copied, not symlinked.
 	// The modern hf CLI removed that flag; --local-dir alone is sufficient.
 	args := []string{"download", repoID, "--local-dir", downloadPath}
-	if filepath.Base(cliPath) == "huggingface-cli" {
+	if isLegacy {
 		args = append(args, "--local-dir-use-symlinks", "False")
 	}
 
