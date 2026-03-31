@@ -48,7 +48,18 @@ func (p *Provider) SupportsURL(url string) bool {
 	return strings.Contains(url, "huggingface.co")
 }
 
-// DownloadModel downloads a model from HuggingFace using the huggingface-cli
+// findHFCLI returns the path of the first available HuggingFace CLI tool.
+// It checks for the modern `hf` CLI first, then falls back to `huggingface-cli`.
+func findHFCLI() (string, error) {
+	for _, cli := range []string{"hf", "huggingface-cli"} {
+		if path, err := exec.LookPath(cli); err == nil {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("neither 'hf' nor 'huggingface-cli' found in PATH. Please install the HuggingFace CLI: pip install huggingface_hub[cli]")
+}
+
+// DownloadModel downloads a model from HuggingFace using the HuggingFace CLI
 func (p *Provider) DownloadModel(ctx context.Context, modelURL, destDir string) (string, error) {
 	owner, repo, err := parseModelURL(modelURL)
 	if err != nil {
@@ -57,9 +68,10 @@ func (p *Provider) DownloadModel(ctx context.Context, modelURL, destDir string) 
 
 	repoID := fmt.Sprintf("%s/%s", owner, repo)
 
-	// Check if huggingface-cli is available
-	if _, err := exec.LookPath("huggingface-cli"); err != nil {
-		return "", fmt.Errorf("huggingface-cli not found in PATH. Please install it using: pip install huggingface_hub[cli]")
+	// Find available HuggingFace CLI tool (hf or huggingface-cli)
+	cliPath, err := findHFCLI()
+	if err != nil {
+		return "", err
 	}
 
 	// Create destination directory if it doesn't exist
@@ -70,15 +82,21 @@ func (p *Provider) DownloadModel(ctx context.Context, modelURL, destDir string) 
 	// Construct the download path
 	downloadPath := filepath.Join(destDir, repo)
 
-	// Use huggingface-cli to download the model
-	// The --local-dir-use-symlinks=False flag ensures files are copied, not symlinked
-	cmd := exec.CommandContext(ctx, "huggingface-cli", "download", repoID, "--local-dir", downloadPath, "--local-dir-use-symlinks", "False")
+	// Build CLI arguments. The legacy huggingface-cli supports
+	// --local-dir-use-symlinks to ensure files are copied, not symlinked.
+	// The modern hf CLI removed that flag; --local-dir alone is sufficient.
+	args := []string{"download", repoID, "--local-dir", downloadPath}
+	if filepath.Base(cliPath) == "huggingface-cli" {
+		args = append(args, "--local-dir-use-symlinks", "False")
+	}
+
+	cmd := exec.CommandContext(ctx, cliPath, args...)
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to download model using huggingface-cli: %w", err)
+		return "", fmt.Errorf("failed to download model using %s: %w", filepath.Base(cliPath), err)
 	}
 
 	return downloadPath, nil
