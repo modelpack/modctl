@@ -291,8 +291,8 @@ func (s *storage) StatTag(ctx context.Context, repo, tag string) (bool, error) {
 
 	_, err = repository.Tags(ctx).Get(ctx, tag)
 	if err != nil {
-		switch err.(type) {
-		case distribution.ErrTagUnknown:
+		var tagErr distribution.ErrTagUnknown
+		if errors.As(err, &tagErr) {
 			return false, nil
 		}
 		return false, err
