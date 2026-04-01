@@ -282,6 +282,25 @@ func (s *storage) StatManifest(ctx context.Context, repo, digest string) (bool, 
 	return manifest.Exists(ctx, godigest.Digest(digest))
 }
 
+// StatTag checks whether the tag exists in the repository.
+func (s *storage) StatTag(ctx context.Context, repo, tag string) (bool, error) {
+	repository, err := s.repository(ctx, repo)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = repository.Tags(ctx).Get(ctx, tag)
+	if err != nil {
+		switch err.(type) {
+		case distribution.ErrTagUnknown:
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
+
 // ListRepositories lists all the repositories in the storage.
 func (s *storage) ListRepositories(ctx context.Context) ([]string, error) {
 	var repos []string
