@@ -5,8 +5,8 @@ cloud.google.com/go/auth/oauth2adapt v0.2.4 h1:0GWE/FUsXhf6C+jAkWgYm7X9tK8cuEIfy
 cloud.google.com/go/auth/oauth2adapt v0.2.4/go.mod h1:jC/jOpwFP6JBxhB3P5Rr0a9HLMC/Pe3eaL4NmdvqPtc=
 cloud.google.com/go/compute/metadata v0.9.0 h1:pDUj4QMoPejqq20dK0Pg2N4yG9zIkYGdBtwLoEkH9Zs=
 cloud.google.com/go/compute/metadata v0.9.0/go.mod h1:E0bWwX5wTnLPedCKqk3pJmVgCBSM6qQI1yTBdEb3C10=
-d7y.io/api/v2 v2.2.26 h1:HOstpgWVZiBa1MrQ1JHp4U5g1CQmYADsVdEQ5NK2tDg=
-d7y.io/api/v2 v2.2.26/go.mod h1:9Hw55XHdILG0ntSy20zZHLpuxVNvKXkM0qzjjLh+Pbw=
+d7y.io/api/v2 v2.2.28 h1:cSkW6VKhNn+noMZGJJ4/H0fECrp+sLLo19tep/Ib5CQ=
+d7y.io/api/v2 v2.2.28/go.mod h1:s/G9W8VxUkpsRqqzTuctQmLRb8srFbUUTOXF7Ms3khc=
 dario.cat/mergo v1.0.0 h1:AGCNq9Evsj31mOgNPcLyXc+4PNABt905YmuqPYYpBWk=
 dario.cat/mergo v1.0.0/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
