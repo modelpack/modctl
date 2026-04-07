@@ -32,6 +32,7 @@ import (
 	internalpb "github.com/modelpack/modctl/internal/pb"
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/iometrics"
 	"github.com/modelpack/modctl/pkg/storage"
 )
 
@@ -70,6 +71,8 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	pb.Start()
 	defer pb.Stop()
 
+	tracker := iometrics.NewTracker("push")
+
 	// copy the image to the destination, there are three steps:
 	// 1. copy the layers.
 	// 2. copy the config.
@@ -91,7 +94,9 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 
 			return retry.Do(func() error {
 				logrus.Debugf("push: processing layer %s", layer.Digest)
-				if err := pushIfNotExist(gctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag); err != nil {
+				if err := tracker.TrackTransfer(func() error {
+					return pushIfNotExist(gctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag, tracker)
+				}); err != nil {
 					return err
 				}
 				logrus.Debugf("push: successfully processed layer %s", layer.Digest)
@@ -106,29 +111,34 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 
 	// copy the config.
 	if err := retry.Do(func() error {
-		return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag)
+		return tracker.TrackTransfer(func() error {
+			return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag, tracker)
+		})
 	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to push config to remote: %w", err)
 	}
 
 	// copy the manifest.
 	if err := retry.Do(func() error {
-		return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, ocispec.Descriptor{
-			MediaType: manifest.MediaType,
-			Size:      int64(len(manifestRaw)),
-			Digest:    godigest.FromBytes(manifestRaw),
-			Data:      manifestRaw,
-		}, repo, tag)
+		return tracker.TrackTransfer(func() error {
+			return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, ocispec.Descriptor{
+				MediaType: manifest.MediaType,
+				Size:      int64(len(manifestRaw)),
+				Digest:    godigest.FromBytes(manifestRaw),
+				Data:      manifestRaw,
+			}, repo, tag, tracker)
+		})
 	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
 
+	tracker.Summary()
 	logrus.Infof("push: pushed artifact %s", target)
 	return nil
 }
 
 // pushIfNotExist copies the content from the src storage to the dst storage if the content does not exist.
-func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src storage.Storage, dst *remote.Repository, desc ocispec.Descriptor, repo, tag string) error {
+func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src storage.Storage, dst *remote.Repository, desc ocispec.Descriptor, repo, tag string, tracker *iometrics.Tracker) error {
 	// check whether the content exists in the destination storage.
 	exist, err := dst.Exists(ctx, desc)
 	if err != nil {
@@ -177,7 +187,7 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 			return err
 		}
 
-		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
+		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, tracker.WrapReader(content))
 		// resolve issue: https://github.com/modelpack/modctl/issues/50
 		// wrap the content to the NopCloser, because the implementation of the distribution will
 		// always return the error when Close() is called.
