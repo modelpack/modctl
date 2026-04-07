@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/sirupsen/logrus"
 )
 
@@ -112,7 +113,7 @@ func (t *Tracker) Summary() {
 	// Log structured fields to log file.
 	logrus.WithFields(logrus.Fields{
 		"operation":            t.operation,
-		"totalBytes":           formatBytes(uint64(totalBytes)),
+		"totalBytes":           humanize.IBytes(uint64(totalBytes)),
 		"wallClock":            wallClock.Round(time.Millisecond).String(),
 		"effectiveThroughput":  formatThroughput(totalBytes, wallClock),
 		t.sourceLabel():        sourceThroughput,
@@ -129,7 +130,7 @@ func (t *Tracker) Summary() {
 		snkArrow = " ← bottleneck"
 	}
 	fmt.Fprintf(os.Stderr, "IO summary: %s in %s, %s | %s: %s%s | %s: %s%s\n",
-		formatBytes(uint64(totalBytes)),
+		humanize.IBytes(uint64(totalBytes)),
 		wallClock.Round(time.Millisecond),
 		formatThroughput(totalBytes, wallClock),
 		t.sourceLabel(), sourceThroughput, srcArrow,

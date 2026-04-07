@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/sirupsen/logrus"
 )
 
@@ -49,32 +50,26 @@ func getCgroupLimits() *cgroupLimits {
 
 func tryV2(limits *cgroupLimits) bool {
 	// cgroup v2 uses unified hierarchy at /sys/fs/cgroup/.
-	cpuMax, err := os.ReadFile("/sys/fs/cgroup/cpu.max")
-	if err != nil {
-		return false
-	}
-
-	parts := strings.Fields(strings.TrimSpace(string(cpuMax)))
-	if len(parts) == 2 && parts[0] != "max" {
-		quota, err1 := strconv.ParseFloat(parts[0], 64)
-		period, err2 := strconv.ParseFloat(parts[1], 64)
-		if err1 == nil && err2 == nil && period > 0 {
-			limits.CPUQuota = quota / period
-			limits.InCgroup = true
+	// Detect CPU and memory independently — one may be set without the other.
+	if cpuMax, err := os.ReadFile("/sys/fs/cgroup/cpu.max"); err == nil {
+		parts := strings.Fields(strings.TrimSpace(string(cpuMax)))
+		if len(parts) == 2 && parts[0] != "max" {
+			quota, err1 := strconv.ParseFloat(parts[0], 64)
+			period, err2 := strconv.ParseFloat(parts[1], 64)
+			if err1 == nil && err2 == nil && period > 0 {
+				limits.CPUQuota = quota / period
+				limits.InCgroup = true
+			}
 		}
 	}
 
-	memMax, err := os.ReadFile("/sys/fs/cgroup/memory.max")
-	if err != nil {
-		return limits.InCgroup
-	}
-
-	memStr := strings.TrimSpace(string(memMax))
-	if memStr != "max" {
-		memLimit, err := strconv.ParseUint(memStr, 10, 64)
-		if err == nil {
-			limits.MemLimit = memLimit
-			limits.InCgroup = true
+	if memMax, err := os.ReadFile("/sys/fs/cgroup/memory.max"); err == nil {
+		memStr := strings.TrimSpace(string(memMax))
+		if memStr != "max" {
+			if memLimit, err := strconv.ParseUint(memStr, 10, 64); err == nil {
+				limits.MemLimit = memLimit
+				limits.InCgroup = true
+			}
 		}
 	}
 
@@ -82,46 +77,28 @@ func tryV2(limits *cgroupLimits) bool {
 }
 
 func tryV1(limits *cgroupLimits) {
-	// cgroup v1: CPU quota.
-	quotaBytes, err := os.ReadFile("/sys/fs/cgroup/cpu/cpu.cfs_quota_us")
-	if err != nil {
-		return
+	// cgroup v1: CPU quota. Detect independently from memory.
+	if quotaBytes, err := os.ReadFile("/sys/fs/cgroup/cpu/cpu.cfs_quota_us"); err == nil {
+		if quota, err := strconv.ParseFloat(strings.TrimSpace(string(quotaBytes)), 64); err == nil && quota > 0 {
+			if periodBytes, err := os.ReadFile("/sys/fs/cgroup/cpu/cpu.cfs_period_us"); err == nil {
+				if period, err := strconv.ParseFloat(strings.TrimSpace(string(periodBytes)), 64); err == nil && period > 0 {
+					limits.CPUQuota = quota / period
+					limits.InCgroup = true
+				}
+			}
+		}
 	}
-
-	quota, err := strconv.ParseFloat(strings.TrimSpace(string(quotaBytes)), 64)
-	if err != nil || quota <= 0 {
-		// -1 means no limit.
-		return
-	}
-
-	periodBytes, err := os.ReadFile("/sys/fs/cgroup/cpu/cpu.cfs_period_us")
-	if err != nil {
-		return
-	}
-
-	period, err := strconv.ParseFloat(strings.TrimSpace(string(periodBytes)), 64)
-	if err != nil || period <= 0 {
-		return
-	}
-
-	limits.CPUQuota = quota / period
-	limits.InCgroup = true
 
 	// cgroup v1: Memory limit.
-	memBytes, err := os.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes")
-	if err != nil {
-		return
-	}
-
-	memLimit, err := strconv.ParseUint(strings.TrimSpace(string(memBytes)), 10, 64)
-	if err != nil {
-		return
-	}
-
-	// Very large values (like 2^63) indicate no limit.
-	const noLimitThreshold = 1 << 62
-	if memLimit < noLimitThreshold {
-		limits.MemLimit = memLimit
+	if memBytes, err := os.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes"); err == nil {
+		if memLimit, err := strconv.ParseUint(strings.TrimSpace(string(memBytes)), 10, 64); err == nil {
+			// Very large values (like 2^63) indicate no limit.
+			const noLimitThreshold = 1 << 62
+			if memLimit < noLimitThreshold {
+				limits.MemLimit = memLimit
+				limits.InCgroup = true
+			}
+		}
 	}
 }
 
@@ -137,7 +114,7 @@ func logCgroupInfo() {
 		fields["cpuQuota"] = strconv.FormatFloat(limits.CPUQuota, 'f', 2, 64)
 	}
 	if limits.MemLimit > 0 {
-		fields["memoryLimit"] = formatBytes(limits.MemLimit)
+		fields["memoryLimit"] = humanize.IBytes(limits.MemLimit)
 	}
 
 	if len(fields) > 0 {
