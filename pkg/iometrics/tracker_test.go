@@ -210,7 +210,9 @@ func TestSummaryOutput(t *testing.T) {
 		"io throughput summary",
 		"operation=push",
 		"totalBytes=",
-		"readFraction=",
+		"bottleneck=",
+		"disk read",
+		"network write",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Errorf("log output missing %q, got:\n%s", expected, output)
@@ -218,36 +220,50 @@ func TestSummaryOutput(t *testing.T) {
 	}
 }
 
-func TestReadFractionAccuracy(t *testing.T) {
-	tracker := NewTracker("test")
+func TestBottleneckDetection(t *testing.T) {
+	// Simulate source-bottleneck: source read takes 80ms, sink takes 20ms.
+	t.Run("source bottleneck", func(t *testing.T) {
+		tracker := NewTracker("pull")
+		sr := &slowReader{data: make([]byte, 64), delay: 80 * time.Millisecond}
+		wrapped := tracker.WrapReader(sr)
+		tracker.TrackTransfer(func() error {
+			_, err := io.ReadAll(wrapped)
+			if err != nil {
+				return err
+			}
+			time.Sleep(20 * time.Millisecond)
+			return nil
+		})
 
-	// Simulate: source read takes 80ms, total transfer takes 100ms.
-	// readFraction should be ~0.8.
-	sr := &slowReader{data: make([]byte, 64), delay: 80 * time.Millisecond}
-	wrapped := tracker.WrapReader(sr)
-	tracker.TrackTransfer(func() error {
-		_, err := io.ReadAll(wrapped)
-		if err != nil {
-			return err
+		sourceNanos := tracker.sourceNanos.Load()
+		sinkNanos := tracker.transferNanos.Load() - sourceNanos
+		if sourceNanos <= sinkNanos {
+			t.Errorf("expected source > sink for source bottleneck: source=%d, sink=%d",
+				sourceNanos, sinkNanos)
 		}
-		// Simulate 20ms of sink write time.
-		time.Sleep(20 * time.Millisecond)
-		return nil
 	})
 
-	sourceNanos := tracker.sourceNanos.Load()
-	transferNanos := tracker.transferNanos.Load()
+	// Simulate sink-bottleneck: source read takes 10ms, sink takes 80ms.
+	t.Run("sink bottleneck", func(t *testing.T) {
+		tracker := NewTracker("push")
+		sr := &slowReader{data: make([]byte, 64), delay: 10 * time.Millisecond}
+		wrapped := tracker.WrapReader(sr)
+		tracker.TrackTransfer(func() error {
+			_, err := io.ReadAll(wrapped)
+			if err != nil {
+				return err
+			}
+			time.Sleep(80 * time.Millisecond)
+			return nil
+		})
 
-	if transferNanos == 0 {
-		t.Fatal("transferNanos should be > 0")
-	}
-
-	readFraction := float64(sourceNanos) / float64(transferNanos)
-	// Expect readFraction to be roughly 0.8 (with tolerance for scheduling jitter).
-	if readFraction < 0.5 || readFraction > 0.95 {
-		t.Errorf("readFraction = %.2f, expected ~0.8 (sourceNanos=%d, transferNanos=%d)",
-			readFraction, sourceNanos, transferNanos)
-	}
+		sourceNanos := tracker.sourceNanos.Load()
+		sinkNanos := tracker.transferNanos.Load() - sourceNanos
+		if sinkNanos <= sourceNanos {
+			t.Errorf("expected sink > source for sink bottleneck: source=%d, sink=%d",
+				sourceNanos, sinkNanos)
+		}
+	})
 }
 
 func TestFormatBytes(t *testing.T) {

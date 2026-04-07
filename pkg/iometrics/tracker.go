@@ -66,6 +66,22 @@ func (t *Tracker) TrackTransfer(fn func() error) error {
 	return err
 }
 
+// sourceLabel and sinkLabel return human-readable labels for the source
+// and sink sides based on the operation type.
+func (t *Tracker) sourceLabel() string {
+	if t.operation == "push" {
+		return "disk read"
+	}
+	return "network read"
+}
+
+func (t *Tracker) sinkLabel() string {
+	if t.operation == "push" {
+		return "network write"
+	}
+	return "disk write"
+}
+
 // Summary outputs a throughput summary to both the log file (logrus)
 // and the terminal (stderr). Call this after all goroutines have
 // completed (after g.Wait()) — the happens-before from errgroup
@@ -80,11 +96,17 @@ func (t *Tracker) Summary() {
 		return
 	}
 
-	sourceReadTime := time.Duration(sourceNanos)
+	sourceDuration := time.Duration(sourceNanos)
+	sinkNanos := transferNanos - sourceNanos
+	sinkDuration := time.Duration(max(sinkNanos, 0))
 
-	var readFraction float64
-	if transferNanos > 0 {
-		readFraction = float64(sourceNanos) / float64(transferNanos)
+	sourceThroughput := formatThroughput(totalBytes, sourceDuration)
+	sinkThroughput := formatThroughput(totalBytes, sinkDuration)
+
+	// Identify the bottleneck by comparing cumulative durations.
+	bottleneck := t.sinkLabel()
+	if sourceNanos > sinkNanos {
+		bottleneck = t.sourceLabel()
 	}
 
 	// Log structured fields to log file.
@@ -92,18 +114,25 @@ func (t *Tracker) Summary() {
 		"operation":            t.operation,
 		"totalBytes":           formatBytes(uint64(totalBytes)),
 		"wallClock":            wallClock.Round(time.Millisecond).String(),
-		"sourceReadTime":       sourceReadTime.Round(time.Millisecond).String(),
-		"sourceReadThroughput": formatThroughput(totalBytes, sourceReadTime),
 		"effectiveThroughput":  formatThroughput(totalBytes, wallClock),
-		"readFraction":         fmt.Sprintf("%.2f", readFraction),
+		t.sourceLabel():        sourceThroughput,
+		t.sinkLabel():          sinkThroughput,
+		"bottleneck":           bottleneck,
 	}).Info("io throughput summary")
 
 	// Print concise summary to terminal.
-	fmt.Fprintf(os.Stderr, "IO summary: %s in %s, effective %s, source %s, read ratio %.2f\n",
+	srcArrow := ""
+	snkArrow := ""
+	if bottleneck == t.sourceLabel() {
+		srcArrow = " ← bottleneck"
+	} else {
+		snkArrow = " ← bottleneck"
+	}
+	fmt.Fprintf(os.Stderr, "IO summary: %s in %s, %s | %s: %s%s | %s: %s%s\n",
 		formatBytes(uint64(totalBytes)),
 		wallClock.Round(time.Millisecond),
 		formatThroughput(totalBytes, wallClock),
-		formatThroughput(totalBytes, sourceReadTime),
-		readFraction,
+		t.sourceLabel(), sourceThroughput, srcArrow,
+		t.sinkLabel(), sinkThroughput, snkArrow,
 	)
 }
