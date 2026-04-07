@@ -167,7 +167,7 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 	// push the content to the destination, and wrap the content reader for progress bar,
 	// manifest should use dst.Manifests().Push, others should use dst.Blobs().Push.
 	if desc.MediaType == ocispec.MediaTypeImageManifest {
-		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, bytes.NewReader(desc.Data))
+		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, tracker.WrapReader(bytes.NewReader(desc.Data)))
 		if err := dst.Manifests().Push(ctx, desc, reader); err != nil {
 			err = fmt.Errorf("failed to push manifest %s, err: %w", desc.Digest.String(), err)
 			pb.Abort(desc.Digest.String(), err)
