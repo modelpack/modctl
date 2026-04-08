@@ -159,12 +159,9 @@ func TestMockRegistry_FaultLatency(t *testing.T) {
 }
 
 // TestMockRegistry_RequestCounting verifies global and per-path counters.
+// No fault configuration is needed: every request path is tracked regardless.
 func TestMockRegistry_RequestCounting(t *testing.T) {
-	r := NewMockRegistry().WithFault(&FaultConfig{
-		PathFaults: map[string]*FaultConfig{
-			"/v2/": {},
-		},
-	})
+	r := NewMockRegistry()
 	defer r.Close()
 
 	for i := 0; i < 5; i++ {

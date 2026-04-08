@@ -95,10 +95,12 @@ func NewMockRegistry() *MockRegistry {
 }
 
 // WithFault sets global fault injection config and returns the registry for
-// chaining.
+// chaining.  It also resets the failCounter so that FailOnNthRequest behaves
+// correctly when WithFault is called multiple times on the same registry.
 func (r *MockRegistry) WithFault(f *FaultConfig) *MockRegistry {
 	r.faultMu.Lock()
 	r.fault = f
+	atomic.StoreInt64(&r.failCounter, 0)
 	r.faultMu.Unlock()
 	return r
 }
@@ -151,12 +153,18 @@ func (r *MockRegistry) RequestCount() int64 {
 }
 
 // RequestCountByPath returns the number of requests whose URL path ends with
-// pathSuffix.
+// pathSuffix.  It works independently of fault configuration: every incoming
+// request path is tracked, so callers do not need to declare a PathFault entry
+// to observe request counts.
 func (r *MockRegistry) RequestCountByPath(pathSuffix string) int64 {
-	if v, ok := r.pathCounts.Load(pathSuffix); ok {
-		return atomic.LoadInt64(v.(*int64))
-	}
-	return 0
+	var total int64
+	r.pathCounts.Range(func(key, value any) bool {
+		if strings.HasSuffix(key.(string), pathSuffix) {
+			total += atomic.LoadInt64(value.(*int64))
+		}
+		return true
+	})
+	return total
 }
 
 // BlobExists reports whether a blob with the given digest is stored.
@@ -205,20 +213,11 @@ func (r *MockRegistry) effectiveFault(path string) *FaultConfig {
 	return f
 }
 
-// incrementPathCount bumps all registered path-suffix counters that match.
+// incrementPathCount records a hit for the exact request path so that
+// RequestCountByPath can later sum counts for any matching suffix.
+// This is independent of fault configuration.
 func (r *MockRegistry) incrementPathCount(path string) {
-	r.faultMu.Lock()
-	f := r.fault
-	r.faultMu.Unlock()
-
-	if f == nil {
-		return
-	}
-	for suffix := range f.PathFaults {
-		if strings.HasSuffix(path, suffix) {
-			r.bumpPathCounter(suffix)
-		}
-	}
+	r.bumpPathCounter(path)
 }
 
 func (r *MockRegistry) bumpPathCounter(suffix string) {
