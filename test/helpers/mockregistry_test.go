@@ -17,6 +17,7 @@
 package helpers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -197,7 +198,7 @@ func TestMockRegistry_BlobUploadRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	// Send body in the PUT (single-shot upload).
-	putReq.Body = io.NopCloser(newReader(content))
+	putReq.Body = io.NopCloser(bytes.NewReader(content))
 	putReq.ContentLength = int64(len(content))
 
 	resp, err = http.DefaultClient.Do(putReq)
@@ -212,22 +213,55 @@ func TestMockRegistry_BlobUploadRoundTrip(t *testing.T) {
 	assert.Equal(t, content, stored)
 }
 
-// newReader wraps a byte slice in an io.Reader without importing bytes at the
-// test-package level (bytes is already imported in the main file).
-func newReader(b []byte) io.Reader {
-	return &bytesReader{data: b}
+// TestMockRegistry_FaultFailAfterNBytes verifies that FailAfterNBytes truncates
+// the response body and closes the connection.
+func TestMockRegistry_FaultFailAfterNBytes(t *testing.T) {
+	r := NewMockRegistry()
+	defer r.Close()
+
+	content := []byte("0123456789abcdef") // 16 bytes
+	dgst := r.AddBlob(content)
+
+	const limit = int64(8)
+	r.WithFault(&FaultConfig{FailAfterNBytes: limit})
+
+	resp, err := http.Get(fmt.Sprintf("%s/v2/myrepo/blobs/%s", baseURL(r), dgst))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	assert.LessOrEqual(t, int64(len(body)), limit,
+		"response body should be truncated to at most %d bytes, got %d", limit, len(body))
 }
 
-type bytesReader struct {
-	data []byte
-	pos  int
-}
+// TestMockRegistry_FaultPathSpecific verifies that a PathFaults entry overrides
+// the global FaultConfig for the matching path.
+func TestMockRegistry_FaultPathSpecific(t *testing.T) {
+	r := NewMockRegistry()
+	defer r.Close()
 
-func (br *bytesReader) Read(p []byte) (int, error) {
-	if br.pos >= len(br.data) {
-		return 0, io.EOF
-	}
-	n := copy(p, br.data[br.pos:])
-	br.pos += n
-	return n, nil
+	// Global fault: return 503 for everything.
+	// Path-specific fault on /v2/: return 200 (no override, just no fault).
+	r.WithFault(&FaultConfig{
+		StatusCodeOverride: http.StatusServiceUnavailable,
+		PathFaults: map[string]*FaultConfig{
+			"/v2/": {}, // no fault for the ping endpoint
+		},
+	})
+
+	// /v2/ should be unaffected by the global 503 override.
+	resp, err := http.Get(baseURL(r) + "/v2/")
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode,
+		"path-specific empty fault should override global 503")
+
+	// A non-overridden path should still get the global 503.
+	content := []byte("test-blob")
+	dgst := r.AddBlob(content)
+	resp, err = http.Get(fmt.Sprintf("%s/v2/myrepo/blobs/%s", baseURL(r), dgst))
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode,
+		"non-overridden path should receive global status code override")
 }

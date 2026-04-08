@@ -80,7 +80,13 @@ type MockRegistry struct {
 	pathCounts sync.Map
 
 	// failCounter tracks how many requests have been seen for FailOnNthRequest.
+	// This is a single counter shared across all fault contexts (global and all
+	// PathFaults entries), so FailOnNthRequest on a per-path fault interacts with
+	// the same counter as the global fault and other per-path faults.
 	failCounter int64 // accessed atomically
+
+	// uploadSeq is used to generate unique upload UUIDs in a race-free manner.
+	uploadSeq atomic.Int64
 }
 
 // NewMockRegistry creates and starts a new mock OCI registry server.
@@ -213,23 +219,16 @@ func (r *MockRegistry) effectiveFault(path string) *FaultConfig {
 	return f
 }
 
-// incrementPathCount records a hit for the exact request path so that
-// RequestCountByPath can later sum counts for any matching suffix.
-// This is independent of fault configuration.
-func (r *MockRegistry) incrementPathCount(path string) {
-	r.bumpPathCounter(path)
-}
-
 func (r *MockRegistry) bumpPathCounter(suffix string) {
-	var zero int64
-	actual, _ := r.pathCounts.LoadOrStore(suffix, &zero)
+	newVal := new(int64)
+	actual, _ := r.pathCounts.LoadOrStore(suffix, newVal)
 	atomic.AddInt64(actual.(*int64), 1)
 }
 
 // handleRequest is the top-level HTTP handler.
 func (r *MockRegistry) handleRequest(w http.ResponseWriter, req *http.Request) {
 	atomic.AddInt64(&r.requestCount, 1)
-	r.incrementPathCount(req.URL.Path)
+	r.bumpPathCounter(req.URL.Path)
 
 	f := r.effectiveFault(req.URL.Path)
 
@@ -368,7 +367,7 @@ func (r *MockRegistry) handleBlob(w http.ResponseWriter, req *http.Request, dige
 func (r *MockRegistry) handleBlobUpload(w http.ResponseWriter, req *http.Request, path string, f *FaultConfig) {
 	// POST /v2/<name>/blobs/uploads/ — initiate upload
 	if req.Method == http.MethodPost && strings.HasSuffix(path, "/blobs/uploads/") {
-		uuid := godigest.FromString(fmt.Sprintf("%d", time.Now().UnixNano())).Hex()[:16]
+		uuid := fmt.Sprintf("upload-%d", r.uploadSeq.Add(1))
 		r.mu.Lock()
 		r.pendingUploads[uuid] = new(bytes.Buffer)
 		r.mu.Unlock()
@@ -399,7 +398,7 @@ func (r *MockRegistry) handleBlobUpload(w http.ResponseWriter, req *http.Request
 		}
 		r.mu.Unlock()
 		w.Header().Set("Location", path)
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
