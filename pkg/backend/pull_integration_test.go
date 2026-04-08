@@ -227,7 +227,8 @@ func TestIntegration_Pull_PartialResponse(t *testing.T) {
 	f := newPullTestFixture(t, 1)
 	defer f.mr.Close()
 
-	// FailAfterNBytes on blob — truncate after 5 bytes.
+	// FailAfterNBytes on blob — connection drops after 5 bytes (very early).
+	// This simulates a mid-stream connection drop before meaningful data is received.
 	blobPath := fmt.Sprintf("/blobs/%s", f.digests[0])
 	f.mr.WithFault(&helpers.FaultConfig{
 		PathFaults: map[string]*helpers.FaultConfig{
@@ -242,6 +243,10 @@ func TestIntegration_Pull_PartialResponse(t *testing.T) {
 
 	err := f.backend.Pull(ctx, f.target, f.cfg)
 	require.Error(t, err)
+
+	// The blob endpoint must have been contacted at least once.
+	assert.Positive(t, f.mr.RequestCountByPath(blobPath),
+		"blob endpoint should have been requested at least once")
 }
 
 func TestIntegration_Pull_ManifestOK_BlobFails(t *testing.T) {
@@ -298,20 +303,25 @@ func TestIntegration_Pull_TruncatedBlob(t *testing.T) {
 	f := newPullTestFixture(t, 1)
 	defer f.mr.Close()
 
-	// Truncate blob after 5 bytes — should cause either read error or
-	// digest validation failure.
-	blobPath := fmt.Sprintf("/blobs/%s", f.digests[0])
-	f.mr.WithFault(&helpers.FaultConfig{
-		PathFaults: map[string]*helpers.FaultConfig{
-			blobPath: {FailAfterNBytes: 5},
-		},
-	})
+	// Serve content that has the exact same length as the real blob but
+	// contains wrong bytes.  This is distinct from PartialResponse (which
+	// drops the connection mid-stream): here the full Content-Length is
+	// delivered, but the bytes do not match the registered digest, so the
+	// pull must fail at digest-validation time.
+	realBlob := f.blobs[0]
+	wrongContent := make([]byte, len(realBlob))
+	for i := range wrongContent {
+		wrongContent[i] = 'X'
+	}
+	f.mr.AddBlobWithDigest(f.digests[0], wrongContent)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	err := f.backend.Pull(ctx, f.target, f.cfg)
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "digest",
+		"wrong-content blob should be rejected with a digest validation error")
 }
 
 func TestIntegration_Pull_CorruptedBlob(t *testing.T) {
@@ -388,13 +398,12 @@ func TestIntegration_Pull_Idempotent(t *testing.T) {
 	require.NoError(t, err)
 
 	reqCountAfterSecond := f.mr.RequestCount()
-	delta := reqCountAfterSecond - reqCountAfterFirst
-	t.Logf("first pull requests: %d, second pull delta: %d", reqCountAfterFirst, delta)
+	t.Logf("first pull registry requests: %d, second pull registry requests: %d",
+		reqCountAfterFirst, reqCountAfterSecond-reqCountAfterFirst)
 
-	// Both pulls still fetch from the remote (the Pull function always
-	// fetches the manifest, config, and layers from the registry before
-	// checking local existence). The key difference is that the second
-	// pull should NOT write anything to local storage.
+	// Second pull should not write to storage (blobs and manifest already
+	// exist locally). Registry requests may still occur (manifest fetch),
+	// but no PushBlob or PushManifest calls should be made.
 	s2.AssertNotCalled(t, "PushBlob", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	s2.AssertNotCalled(t, "PushManifest", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
