@@ -17,6 +17,8 @@
 package huggingface
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -165,4 +167,264 @@ func TestProvider_Name(t *testing.T) {
 	if got := provider.Name(); got != "huggingface" {
 		t.Errorf("Provider.Name() = %v, want %v", got, "huggingface")
 	}
+}
+
+func TestTokenFilePaths(t *testing.T) {
+	t.Run("without HF_HOME", func(t *testing.T) {
+		// Ensure HF_HOME is unset
+		t.Setenv("HF_HOME", "")
+
+		paths := tokenFilePaths()
+
+		// Should have exactly 2 paths: modern and legacy (no HF_HOME path)
+		if len(paths) != 2 {
+			t.Fatalf("tokenFilePaths() returned %d paths, want 2", len(paths))
+		}
+
+		// First should be the modern cache path
+		if !strings.Contains(paths[0], filepath.Join(".cache", "huggingface", "token")) {
+			t.Errorf("tokenFilePaths()[0] = %q, want path containing .cache/huggingface/token", paths[0])
+		}
+
+		// Second should be the legacy path
+		if !strings.Contains(paths[1], filepath.Join(".huggingface", "token")) {
+			t.Errorf("tokenFilePaths()[1] = %q, want path containing .huggingface/token", paths[1])
+		}
+	})
+
+	t.Run("with HF_HOME", func(t *testing.T) {
+		customDir := t.TempDir()
+		t.Setenv("HF_HOME", customDir)
+
+		paths := tokenFilePaths()
+
+		// Should have 3 paths: HF_HOME, modern, legacy
+		if len(paths) != 3 {
+			t.Fatalf("tokenFilePaths() returned %d paths, want 3", len(paths))
+		}
+
+		// First should be the HF_HOME path
+		expected := filepath.Join(customDir, "token")
+		if paths[0] != expected {
+			t.Errorf("tokenFilePaths()[0] = %q, want %q", paths[0], expected)
+		}
+	})
+}
+
+func TestCheckHuggingFaceAuth(t *testing.T) {
+	t.Run("authenticated via HF_TOKEN env var", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "hf_test_token_123")
+
+		err := checkHuggingFaceAuth()
+		if err != nil {
+			t.Errorf("checkHuggingFaceAuth() returned error %v, want nil", err)
+		}
+	})
+
+	t.Run("authenticated via token file at HF_HOME", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "")
+
+		tmpDir := t.TempDir()
+		t.Setenv("HF_HOME", tmpDir)
+		// Override HOME so the modern/legacy paths don't accidentally find a real token
+		t.Setenv("HOME", t.TempDir())
+
+		tokenPath := filepath.Join(tmpDir, "token")
+		if err := os.WriteFile(tokenPath, []byte("hf_test_token"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := checkHuggingFaceAuth()
+		if err != nil {
+			t.Errorf("checkHuggingFaceAuth() returned error %v, want nil", err)
+		}
+	})
+
+	t.Run("authenticated via modern token path", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "")
+		t.Setenv("HF_HOME", "")
+
+		fakeHome := t.TempDir()
+		t.Setenv("HOME", fakeHome)
+
+		tokenPath := filepath.Join(fakeHome, ".cache", "huggingface", "token")
+		if err := os.MkdirAll(filepath.Dir(tokenPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(tokenPath, []byte("hf_test_token"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := checkHuggingFaceAuth()
+		if err != nil {
+			t.Errorf("checkHuggingFaceAuth() returned error %v, want nil", err)
+		}
+	})
+
+	t.Run("authenticated via legacy token path", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "")
+		t.Setenv("HF_HOME", "")
+
+		fakeHome := t.TempDir()
+		t.Setenv("HOME", fakeHome)
+
+		tokenPath := filepath.Join(fakeHome, ".huggingface", "token")
+		if err := os.MkdirAll(filepath.Dir(tokenPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(tokenPath, []byte("hf_test_token"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := checkHuggingFaceAuth()
+		if err != nil {
+			t.Errorf("checkHuggingFaceAuth() returned error %v, want nil", err)
+		}
+	})
+
+	t.Run("not authenticated", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "")
+		t.Setenv("HF_HOME", "")
+		t.Setenv("HOME", t.TempDir())
+		// Ensure no CLI tools are found by overriding PATH
+		t.Setenv("PATH", t.TempDir())
+
+		err := checkHuggingFaceAuth()
+		if err == nil {
+			t.Error("checkHuggingFaceAuth() returned nil, want error")
+		}
+		if err != nil && !strings.Contains(err.Error(), "not authenticated") {
+			t.Errorf("checkHuggingFaceAuth() error = %q, want error containing 'not authenticated'", err.Error())
+		}
+	})
+}
+
+func TestGetToken(t *testing.T) {
+	t.Run("token from HF_TOKEN env var", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "hf_env_token_abc")
+
+		token, err := getToken()
+		if err != nil {
+			t.Fatalf("getToken() returned error: %v", err)
+		}
+		if token != "hf_env_token_abc" {
+			t.Errorf("getToken() = %q, want %q", token, "hf_env_token_abc")
+		}
+	})
+
+	t.Run("token from HF_HOME file", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "")
+
+		tmpDir := t.TempDir()
+		t.Setenv("HF_HOME", tmpDir)
+		t.Setenv("HOME", t.TempDir())
+
+		tokenPath := filepath.Join(tmpDir, "token")
+		if err := os.WriteFile(tokenPath, []byte("  hf_file_token_xyz  \n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		token, err := getToken()
+		if err != nil {
+			t.Fatalf("getToken() returned error: %v", err)
+		}
+		if token != "hf_file_token_xyz" {
+			t.Errorf("getToken() = %q, want %q (should be trimmed)", token, "hf_file_token_xyz")
+		}
+	})
+
+	t.Run("token from modern cache path", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "")
+		t.Setenv("HF_HOME", "")
+
+		fakeHome := t.TempDir()
+		t.Setenv("HOME", fakeHome)
+
+		tokenPath := filepath.Join(fakeHome, ".cache", "huggingface", "token")
+		if err := os.MkdirAll(filepath.Dir(tokenPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(tokenPath, []byte("hf_modern_token"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		token, err := getToken()
+		if err != nil {
+			t.Fatalf("getToken() returned error: %v", err)
+		}
+		if token != "hf_modern_token" {
+			t.Errorf("getToken() = %q, want %q", token, "hf_modern_token")
+		}
+	})
+
+	t.Run("token from legacy path", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "")
+		t.Setenv("HF_HOME", "")
+
+		fakeHome := t.TempDir()
+		t.Setenv("HOME", fakeHome)
+
+		tokenPath := filepath.Join(fakeHome, ".huggingface", "token")
+		if err := os.MkdirAll(filepath.Dir(tokenPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(tokenPath, []byte("hf_legacy_token"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		token, err := getToken()
+		if err != nil {
+			t.Fatalf("getToken() returned error: %v", err)
+		}
+		if token != "hf_legacy_token" {
+			t.Errorf("getToken() = %q, want %q", token, "hf_legacy_token")
+		}
+	})
+
+	t.Run("modern path takes priority over legacy", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "")
+		t.Setenv("HF_HOME", "")
+
+		fakeHome := t.TempDir()
+		t.Setenv("HOME", fakeHome)
+
+		// Create both modern and legacy token files
+		modernPath := filepath.Join(fakeHome, ".cache", "huggingface", "token")
+		if err := os.MkdirAll(filepath.Dir(modernPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(modernPath, []byte("modern_token"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		legacyPath := filepath.Join(fakeHome, ".huggingface", "token")
+		if err := os.MkdirAll(filepath.Dir(legacyPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(legacyPath, []byte("legacy_token"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		token, err := getToken()
+		if err != nil {
+			t.Fatalf("getToken() returned error: %v", err)
+		}
+		if token != "modern_token" {
+			t.Errorf("getToken() = %q, want %q (modern should take priority)", token, "modern_token")
+		}
+	})
+
+	t.Run("no token found", func(t *testing.T) {
+		t.Setenv("HF_TOKEN", "")
+		t.Setenv("HF_HOME", "")
+		t.Setenv("HOME", t.TempDir())
+
+		_, err := getToken()
+		if err == nil {
+			t.Error("getToken() returned nil error, want error")
+		}
+		if err != nil && !strings.Contains(err.Error(), "token not found") {
+			t.Errorf("getToken() error = %q, want error containing 'token not found'", err.Error())
+		}
+	})
 }
