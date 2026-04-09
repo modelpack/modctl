@@ -33,7 +33,7 @@ func (b *backend) Upload(ctx context.Context, filepath string, cfg *config.Uploa
 	logrus.Infof("upload: uploading file %s to %s", filepath, cfg.Repo)
 	proc, err := b.getProcessor(cfg.DestinationDir, filepath, cfg.Raw)
 	if err != nil {
-		return fmt.Errorf("failed to get processor for file %s: %w", filepath, err)
+		return fmt.Errorf("failed to get processor: %w", err)
 	}
 
 	opts := []build.Option{

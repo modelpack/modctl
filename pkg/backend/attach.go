@@ -77,7 +77,7 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 
 	proc, err := b.getProcessor(cfg.DestinationDir, filepath, cfg.Raw)
 	if err != nil {
-		return fmt.Errorf("failed to get processor for file %s: %w", filepath, err)
+		return fmt.Errorf("failed to get processor: %w", err)
 	}
 
 	builder, err := b.getBuilder(cfg.Target, cfg)
