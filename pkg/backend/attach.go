@@ -75,9 +75,9 @@ func (b *backend) Attach(ctx context.Context, filepath string, cfg *config.Attac
 
 	logrus.Infof("attach: loaded source model config [config: %+v]", srcModelConfig)
 
-	proc := b.getProcessor(cfg.DestinationDir, filepath, cfg.Raw)
-	if proc == nil {
-		return fmt.Errorf("failed to get processor for file %s", filepath)
+	proc, err := b.getProcessor(cfg.DestinationDir, filepath, cfg.Raw)
+	if err != nil {
+		return fmt.Errorf("failed to get processor: %w", err)
 	}
 
 	builder, err := b.getBuilder(cfg.Target, cfg)
@@ -305,40 +305,44 @@ func (b *backend) getModelConfig(ctx context.Context, reference string, desc oci
 	return &model, nil
 }
 
-func (b *backend) getProcessor(destDir, filepath string, rawMediaType bool) processor.Processor {
-	if modelfile.IsFileType(filepath, modelfile.ConfigFilePatterns) {
-		mediaType := modelspec.MediaTypeModelWeightConfig
+func (b *backend) getProcessor(destDir, filepath string, rawMediaType bool) (processor.Processor, error) {
+	info, err := os.Stat(filepath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat file %s: %w", filepath, err)
+	}
+
+	fileType := modelfile.InferFileType(filepath, info.Size())
+
+	var mediaType string
+	switch fileType {
+	case modelfile.FileTypeConfig:
+		mediaType = modelspec.MediaTypeModelWeightConfig
 		if rawMediaType {
 			mediaType = modelspec.MediaTypeModelWeightConfigRaw
 		}
-		return processor.NewModelConfigProcessor(b.store, mediaType, []string{filepath}, destDir)
-	}
-
-	if modelfile.IsFileType(filepath, modelfile.ModelFilePatterns) {
-		mediaType := modelspec.MediaTypeModelWeight
+		return processor.NewModelConfigProcessor(b.store, mediaType, []string{filepath}, destDir), nil
+	case modelfile.FileTypeModel:
+		mediaType = modelspec.MediaTypeModelWeight
 		if rawMediaType {
 			mediaType = modelspec.MediaTypeModelWeightRaw
 		}
-		return processor.NewModelProcessor(b.store, mediaType, []string{filepath}, destDir)
-	}
-
-	if modelfile.IsFileType(filepath, modelfile.CodeFilePatterns) {
-		mediaType := modelspec.MediaTypeModelCode
+		return processor.NewModelProcessor(b.store, mediaType, []string{filepath}, destDir), nil
+	case modelfile.FileTypeCode:
+		mediaType = modelspec.MediaTypeModelCode
 		if rawMediaType {
 			mediaType = modelspec.MediaTypeModelCodeRaw
 		}
-		return processor.NewCodeProcessor(b.store, mediaType, []string{filepath}, destDir)
-	}
-
-	if modelfile.IsFileType(filepath, modelfile.DocFilePatterns) {
-		mediaType := modelspec.MediaTypeModelDoc
+		return processor.NewCodeProcessor(b.store, mediaType, []string{filepath}, destDir), nil
+	case modelfile.FileTypeDoc:
+		mediaType = modelspec.MediaTypeModelDoc
 		if rawMediaType {
 			mediaType = modelspec.MediaTypeModelDocRaw
 		}
-		return processor.NewDocProcessor(b.store, mediaType, []string{filepath}, destDir)
+		return processor.NewDocProcessor(b.store, mediaType, []string{filepath}, destDir), nil
 	}
 
-	return nil
+	// Unreachable: InferFileType always returns a valid FileType.
+	return nil, fmt.Errorf("unexpected file type for %s", filepath)
 }
 
 func (b *backend) getBuilder(reference string, cfg *config.Attach) (build.Builder, error) {

@@ -431,6 +431,37 @@ var (
 	}
 )
 
+// FileType represents the inferred type of a file.
+type FileType int
+
+const (
+	FileTypeConfig FileType = iota
+	FileTypeModel
+	FileTypeCode
+	FileTypeDoc
+)
+
+// InferFileType determines the file type by extension matching first,
+// then falls back to a size-based heuristic for unrecognized files:
+// >128MB -> FileTypeModel, otherwise -> FileTypeCode.
+func InferFileType(filename string, fileSize int64) FileType {
+	switch {
+	case IsFileType(filename, ConfigFilePatterns):
+		return FileTypeConfig
+	case IsFileType(filename, ModelFilePatterns):
+		return FileTypeModel
+	case IsFileType(filename, CodeFilePatterns):
+		return FileTypeCode
+	case IsFileType(filename, DocFilePatterns):
+		return FileTypeDoc
+	default:
+		if SizeShouldBeWeightFile(fileSize) {
+			return FileTypeModel
+		}
+		return FileTypeCode
+	}
+}
+
 const (
 	// File size thresholds and workspace limits
 	WeightFileSizeThreshold int64 = 128 * humanize.MByte // 128MB - threshold for considering file as weight file

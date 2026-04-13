@@ -86,6 +86,52 @@ func TestIsFileTypeDocPatternsTfevents(t *testing.T) {
 	}
 }
 
+func TestInferFileType(t *testing.T) {
+	testCases := []struct {
+		name     string
+		filename string
+		fileSize int64
+		expected FileType
+	}{
+		// Known extensions - size should not matter
+		{"config json", "config.json", 1024, FileTypeConfig},
+		{"config yaml", "settings.yaml", 1024, FileTypeConfig},
+		{"model safetensors", "model.safetensors", 1024, FileTypeModel},
+		{"model bin", "weights.bin", 1024, FileTypeModel},
+		{"code python", "script.py", 1024, FileTypeCode},
+		{"code go", "main.go", 1024, FileTypeCode},
+		{"doc markdown", "README.md", 1024, FileTypeDoc},
+		{"doc pdf", "guide.pdf", 1024, FileTypeDoc},
+
+		// Dotfile with known secondary extension
+		{".cache.json is config", ".cache.json", 1024, FileTypeConfig},
+		{".hidden.py is code", ".hidden.py", 1024, FileTypeCode},
+
+		// Unrecognized - small files fallback to code
+		{"dotfile small", ".metadata", 1024, FileTypeCode},
+		{"no extension small", "unknown_file", 1024, FileTypeCode},
+		{"unknown ext small", "data.xyz", 50 * 1024, FileTypeCode},
+
+		// Unrecognized - large files fallback to model
+		{"dotfile large", ".metadata", 200 * 1024 * 1024, FileTypeModel},
+		{"no extension large", "unknown_file", 200 * 1024 * 1024, FileTypeModel},
+		{"unknown ext large", "data.xyz", 200 * 1024 * 1024, FileTypeModel},
+
+		// Edge case: exactly at threshold (WeightFileSizeThreshold = 128*1000*1000) should be code
+		{"at threshold", "borderline", WeightFileSizeThreshold, FileTypeCode},
+		// Just above threshold should be model
+		{"above threshold", "borderline", WeightFileSizeThreshold + 1, FileTypeModel},
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(tc.expected, InferFileType(tc.filename, tc.fileSize),
+				"InferFileType(%q, %d)", tc.filename, tc.fileSize)
+		})
+	}
+}
+
 func TestIsSkippable(t *testing.T) {
 	testCases := []struct {
 		filename string
