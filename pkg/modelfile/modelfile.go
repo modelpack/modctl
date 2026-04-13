@@ -310,24 +310,15 @@ func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig)
 			return fmt.Errorf("workspace exceeds maximum total size limit of %d bytes (%s)", MaxTotalWorkspaceSize, formatBytes(MaxTotalWorkspaceSize))
 		}
 
-		switch {
-		case IsFileType(filename, ConfigFilePatterns):
+		switch InferFileType(filename, info.Size()) {
+		case FileTypeConfig:
 			mf.config.Add(relPath)
-		case IsFileType(filename, ModelFilePatterns):
+		case FileTypeModel:
 			mf.model.Add(relPath)
-		case IsFileType(filename, CodeFilePatterns):
+		case FileTypeCode:
 			mf.code.Add(relPath)
-		case IsFileType(filename, DocFilePatterns):
+		case FileTypeDoc:
 			mf.doc.Add(relPath)
-		default:
-			// If the file is large, usually it is a weight file.
-			if SizeShouldBeWeightFile(info.Size()) {
-				mf.model.Add(relPath)
-			} else {
-				mf.code.Add(relPath)
-			}
-
-			return nil
 		}
 
 		return nil

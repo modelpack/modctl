@@ -20,14 +20,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/modelfile"
 	mockstore "github.com/modelpack/modctl/test/mocks/storage"
 )
 
@@ -60,28 +64,47 @@ func TestBackendGetManifest(t *testing.T) {
 
 func TestGetProcessor(t *testing.T) {
 	b := &backend{store: &mockstore.Storage{}}
+
+	tempDir := t.TempDir()
+
 	tests := []struct {
-		filepath string
+		name     string
+		filename string
+		size     int64
 		wantType string
 	}{
-		{"config.yaml", "modelConfigProcessor"},
-		{"model.pth", "modelProcessor"},
-		{"script.py", "codeProcessor"},
-		{"doc.pdf", "docProcessor"},
-		{"unknown.xyz", ""},
+		{"config yaml", "config.yaml", 1024, "modelConfigProcessor"},
+		{"model pth", "model.pth", 1024, "modelProcessor"},
+		{"code python", "script.py", 1024, "codeProcessor"},
+		{"doc pdf", "doc.pdf", 1024, "docProcessor"},
+		{"unknown small fallback to code", "unknown.xyz", 1024, "codeProcessor"},
+		{"dotfile small fallback to code", ".metadata", 1024, "codeProcessor"},
+		{"unknown large fallback to model", "large_unknown", modelfile.WeightFileSizeThreshold + 1, "modelProcessor"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.filepath, func(t *testing.T) {
-			proc := b.getProcessor("", tt.filepath, false)
-			if tt.wantType == "" {
-				assert.Nil(t, proc)
-			} else {
-				assert.NotNil(t, proc)
-				assert.Contains(t, fmt.Sprintf("%T", proc), tt.wantType)
-			}
+		t.Run(tt.name, func(t *testing.T) {
+			fp := filepath.Join(tempDir, tt.filename)
+			f, err := os.Create(fp)
+			require.NoError(t, err)
+			require.NoError(t, f.Close())
+			require.NoError(t, os.Truncate(fp, tt.size))
+
+			proc, err := b.getProcessor("", fp, false)
+			assert.NoError(t, err)
+			assert.NotNil(t, proc)
+			assert.Contains(t, fmt.Sprintf("%T", proc), tt.wantType)
 		})
 	}
+}
+
+func TestGetProcessorFileNotFound(t *testing.T) {
+	b := &backend{store: &mockstore.Storage{}}
+
+	proc, err := b.getProcessor("", "/nonexistent/file.txt", false)
+	assert.Error(t, err)
+	assert.Nil(t, proc)
+	assert.Contains(t, err.Error(), "failed to stat file")
 }
 
 func TestSortLayers(t *testing.T) {
