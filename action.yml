@@ -53,6 +53,16 @@ runs:
   steps:
     - name: Validate action inputs
       shell: bash
+      env:
+        ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        MODELFILE_PATH: ${{ inputs.modelfile_path }}
+        CONTEXT_PATH: ${{ inputs.context_path }}
+        OUTPUT_REMOTE: ${{ inputs.output_remote }}
+        PLAIN_HTTP: ${{ inputs.plain_http }}
+        INSECURE: ${{ inputs.insecure }}
+        REGISTRY: ${{ inputs.registry }}
+        REGISTRY_USERNAME: ${{ inputs.registry_username }}
+        REGISTRY_PASSWORD: ${{ inputs.registry_password }}
       run: |
         set -euo pipefail
 
@@ -65,30 +75,27 @@ runs:
           fi
         }
 
-        if [[ -z "${{ inputs.artifact_name }}" ]]; then
+        if [[ -z "${ARTIFACT_NAME}" ]]; then
           echo "Input 'artifact_name' is required." >&2
           exit 1
         fi
 
-        if [[ ! -f "${{ inputs.modelfile_path }}" ]]; then
-          echo "Modelfile not found at '${{ inputs.modelfile_path }}'." >&2
+        if [[ ! -f "${MODELFILE_PATH}" ]]; then
+          echo "Modelfile not found at '${MODELFILE_PATH}'." >&2
           exit 1
         fi
 
-        if [[ ! -e "${{ inputs.context_path }}" ]]; then
-          echo "Context path '${{ inputs.context_path }}' does not exist." >&2
+        if [[ ! -e "${CONTEXT_PATH}" ]]; then
+          echo "Context path '${CONTEXT_PATH}' does not exist." >&2
           exit 1
         fi
 
-        validate_bool "output_remote" "${{ inputs.output_remote }}"
-        validate_bool "plain_http" "${{ inputs.plain_http }}"
-        validate_bool "insecure" "${{ inputs.insecure }}"
+        validate_bool "output_remote" "${OUTPUT_REMOTE}"
+        validate_bool "plain_http" "${PLAIN_HTTP}"
+        validate_bool "insecure" "${INSECURE}"
 
-        registry="${{ inputs.registry }}"
-        username="${{ inputs.registry_username }}"
-        password="${{ inputs.registry_password }}"
-        if [[ -n "$registry" || -n "$username" || -n "$password" ]]; then
-          if [[ -z "$registry" || -z "$username" || -z "$password" ]]; then
+        if [[ -n "${REGISTRY}" || -n "${REGISTRY_USERNAME}" || -n "${REGISTRY_PASSWORD}" ]]; then
+          if [[ -z "${REGISTRY}" || -z "${REGISTRY_USERNAME}" || -z "${REGISTRY_PASSWORD}" ]]; then
             echo "Optional registry integration requires 'registry', 'registry_username', and 'registry_password' together." >&2
             exit 1
           fi
@@ -98,34 +105,26 @@ runs:
       id: install
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ github.token }}
+        MODCTL_VERSION: ${{ inputs.modctl_version }}
       run: |
         set -euo pipefail
 
-        requested_version="${{ inputs.modctl_version }}"
-
-        if [[ -z "$requested_version" ]]; then
-          release_api="https://api.github.com/repos/modelpack/modctl/releases/latest"
-          if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-            release_json="$(curl -fsSL \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              "$release_api")"
-          else
-            release_json="$(curl -fsSL \
-              -H "Accept: application/vnd.github+json" \
-              "$release_api")"
+        if [[ -z "${MODCTL_VERSION}" ]]; then
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "GitHub CLI 'gh' is required to resolve the latest modctl release." >&2
+            exit 1
           fi
-          release_tag="$(printf '%s\n' "$release_json" | grep -m1 '"tag_name":' | cut -d '"' -f4)"
-          if [[ -z "$release_tag" ]]; then
-            echo "Unable to resolve latest modctl release tag from GitHub API." >&2
+          release_tag="$(gh api repos/modelpack/modctl/releases/latest --jq '.tag_name')"
+          if [[ -z "${release_tag}" || "${release_tag}" == "null" ]]; then
+            echo "Unable to resolve latest modctl release tag via gh api." >&2
             exit 1
           fi
         else
-          if [[ "$requested_version" == v* ]]; then
-            release_tag="$requested_version"
+          if [[ "${MODCTL_VERSION}" == v* ]]; then
+            release_tag="${MODCTL_VERSION}"
           else
-            release_tag="v${requested_version}"
+            release_tag="v${MODCTL_VERSION}"
           fi
         fi
 
@@ -173,35 +172,48 @@ runs:
     - name: Login to registry
       if: ${{ inputs.registry != '' && inputs.registry_username != '' && inputs.registry_password != '' }}
       shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        REGISTRY_USERNAME: ${{ inputs.registry_username }}
+        REGISTRY_PASSWORD: ${{ inputs.registry_password }}
+        PLAIN_HTTP: ${{ inputs.plain_http }}
+        INSECURE: ${{ inputs.insecure }}
       run: |
         set -euo pipefail
 
-        login_cmd=(modctl login -u "${{ inputs.registry_username }}" -p "${{ inputs.registry_password }}")
-        if [[ "${{ inputs.plain_http }}" == "true" ]]; then
+        login_cmd=(modctl login -u "${REGISTRY_USERNAME}" -p "${REGISTRY_PASSWORD}")
+        if [[ "${PLAIN_HTTP}" == "true" ]]; then
           login_cmd+=(--plain-http)
         fi
-        if [[ "${{ inputs.insecure }}" == "true" ]]; then
+        if [[ "${INSECURE}" == "true" ]]; then
           login_cmd+=(--insecure)
         fi
-        login_cmd+=("${{ inputs.registry }}")
+        login_cmd+=("${REGISTRY}")
 
         "${login_cmd[@]}"
 
     - name: Build model artifact
       shell: bash
+      env:
+        MODELFILE_PATH: ${{ inputs.modelfile_path }}
+        ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        CONTEXT_PATH: ${{ inputs.context_path }}
+        OUTPUT_REMOTE: ${{ inputs.output_remote }}
+        PLAIN_HTTP: ${{ inputs.plain_http }}
+        INSECURE: ${{ inputs.insecure }}
       run: |
         set -euo pipefail
 
-        build_cmd=(modctl build -f "${{ inputs.modelfile_path }}" -t "${{ inputs.artifact_name }}")
-        if [[ "${{ inputs.output_remote }}" == "true" ]]; then
+        build_cmd=(modctl build -f "${MODELFILE_PATH}" -t "${ARTIFACT_NAME}")
+        if [[ "${OUTPUT_REMOTE}" == "true" ]]; then
           build_cmd+=(--output-remote)
         fi
-        if [[ "${{ inputs.plain_http }}" == "true" ]]; then
+        if [[ "${PLAIN_HTTP}" == "true" ]]; then
           build_cmd+=(--plain-http)
         fi
-        if [[ "${{ inputs.insecure }}" == "true" ]]; then
+        if [[ "${INSECURE}" == "true" ]]; then
           build_cmd+=(--insecure)
         fi
-        build_cmd+=("${{ inputs.context_path }}")
+        build_cmd+=("${CONTEXT_PATH}")
 
         "${build_cmd[@]}"
