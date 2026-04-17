@@ -258,7 +258,7 @@ func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig)
 	var totalSize int64
 
 	// Initialize exclude patterns
-	filter, err := NewPathFilter(config.ExcludePatterns...)
+	filter, err := NewPathFilter(config.ExcludePatterns, config.IncludePatterns)
 	if err != nil {
 		return err
 	}
@@ -277,12 +277,32 @@ func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig)
 			return err
 		}
 
-		// Skip hidden, skippable, and excluded files/directories.
-		if isSkippable(filename) || filter.Match(relPath) {
+		// Directory exclude is absolute — cannot be reversed by --include.
+		if info.IsDir() && filter.Match(relPath) {
+			return filepath.SkipDir
+		}
+
+		// Check skipPatterns — include can rescue skippable entries.
+		if isSkippable(filename) {
+			if info.IsDir() {
+				if filter.ShouldDescend(relPath) {
+					// Rescued by --include, enter directory
+				} else {
+					return filepath.SkipDir
+				}
+			} else {
+				if !filter.MatchInclude(relPath) {
+					return nil
+				}
+				// Rescued file still goes through exclude check below
+			}
+		}
+
+		// Exclude check for non-skippable files (and include-rescued files).
+		if filter.Match(relPath) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
-
 			return nil
 		}
 

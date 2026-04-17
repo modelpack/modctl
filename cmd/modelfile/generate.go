@@ -64,7 +64,16 @@ Full URLs with domain names will auto-detect the provider.`,
   modctl modelfile generate ./my-model-dir --output ./output/modelfile.yaml
 
   # Generate with metadata overrides
-  modctl modelfile generate ./my-model-dir --name my-custom-model --family llama3`,
+  modctl modelfile generate ./my-model-dir --name my-custom-model --family llama3
+
+  # Include hidden files at any depth
+  modctl modelfile generate ./my-model-dir --include "**/.*"
+
+  # Include a specific hidden directory
+  modctl modelfile generate ./my-model-dir --include ".weights/**"
+
+  # Include hidden files but exclude sensitive ones
+  modctl modelfile generate ./my-model-dir --include "**/.*" --exclude "**/.env"`,
 	Args:              cobra.MaximumNArgs(1),
 	DisableAutoGenTag: true,
 	SilenceUsage:      true,
@@ -112,6 +121,10 @@ func init() {
 	flags.StringVarP(&generateConfig.Provider, "provider", "p", "", "explicitly specify the provider for short-form URLs (huggingface, modelscope)")
 	flags.StringVar(&generateConfig.DownloadDir, "download-dir", "", "custom directory for downloading models (default: system temp directory)")
 	flags.StringArrayVar(&generateConfig.ExcludePatterns, "exclude", []string{}, "specify glob patterns to exclude files/directories (e.g. *.log, checkpoints/*)")
+	flags.StringArrayVar(&generateConfig.IncludePatterns, "include", []string{},
+		"glob patterns to include files/directories that are normally skipped (e.g. hidden files).\n"+
+			"Uses doublestar syntax (*, **, ?, [...], {a,b}), matching against relative paths from workspace root.\n"+
+			"Note: broad patterns like **/.*  may include large directories (.git) or sensitive files (.env)")
 
 	// Mark the ignore-unrecognized-file-types flag as deprecated and hidden
 	flags.MarkDeprecated("ignore-unrecognized-file-types", "this flag will be removed in the next release")
