@@ -176,6 +176,13 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		if err != nil {
 			return err
 		}
+		// The ReadCloser returned by PullBlob was previously never closed on
+		// either path, leaking the underlying file descriptor (or HTTP body)
+		// for every blob we pushed. Close on the distribution implementation
+		// returns an error (#50), which is why we still wrap the reader with
+		// io.NopCloser below, but we DO need to close `content` ourselves.
+		// See #491.
+		defer content.Close()
 
 		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
 		// resolve issue: https://github.com/modelpack/modctl/issues/50
