@@ -179,7 +179,7 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 	// Intercept the reader if needed.
 	if ab.interceptor != nil {
 		var itReader io.Reader
-		reader, itReader = splitReader(reader)
+		reader, itReader = splitReader(ctx, reader)
 
 		wg.Add(1)
 		go func() {
@@ -410,7 +410,17 @@ func addFileMetadata(desc *ocispec.Descriptor, path, relPath string) error {
 }
 
 // splitReader splits the original reader into two readers.
-func splitReader(original io.Reader) (io.Reader, io.Reader) {
+//
+// The fan-out is done through a pair of io.Pipes fed by a single io.Copy
+// goroutine. If either of the returned readers is abandoned without being
+// drained to EOF (for example, the interceptor returns early on error),
+// that goroutine would otherwise block indefinitely inside MultiWriter.Write
+// because io.Pipe writes are synchronous. Take a context and run a parallel
+// watcher that force-closes both pipe writers on cancel, so the caller's
+// ctx cancellation (or the eventual top-level request cancel) always
+// reclaims the copy goroutine instead of leaking it for the process
+// lifetime.
+func splitReader(ctx context.Context, original io.Reader) (io.Reader, io.Reader) {
 	r1, w1 := io.Pipe()
 	r2, w2 := io.Pipe()
 	multiWriter := io.MultiWriter(w1, w2)
@@ -418,6 +428,17 @@ func splitReader(original io.Reader) (io.Reader, io.Reader) {
 	go func() {
 		defer w1.Close()
 		defer w2.Close()
+
+		copyDone := make(chan struct{})
+		defer close(copyDone)
+		go func() {
+			select {
+			case <-ctx.Done():
+				w1.CloseWithError(ctx.Err())
+				w2.CloseWithError(ctx.Err())
+			case <-copyDone:
+			}
+		}()
 
 		_, err := io.Copy(multiWriter, original)
 		if err != nil {
