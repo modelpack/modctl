@@ -1,0 +1,126 @@
+name: modctl Action
+
+on:
+  push:
+    branches: [main, release-*]
+    paths:
+      - action.yml
+      - README.md
+      - docs/getting-started.md
+      - .github/workflows/modctl-action.yml
+  pull_request:
+    branches: [main, release-*]
+    paths:
+      - action.yml
+      - README.md
+      - docs/getting-started.md
+      - .github/workflows/modctl-action.yml
+
+permissions:
+  contents: read
+
+jobs:
+  action-build:
+    name: "Action Build (version: ${{ matrix.modctl_version_label }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - modctl_version: ""
+            modctl_version_label: latest
+          - modctl_version: "0.2.0"
+            modctl_version_label: "0.2.0"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98    # v4.3.1
+
+      - name: Prepare fixture
+        run: |
+          set -euo pipefail
+          fixture_dir="${RUNNER_TEMP}/modctl-action-fixture"
+          mkdir -p "${fixture_dir}"
+
+          cat > "${fixture_dir}/Modelfile" << 'EOF'
+          NAME tiny-model
+          ARCH transformer
+          FAMILY tiny
+          FORMAT safetensors
+          PARAMSIZE 1
+          PRECISION fp16
+          CONFIG config.json
+          MODEL model.safetensors
+          DOC README.md
+          EOF
+
+          printf '{}' > "${fixture_dir}/config.json"
+          printf 'tiny-weights' > "${fixture_dir}/model.safetensors"
+          printf '# tiny fixture\n' > "${fixture_dir}/README.md"
+
+          artifact_ref="ghcr.io/modelpack/modctl-action-local:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${{ matrix.modctl_version_label }}"
+          echo "FIXTURE_DIR=${fixture_dir}" >> "${GITHUB_ENV}"
+          echo "ARTIFACT_REF=${artifact_ref}" >> "${GITHUB_ENV}"
+
+      - name: Run modctl action
+        uses: ./
+        with:
+          modctl_version: ${{ matrix.modctl_version }}
+          modelfile_path: ${{ env.FIXTURE_DIR }}/Modelfile
+          artifact_name: ${{ env.ARTIFACT_REF }}
+          context_path: ${{ env.FIXTURE_DIR }}
+
+      - name: Verify artifact exists locally
+        run: |
+          set -euo pipefail
+          modctl inspect "${ARTIFACT_REF}"
+
+  action-registry-login:
+    name: Action Registry Login Path
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98    # v4.3.1
+
+      - name: Prepare fixture
+        run: |
+          set -euo pipefail
+          fixture_dir="${RUNNER_TEMP}/modctl-action-fixture-login"
+          mkdir -p "${fixture_dir}"
+
+          cat > "${fixture_dir}/Modelfile" << 'EOF'
+          NAME tiny-model
+          ARCH transformer
+          FAMILY tiny
+          FORMAT safetensors
+          PARAMSIZE 1
+          PRECISION fp16
+          CONFIG config.json
+          MODEL model.safetensors
+          DOC README.md
+          EOF
+
+          printf '{}' > "${fixture_dir}/config.json"
+          printf 'tiny-weights' > "${fixture_dir}/model.safetensors"
+          printf '# tiny fixture\n' > "${fixture_dir}/README.md"
+
+          artifact_ref="ghcr.io/modelpack/modctl-action-login:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "FIXTURE_DIR=${fixture_dir}" >> "${GITHUB_ENV}"
+          echo "ARTIFACT_REF=${artifact_ref}" >> "${GITHUB_ENV}"
+
+      - name: Run modctl action with optional registry integration
+        uses: ./
+        with:
+          modelfile_path: ${{ env.FIXTURE_DIR }}/Modelfile
+          artifact_name: ${{ env.ARTIFACT_REF }}
+          context_path: ${{ env.FIXTURE_DIR }}
+          registry: ghcr.io
+          registry_username: ${{ github.actor }}
+          registry_password: ${{ github.token }}
+
+      - name: Verify artifact exists locally
+        run: |
+          set -euo pipefail
+          modctl inspect "${ARTIFACT_REF}"
