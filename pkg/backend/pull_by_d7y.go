@@ -30,8 +30,6 @@ import (
 
 	common "d7y.io/api/v2/pkg/apis/common/v2"
 	dfdaemon "d7y.io/api/v2/pkg/apis/dfdaemon/v2"
-	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -192,14 +190,7 @@ func buildBlobURL(ref Referencer, plainHTTP bool, digest string) string {
 
 // processLayer handles downloading and extracting a single layer.
 func processLayer(ctx context.Context, pb *internalpb.ProgressBar, client dfdaemon.DfdaemonDownloadClient, ref Referencer, manifest ocispec.Manifest, desc ocispec.Descriptor, authToken string, cfg *config.Pull) error {
-	var annoFilepath string
-	if desc.Annotations != nil {
-		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
-			annoFilepath = desc.Annotations[modelspec.AnnotationFilepath]
-		} else {
-			annoFilepath = desc.Annotations[legacymodelspec.AnnotationFilepath]
-		}
-	}
+	annoFilepath := getAnnotationFilepath(desc.Annotations)
 
 	err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 		logrus.Debugf("pull: processing layer %s", desc.Digest)
@@ -236,14 +227,7 @@ func downloadAndExtractLayer(ctx context.Context, pb *internalpb.ProgressBar, cl
 		return fmt.Errorf("failed to resolve extract dir: %w", err)
 	}
 
-	var annoFilepath string
-	if desc.Annotations != nil {
-		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
-			annoFilepath = desc.Annotations[modelspec.AnnotationFilepath]
-		} else {
-			annoFilepath = desc.Annotations[legacymodelspec.AnnotationFilepath]
-		}
-	}
+	annoFilepath := getAnnotationFilepath(desc.Annotations)
 
 	if annoFilepath == "" {
 		return fmt.Errorf("missing annotation filepath")

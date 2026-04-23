@@ -25,8 +25,6 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
-	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -78,10 +76,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	for _, layer := range manifest.Layers {
 		for _, pattern := range cfg.Patterns {
 			if anno := layer.Annotations; anno != nil {
-				path := anno[modelspec.AnnotationFilepath]
-				if path == "" {
-					path = anno[legacymodelspec.AnnotationFilepath]
-				}
+				path := getAnnotationFilepath(anno)
 				// Use doublestar.PathMatch for pattern matching to support ** recursive matching
 				// PathMatch uses the system's native path separator (like filepath.Match) while
 				// also supporting recursive patterns like **/*.json
@@ -120,14 +115,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			default:
 			}
 
-			var annoFilepath string
-			if layer.Annotations != nil {
-				if layer.Annotations[modelspec.AnnotationFilepath] != "" {
-					annoFilepath = layer.Annotations[modelspec.AnnotationFilepath]
-				} else {
-					annoFilepath = layer.Annotations[legacymodelspec.AnnotationFilepath]
-				}
-			}
+			annoFilepath := getAnnotationFilepath(layer.Annotations)
 
 			logrus.Debugf("fetch: processing layer %s", layer.Digest)
 			if err := retrypolicy.Do(ctx, func(rctx context.Context) error {

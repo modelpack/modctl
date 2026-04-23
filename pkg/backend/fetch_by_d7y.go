@@ -31,8 +31,6 @@ import (
 	common "d7y.io/api/v2/pkg/apis/common/v2"
 	dfdaemon "d7y.io/api/v2/pkg/apis/dfdaemon/v2"
 	"github.com/bmatcuk/doublestar/v4"
-	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -81,10 +79,7 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 	for _, layer := range manifest.Layers {
 		for _, pattern := range cfg.Patterns {
 			if anno := layer.Annotations; anno != nil {
-				path := anno[modelspec.AnnotationFilepath]
-				if path == "" {
-					path = anno[legacymodelspec.AnnotationFilepath]
-				}
+				path := getAnnotationFilepath(anno)
 				// Use doublestar.PathMatch for pattern matching to support ** recursive matching
 				// PathMatch uses the system's native path separator (like filepath.Match) while
 				// also supporting recursive patterns like **/*.json
@@ -168,14 +163,7 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 
 // fetchLayerByDragonfly handles downloading and extracting a single layer via Dragonfly.
 func fetchLayerByDragonfly(ctx context.Context, pb *internalpb.ProgressBar, client dfdaemon.DfdaemonDownloadClient, ref Referencer, manifest ocispec.Manifest, desc ocispec.Descriptor, authToken string, cfg *config.Fetch) error {
-	var annoFilepath string
-	if desc.Annotations != nil {
-		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
-			annoFilepath = desc.Annotations[modelspec.AnnotationFilepath]
-		} else {
-			annoFilepath = desc.Annotations[legacymodelspec.AnnotationFilepath]
-		}
-	}
+	annoFilepath := getAnnotationFilepath(desc.Annotations)
 
 	err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 		logrus.Debugf("fetch: processing layer %s", desc.Digest)
@@ -217,14 +205,7 @@ func downloadAndExtractFetchLayer(ctx context.Context, pb *internalpb.ProgressBa
 		return fmt.Errorf("failed to resolve output dir: %w", err)
 	}
 
-	var annoFilepath string
-	if desc.Annotations != nil {
-		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
-			annoFilepath = desc.Annotations[modelspec.AnnotationFilepath]
-		} else {
-			annoFilepath = desc.Annotations[legacymodelspec.AnnotationFilepath]
-		}
-	}
+	annoFilepath := getAnnotationFilepath(desc.Annotations)
 
 	if annoFilepath == "" {
 		return fmt.Errorf("missing annotation filepath")
