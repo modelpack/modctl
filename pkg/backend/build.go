@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	retry "github.com/avast/retry-go/v4"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
@@ -274,27 +275,55 @@ func getSourceInfo(workspace string, buildConfig *config.Build) (*source.Info, e
 }
 
 // estimateBuildSize estimates the total size of files that will be built by summing
-// the sizes of all files referenced in the modelfile.
+// the sizes of all files referenced in the modelfile. Patterns are expanded using
+// the same rules as processor/base.go (literal paths with absolute-path support, or
+// filepath.Glob for patterns containing wildcards), so the estimate reflects what
+// the builder will actually process.
 func estimateBuildSize(workDir string, mf modelfile.Modelfile) int64 {
 	var totalSize int64
 
-	files := []string{}
-	files = append(files, mf.GetConfigs()...)
-	files = append(files, mf.GetModels()...)
-	files = append(files, mf.GetCodes()...)
-	files = append(files, mf.GetDocs()...)
+	patterns := []string{}
+	patterns = append(patterns, mf.GetConfigs()...)
+	patterns = append(patterns, mf.GetModels()...)
+	patterns = append(patterns, mf.GetCodes()...)
+	patterns = append(patterns, mf.GetDocs()...)
 
-	for _, file := range files {
-		path := filepath.Join(workDir, file)
+	absWorkDir, err := filepath.Abs(workDir)
+	if err != nil {
+		logrus.Warnf("build: failed to resolve workDir %s for size estimation: %v", workDir, err)
+		return 0
+	}
+
+	var matchedPaths []string
+	for _, pattern := range patterns {
+		if !strings.ContainsAny(pattern, "*?[]") {
+			var fullPath string
+			if filepath.IsAbs(pattern) {
+				fullPath = pattern
+			} else {
+				fullPath = filepath.Join(absWorkDir, pattern)
+			}
+			matchedPaths = append(matchedPaths, fullPath)
+			continue
+		}
+		matches, err := filepath.Glob(filepath.Join(absWorkDir, pattern))
+		if err != nil {
+			logrus.Warnf("build: failed to expand pattern %s for size estimation: %v", pattern, err)
+			continue
+		}
+		matchedPaths = append(matchedPaths, matches...)
+	}
+
+	for _, path := range matchedPaths {
 		info, err := os.Stat(path)
 		if err != nil {
-			logrus.Debugf("build: failed to stat file %s for size estimation: %v", path, err)
+			logrus.Warnf("build: failed to stat %s for size estimation: %v", path, err)
 			continue
 		}
 		if info.IsDir() {
 			_ = filepath.Walk(path, func(walkPath string, fi os.FileInfo, err error) error {
 				if err != nil {
-					logrus.Debugf("build: failed to access path %s for size estimation: %v", walkPath, err)
+					logrus.Warnf("build: failed to access %s for size estimation: %v", walkPath, err)
 					return nil
 				}
 				if !fi.IsDir() {
