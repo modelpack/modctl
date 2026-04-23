@@ -258,7 +258,7 @@ func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig)
 	var totalSize int64
 
 	// Initialize exclude patterns
-	filter, err := NewPathFilter(config.ExcludePatterns...)
+	filter, err := NewPathFilter(config.ExcludePatterns, config.IncludePatterns)
 	if err != nil {
 		return err
 	}
@@ -277,12 +277,32 @@ func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig)
 			return err
 		}
 
-		// Skip hidden, skippable, and excluded files/directories.
-		if isSkippable(filename) || filter.Match(relPath) {
+		// Directory exclude is absolute — cannot be reversed by --include.
+		if info.IsDir() && filter.Match(relPath) {
+			return filepath.SkipDir
+		}
+
+		// Check skipPatterns — include can rescue skippable entries.
+		if isSkippable(filename) {
+			if info.IsDir() {
+				if filter.ShouldDescend(relPath) {
+					// Rescued by --include, enter directory
+				} else {
+					return filepath.SkipDir
+				}
+			} else {
+				if !filter.MatchInclude(relPath) {
+					return nil
+				}
+				// Rescued file still goes through exclude check below
+			}
+		}
+
+		// Exclude check for non-skippable files (and include-rescued files).
+		if filter.Match(relPath) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
-
 			return nil
 		}
 
@@ -310,24 +330,15 @@ func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig)
 			return fmt.Errorf("workspace exceeds maximum total size limit of %d bytes (%s)", MaxTotalWorkspaceSize, formatBytes(MaxTotalWorkspaceSize))
 		}
 
-		switch {
-		case IsFileType(filename, ConfigFilePatterns):
+		switch InferFileType(filename, info.Size()) {
+		case FileTypeConfig:
 			mf.config.Add(relPath)
-		case IsFileType(filename, ModelFilePatterns):
+		case FileTypeModel:
 			mf.model.Add(relPath)
-		case IsFileType(filename, CodeFilePatterns):
+		case FileTypeCode:
 			mf.code.Add(relPath)
-		case IsFileType(filename, DocFilePatterns):
+		case FileTypeDoc:
 			mf.doc.Add(relPath)
-		default:
-			// If the file is large, usually it is a weight file.
-			if SizeShouldBeWeightFile(info.Size()) {
-				mf.model.Add(relPath)
-			} else {
-				mf.code.Add(relPath)
-			}
-
-			return nil
 		}
 
 		return nil

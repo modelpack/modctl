@@ -71,36 +71,57 @@ func parseModelURL(modelURL string) (owner, repo string, err error) {
 	return owner, repo, nil
 }
 
+// tokenFilePaths returns the list of candidate token file paths to check,
+// in priority order. It respects the HF_HOME environment variable and
+// supports both legacy (~/.huggingface/token) and modern
+// (~/.cache/huggingface/token) locations.
+func tokenFilePaths() []string {
+	var paths []string
+
+	// If HF_HOME is set, check there first
+	if hfHome := os.Getenv("HF_HOME"); hfHome != "" {
+		paths = append(paths, filepath.Join(hfHome, "token"))
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		// Modern location used by huggingface_hub >= 0.14 and the `hf` CLI
+		paths = append(paths, filepath.Join(homeDir, ".cache", "huggingface", "token"))
+		// Legacy location
+		paths = append(paths, filepath.Join(homeDir, ".huggingface", "token"))
+	}
+
+	return paths
+}
+
 // checkHuggingFaceAuth checks if the user is authenticated with HuggingFace
 func checkHuggingFaceAuth() error {
-	// Try to find the HF token
+	// Try to find the HF token via environment variable
 	token := os.Getenv("HF_TOKEN")
 	if token != "" {
 		return nil
 	}
 
-	// Check if the token file exists
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
-	}
-
-	tokenPath := filepath.Join(homeDir, ".huggingface", "token")
-	if _, err := os.Stat(tokenPath); err == nil {
-		return nil
-	}
-
-	// Try using whoami command
-	if _, err := exec.LookPath("huggingface-cli"); err == nil {
-		cmd := exec.Command("huggingface-cli", "whoami")
-		cmd.Stdout = io.Discard
-		cmd.Stderr = io.Discard
-		if err := cmd.Run(); err == nil {
+	// Check token file paths (modern and legacy locations)
+	for _, tokenPath := range tokenFilePaths() {
+		if _, err := os.Stat(tokenPath); err == nil {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("not authenticated with HuggingFace. Please run: huggingface-cli login")
+	// Try using whoami command with available CLI tool
+	for _, cli := range []string{"hf", "huggingface-cli"} {
+		if path, err := exec.LookPath(cli); err == nil {
+			cmd := exec.Command(path, "whoami")
+			cmd.Stdout = io.Discard
+			cmd.Stderr = io.Discard
+			if err := cmd.Run(); err == nil {
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("not authenticated with HuggingFace. Please run: hf auth login")
 }
 
 // getToken retrieves the HuggingFace token from environment or token file
@@ -111,17 +132,13 @@ func getToken() (string, error) {
 		return token, nil
 	}
 
-	// Then check the token file
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	// Check token file paths (modern and legacy locations)
+	for _, tokenPath := range tokenFilePaths() {
+		data, err := os.ReadFile(tokenPath)
+		if err == nil {
+			return strings.TrimSpace(string(data)), nil
+		}
 	}
 
-	tokenPath := filepath.Join(homeDir, ".huggingface", "token")
-	data, err := os.ReadFile(tokenPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read token file: %w", err)
-	}
-
-	return strings.TrimSpace(string(data)), nil
+	return "", fmt.Errorf("HuggingFace token not found. Please run: hf auth login")
 }

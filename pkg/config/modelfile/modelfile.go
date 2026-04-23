@@ -43,6 +43,7 @@ type GenerateConfig struct {
 	Provider                    string // Explicit provider for short-form URLs (e.g., "huggingface", "modelscope")
 	DownloadDir                 string // Custom directory for downloading models (optional)
 	ExcludePatterns             []string
+	IncludePatterns             []string
 }
 
 func NewGenerateConfig() *GenerateConfig {
@@ -63,6 +64,7 @@ func NewGenerateConfig() *GenerateConfig {
 		Provider:                    "",
 		DownloadDir:                 "",
 		ExcludePatterns:             []string{},
+		IncludePatterns:             []string{},
 	}
 }
 

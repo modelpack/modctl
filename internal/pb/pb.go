@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -30,13 +31,16 @@ import (
 )
 
 var (
-	// disableProgress is the flag to disable progress bar.
-	disableProgress bool
+	// disableProgress is the flag to disable progress bar. Read from the
+	// progress-bar hot path by concurrent pull/push workers while a single
+	// goroutine may flip it via SetDisableProgress, so the access is guarded
+	// by sync/atomic to stay race-free under `go test -race`.
+	disableProgress atomic.Bool
 )
 
 // SetDisableProgress disables the progress bar.
 func SetDisableProgress(disable bool) {
-	disableProgress = disable
+	disableProgress.Store(disable)
 }
 
 // NormalizePrompt normalizes the prompt string.
@@ -85,7 +89,7 @@ func NewProgressBar(writers ...io.Writer) *ProgressBar {
 // Add adds a new progress bar.
 func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.Reader {
 	// Return the reader directly if progress is disabled.
-	if disableProgress {
+	if disableProgress.Load() {
 		return reader
 	}
 
