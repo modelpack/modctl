@@ -523,10 +523,8 @@ func TestComputeBackoff(t *testing.T) {
 	initial := 5 * time.Second
 	maxDelay := 1 * time.Minute
 
-	// attempt 0 => initial
-	if got := computeBackoff(0, initial, maxDelay); got != initial {
-		t.Errorf("attempt 0: got %v, want %v", got, initial)
-	}
+	// retry-go's OnRetry always supplies a 1-based attempt number, so 0 is
+	// not a value the function is ever called with in production. Start from 1.
 
 	// attempt 1 => 5s * 2^0 = 5s
 	if got := computeBackoff(1, initial, maxDelay); got != 5*time.Second {

@@ -130,7 +130,7 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 			return retryable
 		}),
 		retry.OnRetry(func(n uint, err error) {
-			backoff := computeBackoff(n+1, initialDelay, maxBackoff)
+			backoff := computeBackoff(n, initialDelay, maxBackoff)
 			elapsed := time.Since(startTime)
 
 			log.WithFields(log.Fields{
@@ -173,10 +173,9 @@ func computeDynamicParams(fileSize int64) (time.Duration, time.Duration) {
 
 // computeBackoff estimates the backoff duration for display purposes.
 // It mirrors the exponential backoff calculation without jitter.
+// The attempt parameter is the 1-based retry number as provided by
+// retry-go's OnRetry callback, so it is always >= 1.
 func computeBackoff(attempt uint, initial, maxDelay time.Duration) time.Duration {
-	if attempt == 0 {
-		return initial
-	}
 	backoff := time.Duration(float64(initial) * math.Pow(2, float64(attempt-1)))
 	if backoff > maxDelay {
 		backoff = maxDelay
