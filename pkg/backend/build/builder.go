@@ -266,8 +266,7 @@ func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, 
 	wrappedReader := onHash(info.Size(), reader)
 
 	hash := sha256.New()
-	tee := io.TeeReader(wrappedReader, hash)
-	size, err := io.Copy(io.Discard, tee)
+	size, err := io.Copy(hash, wrappedReader)
 	if err != nil {
 		return reader, "", 0, fmt.Errorf("failed to copy content to hash: %w", err)
 	}
