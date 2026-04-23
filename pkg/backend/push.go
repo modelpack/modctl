@@ -108,7 +108,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 				OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 					prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
 						internalpb.NormalizePrompt("Copying blob"), attempt, reason, backoff.Truncate(time.Second))
-					pb.Add(prompt, layer.Digest.String(), layer.Size, nil)
+					pb.Placeholder(layer.Digest.String(), prompt, layer.Size)
 				},
 			}); err != nil {
 				mu.Lock()
@@ -119,7 +119,14 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		})
 	}
 
-	g.Wait()
+	if werr := g.Wait(); werr != nil {
+		// Surface cancellation returned from worker goroutines so we never
+		// fall through to the config/manifest push with an incomplete set
+		// of layer uploads.
+		mu.Lock()
+		errs = append(errs, werr)
+		mu.Unlock()
+	}
 	if ctx.Err() != nil {
 		return fmt.Errorf("push cancelled: %w", ctx.Err())
 	}
@@ -137,7 +144,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 			prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
 				internalpb.NormalizePrompt("Copying config"), attempt, reason, backoff.Truncate(time.Second))
-			pb.Add(prompt, manifest.Config.Digest.String(), manifest.Config.Size, nil)
+			pb.Placeholder(manifest.Config.Digest.String(), prompt, manifest.Config.Size)
 		},
 	}); err != nil {
 		return fmt.Errorf("failed to push config to remote: %w", err)
@@ -159,7 +166,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 			prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
 				internalpb.NormalizePrompt("Copying manifest"), attempt, reason, backoff.Truncate(time.Second))
-			pb.Add(prompt, manifestDesc.Digest.String(), manifestDesc.Size, nil)
+			pb.Placeholder(manifestDesc.Digest.String(), prompt, manifestDesc.Size)
 		},
 	}); err != nil {
 		return fmt.Errorf("failed to push manifest to remote: %w", err)

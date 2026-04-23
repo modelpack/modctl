@@ -135,7 +135,7 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		eg.Go(func() error {
 			select {
 			case <-ctx.Done():
-				return nil
+				return ctx.Err()
 			default:
 			}
 
@@ -189,7 +189,13 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 		})
 	}
 
-	_ = eg.Wait()
+	if werr := eg.Wait(); werr != nil {
+		// Surface cancellation from skipped workers so a partially-built
+		// artifact cannot be emitted as if it were complete.
+		mu.Lock()
+		errs = append(errs, werr)
+		mu.Unlock()
+	}
 
 	if ctx.Err() != nil {
 		return nil, fmt.Errorf("processing cancelled: %w", ctx.Err())

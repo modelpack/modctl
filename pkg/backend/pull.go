@@ -149,7 +149,13 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		})
 	}
 
-	_ = g.Wait()
+	if werr := g.Wait(); werr != nil {
+		// Surface cancellation from worker goroutines so a cancelled batch
+		// never slips through as an apparently successful pull.
+		mu.Lock()
+		errs = append(errs, werr)
+		mu.Unlock()
+	}
 	if ctx.Err() != nil {
 		return fmt.Errorf("pull cancelled: %w", ctx.Err())
 	}
