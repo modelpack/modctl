@@ -19,18 +19,18 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	common "d7y.io/api/v2/pkg/apis/common/v2"
 	dfdaemon "d7y.io/api/v2/pkg/apis/dfdaemon/v2"
-	"github.com/avast/retry-go/v4"
 	"github.com/bmatcuk/doublestar/v4"
-	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -41,6 +41,7 @@ import (
 	"github.com/modelpack/modctl/pkg/archiver"
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/retrypolicy"
 )
 
 // fetchByDragonfly fetches partial files via Dragonfly gRPC service based on pattern matching.
@@ -78,10 +79,7 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 	for _, layer := range manifest.Layers {
 		for _, pattern := range cfg.Patterns {
 			if anno := layer.Annotations; anno != nil {
-				path := anno[modelspec.AnnotationFilepath]
-				if path == "" {
-					path = anno[legacymodelspec.AnnotationFilepath]
-				}
+				path := getAnnotationFilepath(anno)
 				// Use doublestar.PathMatch for pattern matching to support ** recursive matching
 				// PathMatch uses the system's native path separator (like filepath.Match) while
 				// also supporting recursive patterns like **/*.json
@@ -124,8 +122,11 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 	defer pb.Stop()
 
 	// Process layers concurrently.
-	g, ctx := errgroup.WithContext(ctx)
+	g := new(errgroup.Group)
 	g.SetLimit(cfg.Concurrency)
+
+	var mu sync.Mutex
+	var errs []error
 
 	logrus.Infof("fetch: fetching %d matched layers via dragonfly", len(layers))
 	for _, layer := range layers {
@@ -138,14 +139,21 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 
 			logrus.Debugf("fetch: processing layer %s via dragonfly", layer.Digest)
 			if err := fetchLayerByDragonfly(ctx, pb, dfdaemon.NewDfdaemonDownloadClient(conn), ref, manifest, layer, authToken, cfg); err != nil {
-				return err
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			} else {
+				logrus.Debugf("fetch: successfully processed layer %s via dragonfly", layer.Digest)
 			}
-			logrus.Debugf("fetch: successfully processed layer %s via dragonfly", layer.Digest)
 			return nil
 		})
 	}
 
-	if err := g.Wait(); err != nil {
+	_ = g.Wait()
+	if ctx.Err() != nil {
+		return fmt.Errorf("fetch cancelled: %w", ctx.Err())
+	}
+	if err := errors.Join(errs...); err != nil {
 		return err
 	}
 
@@ -155,10 +163,12 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 
 // fetchLayerByDragonfly handles downloading and extracting a single layer via Dragonfly.
 func fetchLayerByDragonfly(ctx context.Context, pb *internalpb.ProgressBar, client dfdaemon.DfdaemonDownloadClient, ref Referencer, manifest ocispec.Manifest, desc ocispec.Descriptor, authToken string, cfg *config.Fetch) error {
-	err := retry.Do(func() error {
+	annoFilepath := getAnnotationFilepath(desc.Annotations)
+
+	err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 		logrus.Debugf("fetch: processing layer %s", desc.Digest)
 		cfg.Hooks.BeforePullLayer(desc, manifest) // Call before hook
-		err := downloadAndExtractFetchLayer(ctx, pb, client, ref, desc, authToken, cfg)
+		err := downloadAndExtractFetchLayer(rctx, pb, client, ref, desc, authToken, cfg)
 		cfg.Hooks.AfterPullLayer(desc, err) // Call after hook
 		if err != nil {
 			err = fmt.Errorf("pull: failed to download and extract layer %s: %w", desc.Digest, err)
@@ -166,7 +176,18 @@ func fetchLayerByDragonfly(ctx context.Context, pb *internalpb.ProgressBar, clie
 		}
 
 		return err
-	}, append(defaultRetryOpts, retry.Context(ctx))...)
+	}, retrypolicy.DoOpts{
+		FileSize: desc.Size,
+		FileName: annoFilepath,
+		Config:   &cfg.RetryConfig,
+		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+			if bar := pb.Get(desc.Digest.String()); bar != nil {
+				bar.SetRefill(bar.Current())
+				bar.SetCurrent(0)
+				bar.EwmaSetCurrent(0, time.Second)
+			}
+		},
+	})
 
 	if err != nil {
 		err = fmt.Errorf("fetch: failed to download and extract layer %s: %w", desc.Digest, err)
@@ -184,14 +205,7 @@ func downloadAndExtractFetchLayer(ctx context.Context, pb *internalpb.ProgressBa
 		return fmt.Errorf("failed to resolve output dir: %w", err)
 	}
 
-	var annoFilepath string
-	if desc.Annotations != nil {
-		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
-			annoFilepath = desc.Annotations[modelspec.AnnotationFilepath]
-		} else {
-			annoFilepath = desc.Annotations[legacymodelspec.AnnotationFilepath]
-		}
-	}
+	annoFilepath := getAnnotationFilepath(desc.Annotations)
 
 	if annoFilepath == "" {
 		return fmt.Errorf("missing annotation filepath")

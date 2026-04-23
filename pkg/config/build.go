@@ -16,7 +16,11 @@
 
 package config
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/modelpack/modctl/pkg/retrypolicy"
+)
 
 const (
 	// defaultBuildConcurrency is the default number of concurrent builds.
@@ -36,6 +40,7 @@ type Build struct {
 	Raw            bool
 	Reasoning      bool
 	NoCreationTime bool
+	RetryConfig    retrypolicy.Config
 }
 
 func NewBuild() *Build {

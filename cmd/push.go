@@ -53,6 +53,8 @@ func init() {
 	flags.BoolVar(&pushConfig.Insecure, "insecure", false, "turning on this flag will disable TLS verification")
 	flags.BoolVar(&pushConfig.Nydusify, "nydusify", false, "[EXPERIMENTAL] nydusify the model artifact")
 	flags.MarkHidden("nydusify")
+	flags.BoolVar(&pushConfig.RetryConfig.NoRetry, "no-retry", false, "Disable retry on transient errors")
+	flags.DurationVar(&pushConfig.RetryConfig.MaxRetryTime, "retry-max-time", 0, "Max total retry time per file (0 = dynamic based on file size)")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind push flags to viper: %w", err))

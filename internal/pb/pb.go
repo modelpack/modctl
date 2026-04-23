@@ -140,6 +140,28 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 	return reader
 }
 
+// Placeholder creates or resets a progress bar entry without a reader.
+// It is used during retry backoff to keep a visible bar for the item.
+func (p *ProgressBar) Placeholder(name string, prompt string, size int64) {
+	if disableProgress {
+		return
+	}
+
+	p.mu.RLock()
+	existing := p.bars[name]
+	p.mu.RUnlock()
+
+	// If the bar already exists, just reset its message.
+	if existing != nil {
+		existing.msg = fmt.Sprintf("%s %s", prompt, name)
+		existing.Bar.SetCurrent(0)
+		return
+	}
+
+	// Create a new placeholder bar.
+	p.Add(prompt, name, size, nil)
+}
+
 // Get returns the progress bar.
 func (p *ProgressBar) Get(name string) *progressBar {
 	p.mu.RLock()

@@ -16,7 +16,11 @@
 
 package config
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/modelpack/modctl/pkg/retrypolicy"
+)
 
 const (
 	// defaultPushConcurrency is the default number of concurrent push operations.
@@ -28,6 +32,7 @@ type Push struct {
 	PlainHTTP   bool
 	Insecure    bool
 	Nydusify    bool
+	RetryConfig retrypolicy.Config
 }
 
 func NewPush() *Push {
