@@ -14,74 +14,52 @@
  * limitations under the License.
  */
 
+//go:build linux || darwin
+
 package diskspace
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCheck_ZeroBytes(t *testing.T) {
-	err := Check("/tmp", 0)
-	if err != nil {
-		t.Errorf("expected nil error for zero bytes, got: %v", err)
-	}
+	assert.NoError(t, Check("/tmp", 0))
 }
 
 func TestCheck_NegativeBytes(t *testing.T) {
-	err := Check("/tmp", -1)
-	if err != nil {
-		t.Errorf("expected nil error for negative bytes, got: %v", err)
-	}
+	assert.NoError(t, Check("/tmp", -1))
 }
 
 func TestCheck_SmallSize(t *testing.T) {
 	// 1 byte should always have enough space
-	err := Check("/tmp", 1)
-	if err != nil {
-		t.Errorf("expected nil error for 1 byte, got: %v", err)
-	}
+	assert.NoError(t, Check("/tmp", 1))
 }
 
 func TestCheck_ExtremelyLargeSize(t *testing.T) {
 	// 1 exabyte should always fail
 	err := Check("/tmp", 1<<60)
-	if err == nil {
-		t.Error("expected error for extremely large size, got nil")
-	}
-	if !strings.Contains(err.Error(), "insufficient disk space") {
-		t.Errorf("expected 'insufficient disk space' in error, got: %v", err)
-	}
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "insufficient disk space")
 }
 
 func TestCheck_NonExistentDirWalksUp(t *testing.T) {
 	// Should walk up to find an existing parent directory
-	err := Check("/tmp/nonexistent-modctl-test-dir-12345/subdir", 1)
-	if err != nil {
-		t.Errorf("expected nil error when parent exists, got: %v", err)
-	}
+	assert.NoError(t, Check("/tmp/nonexistent-modctl-test-dir-12345/subdir", 1))
 }
 
 func TestCheck_EmptyPath(t *testing.T) {
 	// Empty string should walk up to root and succeed for small size
-	err := Check("", 1)
-	if err != nil {
-		t.Errorf("expected nil error for empty path with 1 byte, got: %v", err)
-	}
+	assert.NoError(t, Check("", 1))
 }
 
 func TestCheck_RootDir(t *testing.T) {
-	err := Check("/", 1)
-	if err != nil {
-		t.Errorf("expected nil error for root dir with 1 byte, got: %v", err)
-	}
+	assert.NoError(t, Check("/", 1))
 }
 
 func TestCheck_DeeplyNestedNonExistentDir(t *testing.T) {
-	err := Check("/tmp/a/b/c/d/e/f/g/h", 1)
-	if err != nil {
-		t.Errorf("expected nil error for deeply nested non-existent path, got: %v", err)
-	}
+	assert.NoError(t, Check("/tmp/a/b/c/d/e/f/g/h", 1))
 }
 
 func TestFormatBytes(t *testing.T) {
@@ -101,9 +79,6 @@ func TestFormatBytes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		result := formatBytes(tt.bytes)
-		if result != tt.expected {
-			t.Errorf("formatBytes(%d) = %s, want %s", tt.bytes, result, tt.expected)
-		}
+		assert.Equal(t, tt.expected, formatBytes(tt.bytes), "formatBytes(%d)", tt.bytes)
 	}
 }
