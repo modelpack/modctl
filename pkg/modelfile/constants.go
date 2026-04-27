@@ -48,13 +48,22 @@ var (
 		"*.modelcard",       // Model card metadata
 		"*.meta",            // Model metadata
 		"*tokenizer.model*", // Tokenizer files (e.g., Mistral v3)
-		"config.json.*",     // Model configuration variants
-		"*.hparams",         // Hyperparameter files
-		"*.params",          // Parameter files
-		"*.hyperparams",     // Hyperparameter configuration
-		"*.wandb",           // Weights & Biases configuration
-		"*.mlflow",          // MLflow configuration
-		"*.tensorboard",     // TensorBoard configuration
+		"*.tiktoken",        // TikToken vocabulary files
+		"vocab.txt",         // Tokenizer vocabulary files
+		"merges.txt",        // Tokenizer merge rules
+		"added_tokens.txt",  // Additional tokenizer tokens
+		"spiece.model",      // SentencePiece tokenizer files
+		"sentencepiece*.model",
+		"sentencepiece*.vocab",
+		"tiktoken.model",
+		"chat_template.jinja",
+		"config.json.*", // Model configuration variants
+		"*.hparams",     // Hyperparameter files
+		"*.params",      // Parameter files
+		"*.hyperparams", // Hyperparameter configuration
+		"*.wandb",       // Weights & Biases configuration
+		"*.mlflow",      // MLflow configuration
+		"*.tensorboard", // TensorBoard configuration
 	}
 
 	// Model file patterns - supported model file extensions.
@@ -97,9 +106,10 @@ var (
 		"*.f32",    // GGML F32 format
 
 		// checkpoint formats.
-		"*.ckpt",       // Checkpoint format
-		"*.checkpoint", // Checkpoint format (alternative extension)
-		"*.dist_ckpt",  // Distributed checkpoint format
+		"*.ckpt",              // Checkpoint format
+		"*.checkpoint",        // Checkpoint format (alternative extension)
+		"*.dist_ckpt",         // Distributed checkpoint format
+		"tensor[0-9]*_[0-9]*", // Sharded checkpoint tensor files
 
 		// Semantics-specific formats
 		"*.tensor",    // Generic tensor format
@@ -113,6 +123,7 @@ var (
 		"*.engine",      // TensorRT format
 		"*.trt",         // TensorRT format (alternative extension)
 		"*.onnx",        // Open Neural Network Exchange format
+		"*.onnx_data*",  // ONNX external data files
 		"*.msgpack",     // MessagePack serialization
 		"*.model",       // Some NLP frameworks
 		"*.pkl",         // Pickle format
@@ -124,6 +135,7 @@ var (
 		"*.nc",          // NetCDF format
 		"*.mlmodel",     // Apple Core ML format
 		"*.coreml",      // Apple Core ML format (alternative)
+		"*.mil",         // Core ML intermediate language files
 		"*.mleap",       // MLeap format (Spark ML)
 		"*.surml",       // SurrealML format
 		"*.llamafile",   // Llamafile format
