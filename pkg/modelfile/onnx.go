@@ -61,9 +61,11 @@ const (
 // directory containing the .onnx file, per ONNX convention). The slice is
 // deduplicated and ordered by first appearance.
 //
-// Returns nil with no error for files that aren't ONNX or that don't reference
-// any external data; only I/O failures produce errors. Files larger than
-// onnxMaxParseSize are skipped with an error.
+// An ONNX without any external_data references returns nil, nil. The function
+// returns an error for: I/O failures (stat / read), files exceeding
+// onnxMaxParseSize, and malformed protobuf wire data (e.g., truncated or
+// corrupted bytes). Callers that want best-effort behavior should treat all
+// errors as a fallback signal and continue without external_data information.
 func ExtractONNXExternalDataPaths(onnxPath string) ([]string, error) {
 	info, err := os.Stat(onnxPath)
 	if err != nil {
