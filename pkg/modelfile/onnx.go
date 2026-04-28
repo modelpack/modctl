@@ -27,6 +27,9 @@ import (
 // Schema reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto
 const (
 	onnxModelProtoGraphField             = 7
+	onnxModelProtoTrainingInfoField      = 20
+	onnxTrainingInfoInitializationField  = 1
+	onnxTrainingInfoAlgorithmField       = 2
 	onnxGraphProtoNodeField              = 1
 	onnxGraphProtoInitializerField       = 5
 	onnxGraphProtoSparseInitializerField = 15
@@ -75,14 +78,6 @@ func ExtractONNXExternalDataPaths(onnxPath string) ([]string, error) {
 		return nil, fmt.Errorf("read onnx file: %w", err)
 	}
 
-	graph, err := readSubMessage(data, onnxModelProtoGraphField)
-	if err != nil {
-		return nil, fmt.Errorf("locate ONNX graph field: %w", err)
-	}
-	if graph == nil {
-		return nil, nil
-	}
-
 	var (
 		seen      = map[string]struct{}{}
 		locations []string
@@ -98,10 +93,37 @@ func ExtractONNXExternalDataPaths(onnxPath string) ([]string, error) {
 		locations = append(locations, loc)
 	}
 
-	if err := walkGraph(graph, collect, 0); err != nil {
-		return nil, fmt.Errorf("walk ONNX graph: %w", err)
+	// Iterate ModelProto fields directly so we cover both the inference graph
+	// (field 7) and any training_info entries (field 20, repeated). Training-
+	// enabled ONNX (IR v7+) carries additional GraphProtos in
+	// training_info[*].initialization and training_info[*].algorithm; their
+	// initializers can also carry external_data references.
+	err = forEachField(data, func(num protowire.Number, _ protowire.Type, value []byte) error {
+		switch num {
+		case onnxModelProtoGraphField:
+			return walkGraph(value, collect, 0)
+		case onnxModelProtoTrainingInfoField:
+			return walkTrainingInfo(value, collect)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walk ONNX model: %w", err)
 	}
 	return locations, nil
+}
+
+// walkTrainingInfo descends into a TrainingInfoProto and walks its
+// initialization and algorithm GraphProtos. The other fields
+// (initialization_binding, update_binding) cannot carry external_data.
+func walkTrainingInfo(ti []byte, collect func(string)) error {
+	return forEachField(ti, func(num protowire.Number, _ protowire.Type, value []byte) error {
+		switch num {
+		case onnxTrainingInfoInitializationField, onnxTrainingInfoAlgorithmField:
+			return walkGraph(value, collect, 0)
+		}
+		return nil
+	})
 }
 
 // walkGraph iterates a GraphProto: top-level initializer / sparse_initializer
@@ -186,20 +208,6 @@ func walkTensorExternalData(tensor []byte, collect func(string)) error {
 		}
 		return nil
 	})
-}
-
-// readSubMessage scans the top-level message and returns the bytes of the first
-// occurrence of the given length-delimited (wire type 2) field. Returns nil if
-// the field is absent.
-func readSubMessage(buf []byte, target protowire.Number) ([]byte, error) {
-	var found []byte
-	err := forEachField(buf, func(num protowire.Number, typ protowire.Type, value []byte) error {
-		if num == target && typ == protowire.BytesType && found == nil {
-			found = value
-		}
-		return nil
-	})
-	return found, err
 }
 
 // forEachField iterates protobuf wire-format fields in buf, invoking fn for each.
