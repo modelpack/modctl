@@ -91,7 +91,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 
 			return retry.Do(func() error {
 				logrus.Debugf("push: processing layer %s", layer.Digest)
-				if err := pushIfNotExist(gctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag); err != nil {
+				if err := pushIfNotExist(gctx, pb, src, dst, layer, repo, tag); err != nil {
 					return err
 				}
 				logrus.Debugf("push: successfully processed layer %s", layer.Digest)
@@ -106,14 +106,14 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 
 	// copy the config.
 	if err := retry.Do(func() error {
-		return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag)
+		return pushIfNotExist(ctx, pb, src, dst, manifest.Config, repo, tag)
 	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to push config to remote: %w", err)
 	}
 
 	// copy the manifest.
 	if err := retry.Do(func() error {
-		return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, ocispec.Descriptor{
+		return pushIfNotExist(ctx, pb, src, dst, ocispec.Descriptor{
 			MediaType: manifest.MediaType,
 			Size:      int64(len(manifestRaw)),
 			Digest:    godigest.FromBytes(manifestRaw),
@@ -128,15 +128,22 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 }
 
 // pushIfNotExist copies the content from the src storage to the dst storage if the content does not exist.
-func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src storage.Storage, dst *remote.Repository, desc ocispec.Descriptor, repo, tag string) error {
+func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, src storage.Storage, dst *remote.Repository, desc ocispec.Descriptor, repo, tag string) error {
+	// Phase 1: show "Checking" during existence check (blob layers only).
+	// Bar is created with nil reader — shows 0 B / total at 0 speed to indicate waiting state.
+	if desc.MediaType != ocispec.MediaTypeImageManifest {
+		pb.Add(internalpb.NormalizePrompt("Checking blob"), desc.Digest.String(), desc.Size, nil)
+	}
+
 	// check whether the content exists in the destination storage.
 	exist, err := dst.Exists(ctx, desc)
 	if err != nil {
+		pb.Abort(desc.Digest.String(), err)
 		return err
 	}
 
 	if exist {
-		pb.Add(prompt, desc.Digest.String(), desc.Size, bytes.NewReader([]byte{}))
+		pb.Add(internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String(), desc.Size, bytes.NewReader([]byte{}))
 		// if the descriptor is the manifest, should check the tag existence as well.
 		if desc.MediaType == ocispec.MediaTypeImageManifest {
 			_, _, err := dst.FetchReference(ctx, tag)
@@ -157,7 +164,7 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 	// push the content to the destination, and wrap the content reader for progress bar,
 	// manifest should use dst.Manifests().Push, others should use dst.Blobs().Push.
 	if desc.MediaType == ocispec.MediaTypeImageManifest {
-		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, bytes.NewReader(desc.Data))
+		reader := pb.Add(internalpb.NormalizePrompt("Copying manifest"), desc.Digest.String(), desc.Size, bytes.NewReader(desc.Data))
 		if err := dst.Manifests().Push(ctx, desc, reader); err != nil {
 			err = fmt.Errorf("failed to push manifest %s, err: %w", desc.Digest.String(), err)
 			pb.Abort(desc.Digest.String(), err)
@@ -174,10 +181,12 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		// fetch the content from the source storage.
 		content, err := src.PullBlob(ctx, repo, desc.Digest.String())
 		if err != nil {
+			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
 
-		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
+		// Phase 2: reset to "Pushing" for actual upload.
+		reader := pb.Reset(internalpb.NormalizePrompt("Pushing blob"), desc.Digest.String(), desc.Size, content)
 		// resolve issue: https://github.com/modelpack/modctl/issues/50
 		// wrap the content to the NopCloser, because the implementation of the distribution will
 		// always return the error when Close() is called.
