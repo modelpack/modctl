@@ -31,6 +31,7 @@ import (
 	"github.com/modelpack/modctl/cmd/modelfile"
 	internalpb "github.com/modelpack/modctl/internal/pb"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/envinfo"
 )
 
 var rootConfig *config.Root
@@ -78,6 +79,10 @@ var rootCmd = &cobra.Command{
 
 		// TODO: need refactor as currently use a global flag to control the progress bar render.
 		internalpb.SetDisableProgress(rootConfig.DisableProgress)
+
+		// Log environment information for debugging.
+		envinfo.LogEnvironment(rootConfig.StorageDir)
+
 		return nil
 	},
 	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {

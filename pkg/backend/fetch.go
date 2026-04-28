@@ -31,6 +31,7 @@ import (
 	internalpb "github.com/modelpack/modctl/internal/pb"
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/iometrics"
 )
 
 // Fetch fetches partial files to the output.
@@ -101,6 +102,8 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	pb.Start()
 	defer pb.Stop()
 
+	tracker := iometrics.NewTracker("fetch")
+
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
@@ -114,7 +117,9 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			}
 
 			logrus.Debugf("fetch: processing layer %s", layer.Digest)
-			if err := pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer); err != nil {
+			if err := tracker.TrackTransfer(func() error {
+				return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer, tracker)
+			}); err != nil {
 				return err
 			}
 
@@ -127,6 +132,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 		return err
 	}
 
+	tracker.Summary()
 	logrus.Infof("fetch: fetched %d layers", len(layers))
 	return nil
 }

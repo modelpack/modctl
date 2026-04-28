@@ -25,6 +25,7 @@ import (
 
 	"github.com/modelpack/modctl/pkg/backend"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/envinfo"
 )
 
 var pullConfig = config.NewPull()
@@ -63,6 +64,10 @@ func init() {
 
 // runPull runs the pull modctl.
 func runPull(ctx context.Context, target string) error {
+	if pullConfig.ExtractDir != "" {
+		envinfo.LogDiskInfo("pullExtractDir", pullConfig.ExtractDir)
+	}
+
 	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
