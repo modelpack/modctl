@@ -346,11 +346,43 @@ func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig)
 		return err
 	}
 
+	// ONNX external_data post-processing: any tensor file referenced by an .onnx
+	// file via external_data.location is unconditionally a model weight file,
+	// regardless of its name or size. Walker may have classified small external
+	// tensor files as code/config/doc by extension/size heuristic; reclassify them.
+	mf.reclassifyONNXExternalData()
+
 	if mf.model.Size() == 0 && mf.code.Size() == 0 && mf.dataset.Size() == 0 {
 		return fmt.Errorf("no model/code/dataset found - you have to create the Modelfile by yourself")
 	}
 
 	return nil
+}
+
+// reclassifyONNXExternalData scans every .onnx file already in mf.model,
+// extracts external_data.location paths, and moves those paths into mf.model
+// from whichever bucket the walker placed them in.
+func (mf *modelfile) reclassifyONNXExternalData() {
+	for _, raw := range mf.model.Values() {
+		modelRel, ok := raw.(string)
+		if !ok || !strings.HasSuffix(strings.ToLower(modelRel), ".onnx") {
+			continue
+		}
+		onnxAbs := filepath.Join(mf.workspace, modelRel)
+		extPaths, err := ExtractONNXExternalDataPaths(onnxAbs)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "modelfile: parse ONNX external_data from %s failed: %v\n", modelRel, err)
+			continue
+		}
+		onnxDir := filepath.Dir(modelRel)
+		for _, ext := range extPaths {
+			relExt := filepath.Join(onnxDir, ext)
+			mf.code.Remove(relExt)
+			mf.config.Remove(relExt)
+			mf.doc.Remove(relExt)
+			mf.model.Add(relExt)
+		}
+	}
 }
 
 // generateByModelConfig generates the modelfile by the model config, such as config.json and generation_config.json.
