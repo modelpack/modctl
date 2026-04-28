@@ -26,16 +26,29 @@ import (
 // ONNX protobuf field numbers (subset relevant to external_data discovery).
 // Schema reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto
 const (
-	onnxModelProtoGraphField              = 7
-	onnxGraphProtoInitializerField        = 5
-	onnxGraphProtoSparseInitializerField  = 15
-	onnxTensorProtoExternalDataField      = 13
-	onnxSparseTensorProtoValuesField      = 1
-	onnxSparseTensorProtoIndicesField     = 2
-	onnxStringStringEntryProtoKeyField    = 1
-	onnxStringStringEntryProtoValueField  = 2
-	onnxExternalDataLocationKey           = "location"
-	onnxMaxParseSize                  int = 512 * 1024 * 1024
+	onnxModelProtoGraphField             = 7
+	onnxGraphProtoNodeField              = 1
+	onnxGraphProtoInitializerField       = 5
+	onnxGraphProtoSparseInitializerField = 15
+	onnxNodeProtoAttributeField          = 5
+	// AttributeProto carries either a tensor (t / tensors / sparse_tensor /
+	// sparse_tensors) or a subgraph (g / graphs). Field numbers per onnx.proto.
+	onnxAttributeProtoTensorField        = 5
+	onnxAttributeProtoGraphField         = 6
+	onnxAttributeProtoTensorsField       = 10
+	onnxAttributeProtoGraphsField        = 11
+	onnxAttributeProtoSparseTensorField  = 22
+	onnxAttributeProtoSparseTensorsField = 23
+	onnxTensorProtoExternalDataField     = 13
+	onnxSparseTensorProtoValuesField     = 1
+	onnxSparseTensorProtoIndicesField    = 2
+	onnxStringStringEntryProtoKeyField   = 1
+	onnxStringStringEntryProtoValueField = 2
+	onnxExternalDataLocationKey          = "location"
+	onnxMaxParseSize                 int = 512 * 1024 * 1024
+	// Defends against pathological / adversarial ONNX with deeply nested If/Loop
+	// subgraphs. Real models rarely nest beyond 2-3 levels.
+	onnxMaxSubgraphDepth = 32
 )
 
 // ExtractONNXExternalDataPaths parses the ONNX model file at onnxPath and returns
@@ -85,27 +98,62 @@ func ExtractONNXExternalDataPaths(onnxPath string) ([]string, error) {
 		locations = append(locations, loc)
 	}
 
-	if err := walkGraph(graph, collect); err != nil {
+	if err := walkGraph(graph, collect, 0); err != nil {
 		return nil, fmt.Errorf("walk ONNX graph: %w", err)
 	}
 	return locations, nil
 }
 
-// walkGraph iterates initializer + sparse_initializer entries inside a GraphProto.
-func walkGraph(graph []byte, collect func(string)) error {
+// walkGraph iterates a GraphProto: top-level initializer / sparse_initializer
+// entries plus every NodeProto.attribute, recursing into subgraphs (If / Loop /
+// Scan branches) up to onnxMaxSubgraphDepth levels deep.
+func walkGraph(graph []byte, collect func(string), depth int) error {
+	if depth > onnxMaxSubgraphDepth {
+		return nil
+	}
 	return forEachField(graph, func(num protowire.Number, _ protowire.Type, value []byte) error {
 		switch num {
 		case onnxGraphProtoInitializerField:
 			return walkTensorExternalData(value, collect)
 		case onnxGraphProtoSparseInitializerField:
-			return walkSparseTensor(value, collect)
+			return walkSparseTensor(value, collect, depth)
+		case onnxGraphProtoNodeField:
+			return walkNode(value, collect, depth)
+		}
+		return nil
+	})
+}
+
+// walkNode descends into NodeProto.attribute entries to surface external_data
+// references attached via Constant / If / Loop / Scan and similar ops.
+func walkNode(node []byte, collect func(string), depth int) error {
+	return forEachField(node, func(num protowire.Number, _ protowire.Type, value []byte) error {
+		if num != onnxNodeProtoAttributeField {
+			return nil
+		}
+		return walkAttribute(value, collect, depth)
+	})
+}
+
+// walkAttribute handles the tensor- and subgraph-bearing fields of
+// AttributeProto. Other attribute types (floats / ints / strings / type_protos)
+// are skipped — none can carry external_data.
+func walkAttribute(attr []byte, collect func(string), depth int) error {
+	return forEachField(attr, func(num protowire.Number, _ protowire.Type, value []byte) error {
+		switch num {
+		case onnxAttributeProtoTensorField, onnxAttributeProtoTensorsField:
+			return walkTensorExternalData(value, collect)
+		case onnxAttributeProtoSparseTensorField, onnxAttributeProtoSparseTensorsField:
+			return walkSparseTensor(value, collect, depth)
+		case onnxAttributeProtoGraphField, onnxAttributeProtoGraphsField:
+			return walkGraph(value, collect, depth+1)
 		}
 		return nil
 	})
 }
 
 // walkSparseTensor descends into a SparseTensorProto and walks its values + indices TensorProto.
-func walkSparseTensor(sparse []byte, collect func(string)) error {
+func walkSparseTensor(sparse []byte, collect func(string), _ int) error {
 	return forEachField(sparse, func(num protowire.Number, _ protowire.Type, value []byte) error {
 		switch num {
 		case onnxSparseTensorProtoValuesField, onnxSparseTensorProtoIndicesField:
