@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -2356,11 +2357,33 @@ func TestNewModelfileByWorkspace_ONNXExternalDataRespectsExclude(t *testing.T) {
 	assert.NotContains(t, all, "weights_drop.bin")
 }
 
+// captureStderr redirects os.Stderr through a pipe while fn runs and returns
+// everything written to it. Standard Go pattern for asserting on stderr text
+// without coupling tests to a specific log library.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	old := os.Stderr
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+
+	done := make(chan string, 1)
+	go func() {
+		var buf strings.Builder
+		_, _ = io.Copy(&buf, r)
+		done <- buf.String()
+	}()
+
+	fn()
+	require.NoError(t, w.Close())
+	return <-done
+}
+
 // P3 coverage: a corrupted .onnx file must not crash generate. The .onnx
-// itself stays in MODEL (it matches *.onnx), and any sibling tensor files
-// keep whatever classification the walker already gave them — i.e., the
-// pre-fix behavior. A WARNING is emitted to stderr (not asserted here, but
-// captured via the parser's error path).
+// itself stays in MODEL (it matches *.onnx), any sibling tensor files keep
+// whatever classification the walker already gave them, AND a clearly-prefixed
+// WARNING is emitted to stderr — locking that user-visible contract.
 func TestNewModelfileByWorkspace_ONNXParseFailureFallsBack(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -2369,13 +2392,56 @@ func TestNewModelfileByWorkspace_ONNXParseFailureFallsBack(t *testing.T) {
 	// A small extension-less file the walker would classify as CODE — stays CODE on parse failure.
 	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "auxiliary_blob"), nil, 0o644))
 
-	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
-		Name:      "onnx-corrupt",
-		Workspace: tempDir,
+	var (
+		mf  Modelfile
+		err error
+	)
+	stderr := captureStderr(t, func() {
+		mf, err = NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+			Name:      "onnx-corrupt",
+			Workspace: tempDir,
+		})
 	})
+
 	require.NoError(t, err, "corrupted ONNX must not abort generate")
 	assert.Contains(t, mf.GetModels(), "model.onnx", ".onnx file itself stays in MODEL by extension")
-	// auxiliary_blob keeps walker classification (CODE for small extension-less);
-	// we don't assert exact bucket — only that generate succeeded and produced output.
 	assert.NotEmpty(t, mf.GetModels())
+
+	// Lock the WARNING contract: prefix + offending file path + fallback note.
+	assert.Contains(t, stderr, "WARNING:", "warning prefix must be printed")
+	assert.Contains(t, stderr, "model.onnx", "warning must name the failing file")
+	assert.Contains(t, stderr, "keep walker-assigned classification",
+		"warning must explain the fallback so users know external tensors were not reclassified")
+}
+
+// P1 follow-up: an absolute external_data.location must be rejected outright,
+// even when the absolute path's stripped form happens to match a real
+// workspace file. Previously filepath.Join(".", "/decoy") would produce
+// "decoy" and reclassify an unrelated file.
+func TestNewModelfileByWorkspace_ONNXExternalDataAbsolutePathRejected(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Locations: one absolute (must be rejected), one normal (must reclassify).
+	require.NoError(t, os.WriteFile(
+		filepath.Join(tempDir, "model.onnx"),
+		buildMinimalONNXBytes([]string{"/decoy", "weights.bin"}),
+		0o644,
+	))
+	// "decoy" exists in the workspace at root — would be the misclassification
+	// target if Join silently strips the leading slash from "/decoy".
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "decoy"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights.bin"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "onnx-abs",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+
+	// weights.bin reclassifies normally.
+	assert.Contains(t, mf.GetModels(), "weights.bin")
+	// "decoy" must NOT be in MODEL — the abs path "/decoy" was rejected before
+	// Join could produce a misleading "decoy" relative path.
+	assert.NotContains(t, mf.GetModels(), "decoy",
+		"absolute external_data.location must not promote unrelated workspace files")
 }

@@ -393,6 +393,15 @@ func (mf *modelfile) reclassifyONNXExternalData() {
 		}
 		onnxDir := filepath.Dir(modelRel)
 		for _, ext := range extPaths {
+			// Reject absolute external_data.location values outright. ONNX
+			// spec defines location as relative to the .onnx file's
+			// directory, so an absolute path is malformed; worse,
+			// filepath.Join silently strips the leading separator
+			// (Join(".", "/etc/secret") -> "etc/secret"), which would let
+			// an unrelated workspace file get reclassified to MODEL.
+			if filepath.IsAbs(ext) {
+				continue
+			}
 			relExt := filepath.Clean(filepath.Join(onnxDir, ext))
 			// Walker membership check absorbs all of:
 			//  - exclude pattern (walker dropped it -> not in any bucket)
