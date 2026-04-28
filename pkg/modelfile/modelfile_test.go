@@ -811,6 +811,111 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			expectCodes:   []string{},
 			expectName:    "selective-include",
 		},
+		{
+			// Mirrors screenshot 1 (TF SavedModel directory) plus the screenshots 4/5
+			// /home/admin/<ts>/{checkpoint,variables,...} layout: variables/ shards
+			// and a sibling checkpoint/ directory with model.ckpt-NNN.{data-*,index,meta}.
+			// Pre-fix, feature_map and the literal `checkpoint` files would have been
+			// classified as CODE because they have no extension and are small.
+			name: "tensorflow saved_model directory",
+			setupFiles: map[string]string{
+				"saved_model.pb":                          "",
+				"feature_map":                             "",
+				"tf_signature.txt":                        "",
+				"alps.meta":                               "",
+				"ais-sync.done":                           "",
+				"variables/checkpoint":                    "",
+				"variables/variables.index":               "",
+				"variables/variables.data-00000-of-00002": "",
+				"variables/variables.data-00001-of-00002": "",
+				"checkpoint/checkpoint":                   "",
+				"checkpoint/model.ckpt-756921.index":      "",
+				"checkpoint/model.ckpt-756921.meta":       "",
+				"checkpoint/model.ckpt-756921.data-00000-of-00002": "",
+				"checkpoint/model.ckpt-756921.data-00001-of-00002": "",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "tf-savedmodel",
+			},
+			expectError: false,
+			// *.meta hits ConfigFilePatterns first (alps.meta, model.ckpt-*.meta).
+			expectConfigs: []string{
+				"alps.meta",
+				"checkpoint/model.ckpt-756921.meta",
+			},
+			expectModels: []string{
+				"saved_model.pb",
+				"feature_map",
+				"variables/checkpoint",
+				"variables/variables.index",
+				"variables/variables.data-00000-of-00002",
+				"variables/variables.data-00001-of-00002",
+				"checkpoint/checkpoint",
+				"checkpoint/model.ckpt-756921.index",
+				"checkpoint/model.ckpt-756921.data-00000-of-00002",
+				"checkpoint/model.ckpt-756921.data-00001-of-00002",
+			},
+			// ais-sync.done has no extension and is empty -> falls back to CODE by
+			// the size heuristic. Documented intentional behavior (user accepted).
+			expectCodes: []string{"ais-sync.done"},
+			expectDocs:  []string{"tf_signature.txt"},
+			expectName:  "tf-savedmodel",
+		},
+		{
+			// Mirrors screenshot 3/4/5: a parent directory containing base/<ts>/
+			// and delta/<ts>/ subdirs, each holding a complete TF SavedModel +
+			// checkpoint layout. Verifies the walker recurses correctly and that
+			// relative paths in the resulting Modelfile preserve the timestamp
+			// directory prefix so pull-side reconstruction restores the full tree.
+			name: "online-learning base plus delta tree",
+			setupFiles: map[string]string{
+				"base/20251202030708/saved_model.pb":                          "",
+				"base/20251202030708/feature_map":                             "",
+				"base/20251202030708/tf_signature.txt":                        "",
+				"base/20251202030708/alps.meta":                               "",
+				"base/20251202030708/ais-sync.done":                           "",
+				"base/20251202030708/variables/checkpoint":                    "",
+				"base/20251202030708/variables/variables.index":               "",
+				"base/20251202030708/variables/variables.data-00000-of-00002": "",
+				"delta/20251202060205/saved_model.pb":                         "",
+				"delta/20251202060205/feature_map":                            "",
+				"delta/20251202060205/tf_signature.txt":                       "",
+				"delta/20251202060205/alps.meta":                              "",
+				"delta/20251202060205/ais-sync.done":                          "",
+				"delta/20251202060205/variables/checkpoint":                   "",
+				"delta/20251202060205/variables/variables.index":              "",
+				"delta/20251202060205/variables/variables.data-00000-of-00002": "",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "online-learning",
+			},
+			expectError: false,
+			expectConfigs: []string{
+				"base/20251202030708/alps.meta",
+				"delta/20251202060205/alps.meta",
+			},
+			expectModels: []string{
+				"base/20251202030708/saved_model.pb",
+				"base/20251202030708/feature_map",
+				"base/20251202030708/variables/checkpoint",
+				"base/20251202030708/variables/variables.index",
+				"base/20251202030708/variables/variables.data-00000-of-00002",
+				"delta/20251202060205/saved_model.pb",
+				"delta/20251202060205/feature_map",
+				"delta/20251202060205/variables/checkpoint",
+				"delta/20251202060205/variables/variables.index",
+				"delta/20251202060205/variables/variables.data-00000-of-00002",
+			},
+			expectCodes: []string{
+				"base/20251202030708/ais-sync.done",
+				"delta/20251202060205/ais-sync.done",
+			},
+			expectDocs: []string{
+				"base/20251202030708/tf_signature.txt",
+				"delta/20251202060205/tf_signature.txt",
+			},
+			expectName: "online-learning",
+		},
 	}
 
 	assert := assert.New(t)
@@ -2124,4 +2229,70 @@ func min(a, b int64) int64 {
 		return a
 	}
 	return b
+}
+
+// TestNewModelfileByWorkspace_ONNXExternalData mirrors screenshot 2: an ONNX
+// directory where model.onnx references many extension-less tensor files via
+// external_data. Pre-fix, small external tensor files were classified as CODE
+// by the size heuristic; the ONNX post-processor must reclassify them all as
+// MODEL deterministically — regardless of the file's size.
+func TestNewModelfileByWorkspace_ONNXExternalData(t *testing.T) {
+	// Subset of the 36 extension-less files seen in screenshot 2. Names taken
+	// verbatim from the actual workflow_10062365 directory.
+	externalLocations := []string{
+		"tower_deep_layer_0_kernel_read__448_1",
+		"tower_shallow_layer_0_kernel_read__440_0",
+		"moe_layer_layer_0_kernel__399_15",
+		"moe_layer_layer_0_domain_bn_ExpandDims__400_16",
+		"moe_layer_search_layer_0_kernel__413_3",
+		"moe_layer_non_search_layer_0_kernel__427_9",
+		"feature_gate_main_kernel_read__352_27",
+		"feature_gate_main_domain_bn_ExpandDims__354_28",
+		"gated_dcn_layer_0_transform_kernel__385_21",
+		"conversion_layer_0_kernel_read__364_35",
+		"main_domain_embedding_Mark_output_user_main_domain_kernel_read__270_20",
+		"external_data_for_resource_handle",
+	}
+
+	tempDir, err := os.MkdirTemp("", "modelfile-onnx-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Write the ONNX file with external_data references encoded into protobuf bytes.
+	require.NoError(t, os.WriteFile(
+		filepath.Join(tempDir, "model.onnx"),
+		buildMinimalONNXBytes(externalLocations),
+		0o644,
+	))
+
+	// Create each external tensor file as an empty placeholder.
+	for _, name := range externalLocations {
+		require.NoError(t, os.WriteFile(filepath.Join(tempDir, name), nil, 0o644))
+	}
+
+	// Sibling files from the screenshot.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "tf_signature.txt"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "variable_sequence_def_0.onnx"), buildMinimalONNXBytes(nil), 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "onnx-external-data",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+
+	models := mf.GetModels()
+	codes := mf.GetCodes()
+	configs := mf.GetConfigs()
+
+	// Every external_data location must appear in MODEL, regardless of file size.
+	for _, name := range externalLocations {
+		assert.Contains(t, models, name, "external_data tensor %q must be reclassified as MODEL", name)
+		assert.NotContains(t, codes, name, "external_data tensor %q must NOT be in CODE", name)
+		assert.NotContains(t, configs, name, "external_data tensor %q must NOT be in CONFIG", name)
+	}
+	// Both .onnx files themselves are MODELs by extension.
+	assert.Contains(t, models, "model.onnx")
+	assert.Contains(t, models, "variable_sequence_def_0.onnx")
+	// tf_signature.txt is a doc per default DocFilePatterns (*.txt).
+	assert.Contains(t, mf.GetDocs(), "tf_signature.txt")
 }
