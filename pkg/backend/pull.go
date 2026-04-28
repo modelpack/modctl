@@ -207,6 +207,28 @@ func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		}
 
 		if exist {
+			tagExist, err := dst.StatTag(ctx, repo, tag)
+			if err != nil {
+				err = fmt.Errorf("failed to check tag %s, err: %w", tag, err)
+				pb.Abort(desc.Digest.String(), err)
+				return err
+			}
+
+			if !tagExist {
+				body, err := io.ReadAll(reader)
+				if err != nil {
+					err = fmt.Errorf("failed to read manifest %s, err: %w", desc.Digest.String(), err)
+					pb.Abort(desc.Digest.String(), err)
+					return err
+				}
+
+				if _, err := dst.PushManifest(ctx, repo, tag, body); err != nil {
+					err = fmt.Errorf("failed to store manifest %s, err: %w", desc.Digest.String(), err)
+					pb.Abort(desc.Digest.String(), err)
+					return err
+				}
+			}
+
 			pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
 			return nil
 		}
