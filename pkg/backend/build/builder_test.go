@@ -284,7 +284,7 @@ func TestBuilderSuite(t *testing.T) {
 
 func TestPipeReader(t *testing.T) {
 	r := strings.NewReader("some io.Reader stream to be read\n")
-	r1, r2 := splitReader(r)
+	r1, r2 := splitReader(context.Background(), r)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
