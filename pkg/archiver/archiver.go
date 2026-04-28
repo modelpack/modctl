@@ -23,38 +23,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
-// buildTarHeader creates a tar header from FileInfo without using CGO-based
-// os/user.LookupGroupId or os/user.LookupUserId. This avoids a segfault in
-// statically linked CGO binaries caused by glibc NSS (getgrgid_r) being
-// incompatible with static linking across different glibc versions.
-// See: https://github.com/modelpack/modctl/issues/285
-func buildTarHeader(info os.FileInfo) (*tar.Header, error) {
-	header := &tar.Header{
-		Name:    info.Name(),
-		Size:    info.Size(),
-		Mode:    int64(info.Mode()),
-		ModTime: info.ModTime(),
-	}
-
-	// Set file type flag.
-	if info.IsDir() {
-		header.Typeflag = tar.TypeDir
-	} else {
-		header.Typeflag = tar.TypeReg
-	}
-
-	// Safely extract UID/GID from syscall.Stat_t without CGO user/group name lookup.
-	// We intentionally leave Uname/Gname empty to avoid os/user CGO calls entirely.
-	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		header.Uid = int(stat.Uid)
-		header.Gid = int(stat.Gid)
-	}
-
-	return header, nil
+type noLookupFileInfo struct {
+	os.FileInfo
 }
+
+// Uname returns an empty user name to skip CGO-based uid→name lookup.
+func (n noLookupFileInfo) Uname() (string, error) { return "", nil }
+
+// Gname returns an empty group name to skip CGO-based gid→name lookup.
+func (n noLookupFileInfo) Gname() (string, error) { return "", nil }
 
 // Tar creates a tar archive of the specified path (file or directory)
 // and returns the content as a stream. For individual files, it preserves
@@ -81,24 +60,35 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 					return err
 				}
 
-				// Create a relative path for the tar file header.
-				relPath, err := filepath.Rel(workDir, path)
-				if err != nil {
-					return fmt.Errorf("failed to get relative path: %w", err)
+				// Resolve symlink target if needed.
+				link := ""
+				if info.Mode()&os.ModeSymlink != 0 {
+					link, err = os.Readlink(path)
+					if err != nil {
+						return fmt.Errorf("failed to read symlink %s: %w", path, err)
+					}
 				}
 
-				header, err := buildTarHeader(info)
+				header, err := tar.FileInfoHeader(noLookupFileInfo{info}, link)
 				if err != nil {
 					return fmt.Errorf("failed to create tar header: %w", err)
 				}
 
-				// Set the header name to preserve directory structure.
+				// FileInfoHeader only fills the base name; set the full relative path.
+				relPath, err := filepath.Rel(workDir, path)
+				if err != nil {
+					return fmt.Errorf("failed to get relative path: %w", err)
+				}
 				header.Name = relPath
+				if info.IsDir() {
+					header.Name += "/"
+				}
+
 				if err := tw.WriteHeader(header); err != nil {
 					return fmt.Errorf("failed to write header: %w", err)
 				}
 
-				if !info.IsDir() {
+				if !info.IsDir() && info.Mode()&os.ModeSymlink == 0 {
 					file, err := os.Open(path)
 					if err != nil {
 						return fmt.Errorf("failed to open file %s: %w", path, err)
@@ -126,21 +116,29 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 			}
 			defer file.Close()
 
-			header, err := buildTarHeader(info)
+			// Resolve symlink target if needed.
+			link := ""
+			if info.Mode()&os.ModeSymlink != 0 {
+				link, err = os.Readlink(srcPath)
+				if err != nil {
+					pw.CloseWithError(fmt.Errorf("failed to read symlink %s: %w", srcPath, err))
+					return
+				}
+			}
+			header, err := tar.FileInfoHeader(noLookupFileInfo{info}, link)
 			if err != nil {
 				pw.CloseWithError(fmt.Errorf("failed to create tar header: %w", err))
 				return
 			}
 
-			// Use relative path as the header name to preserve directory structure.
+			// FileInfoHeader only fills the base name; set the full relative path.
 			relPath, err := filepath.Rel(workDir, srcPath)
 			if err != nil {
 				pw.CloseWithError(fmt.Errorf("failed to get relative path: %w", err))
 				return
 			}
-
-			// Use the relative path (including directories) as the header name.
 			header.Name = relPath
+
 			if err := tw.WriteHeader(header); err != nil {
 				pw.CloseWithError(fmt.Errorf("failed to write header: %w", err))
 				return
