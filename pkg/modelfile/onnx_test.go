@@ -79,6 +79,21 @@ func buildONNXBytesWithSubgraph(location string) []byte {
 	return encodeBytesField(onnxModelProtoGraphField, outer)
 }
 
+// buildONNXBytesWithTrainingInfo emits a ModelProto whose only graph-bearing
+// fields are training_info[*].initialization and training_info[*].algorithm.
+// The inference graph is intentionally absent — exercises the post-P4
+// behavior where training-only ONNX still yields its external tensors.
+func buildONNXBytesWithTrainingInfo(initLoc, algoLoc string) []byte {
+	initGraph := buildONNXGraphInitializerBytes([]string{initLoc})
+	algoGraph := buildONNXGraphInitializerBytes([]string{algoLoc})
+
+	var ti []byte
+	ti = append(ti, encodeBytesField(onnxTrainingInfoInitializationField, initGraph)...)
+	ti = append(ti, encodeBytesField(onnxTrainingInfoAlgorithmField, algoGraph)...)
+
+	return encodeBytesField(onnxModelProtoTrainingInfoField, ti)
+}
+
 func encodeStringStringEntry(key, value string) []byte {
 	out := encodeBytesField(onnxStringStringEntryProtoKeyField, []byte(key))
 	out = append(out, encodeBytesField(onnxStringStringEntryProtoValueField, []byte(value))...)
@@ -187,4 +202,44 @@ func TestExtractONNXExternalDataPaths_Subgraph(t *testing.T) {
 	paths, err := ExtractONNXExternalDataPaths(onnxPath)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"branch_weights.bin"}, paths)
+}
+
+// P4 coverage: training-enabled ONNX (IR v7+) carries graphs in
+// ModelProto.training_info[*].initialization and .algorithm. external_data in
+// either of these must be discovered alongside the inference graph.
+func TestExtractONNXExternalDataPaths_TrainingInfoGraphs(t *testing.T) {
+	dir := t.TempDir()
+	onnxPath := filepath.Join(dir, "model.onnx")
+	require.NoError(t, os.WriteFile(
+		onnxPath,
+		buildONNXBytesWithTrainingInfo("init_state.bin", "optimizer_state.bin"),
+		0o644,
+	))
+
+	paths, err := ExtractONNXExternalDataPaths(onnxPath)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"init_state.bin", "optimizer_state.bin"}, paths)
+}
+
+// P4 coverage: a model with both an inference graph AND training_info must
+// surface external_data from both locations.
+func TestExtractONNXExternalDataPaths_InferenceAndTrainingCombined(t *testing.T) {
+	dir := t.TempDir()
+	onnxPath := filepath.Join(dir, "model.onnx")
+
+	// Inference graph initializer.
+	inferenceGraph := buildONNXGraphInitializerBytes([]string{"weights.bin"})
+	// training_info with one initialization graph.
+	initGraph := buildONNXGraphInitializerBytes([]string{"init_state.bin"})
+	ti := encodeBytesField(onnxTrainingInfoInitializationField, initGraph)
+
+	// Compose ModelProto with both fields.
+	var model []byte
+	model = append(model, encodeBytesField(onnxModelProtoGraphField, inferenceGraph)...)
+	model = append(model, encodeBytesField(onnxModelProtoTrainingInfoField, ti)...)
+	require.NoError(t, os.WriteFile(onnxPath, model, 0o644))
+
+	paths, err := ExtractONNXExternalDataPaths(onnxPath)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"weights.bin", "init_state.bin"}, paths)
 }
