@@ -40,13 +40,43 @@ import (
 // One initializer is emitted per externalLocation. Field numbers come from
 // onnx.proto and are mirrored as constants in onnx.go.
 func buildMinimalONNXBytes(externalLocations []string) []byte {
+	return encodeBytesField(onnxModelProtoGraphField, buildONNXGraphInitializerBytes(externalLocations))
+}
+
+// buildONNXGraphInitializerBytes returns the inner GraphProto payload — used
+// directly when wrapping into a subgraph attribute or wherever raw graph bytes
+// are needed without the outer ModelProto.graph header.
+func buildONNXGraphInitializerBytes(externalLocations []string) []byte {
 	var graph []byte
 	for _, loc := range externalLocations {
 		entry := encodeStringStringEntry(onnxExternalDataLocationKey, loc)
 		tensor := encodeRepeated(onnxTensorProtoExternalDataField, entry)
 		graph = append(graph, encodeBytesField(onnxGraphProtoInitializerField, tensor)...)
 	}
+	return graph
+}
+
+// buildONNXBytesWithConstantNodeAttribute constructs ONNX bytes where an
+// external_data tensor is attached to a NodeProto.attribute.t (the shape
+// produced by ONNX Constant ops). Pre-P2 the parser would have missed this.
+func buildONNXBytesWithConstantNodeAttribute(location string) []byte {
+	entry := encodeStringStringEntry(onnxExternalDataLocationKey, location)
+	tensor := encodeRepeated(onnxTensorProtoExternalDataField, entry)
+	attr := encodeBytesField(onnxAttributeProtoTensorField, tensor)
+	node := encodeBytesField(onnxNodeProtoAttributeField, attr)
+	graph := encodeBytesField(onnxGraphProtoNodeField, node)
 	return encodeBytesField(onnxModelProtoGraphField, graph)
+}
+
+// buildONNXBytesWithSubgraph nests a GraphProto inside a NodeProto.attribute.g
+// (the shape produced by ONNX If / Loop / Scan ops). Pre-P2 the parser would
+// have missed external_data references inside the subgraph.
+func buildONNXBytesWithSubgraph(location string) []byte {
+	inner := buildONNXGraphInitializerBytes([]string{location})
+	attr := encodeBytesField(onnxAttributeProtoGraphField, inner)
+	node := encodeBytesField(onnxNodeProtoAttributeField, attr)
+	outer := encodeBytesField(onnxGraphProtoNodeField, node)
+	return encodeBytesField(onnxModelProtoGraphField, outer)
 }
 
 func encodeStringStringEntry(key, value string) []byte {
@@ -133,4 +163,28 @@ func TestExtractONNXExternalDataPaths_NonONNXBytes(t *testing.T) {
 	if err == nil {
 		assert.Empty(t, paths)
 	}
+}
+
+// P2 coverage: external_data attached to a NodeProto.attribute.t (Constant op)
+// must be discovered alongside top-level GraphProto.initializer entries.
+func TestExtractONNXExternalDataPaths_NodeAttributeTensor(t *testing.T) {
+	dir := t.TempDir()
+	onnxPath := filepath.Join(dir, "model.onnx")
+	require.NoError(t, os.WriteFile(onnxPath, buildONNXBytesWithConstantNodeAttribute("const_weights.bin"), 0o644))
+
+	paths, err := ExtractONNXExternalDataPaths(onnxPath)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"const_weights.bin"}, paths)
+}
+
+// P2 coverage: external_data inside a subgraph (If / Loop / Scan branch) must
+// be discovered via attribute.g recursion.
+func TestExtractONNXExternalDataPaths_Subgraph(t *testing.T) {
+	dir := t.TempDir()
+	onnxPath := filepath.Join(dir, "model.onnx")
+	require.NoError(t, os.WriteFile(onnxPath, buildONNXBytesWithSubgraph("branch_weights.bin"), 0o644))
+
+	paths, err := ExtractONNXExternalDataPaths(onnxPath)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"branch_weights.bin"}, paths)
 }

@@ -360,9 +360,23 @@ func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig)
 }
 
 // reclassifyONNXExternalData scans every .onnx file already in mf.model,
-// extracts external_data.location paths, and moves those paths into mf.model
-// from whichever bucket the walker placed them in.
+// extracts external_data.location paths, and moves those paths from whichever
+// bucket the walker placed them in into mf.model.
+//
+// To avoid bypassing the walker's filtering (ExcludePatterns, isSkippable, file
+// count / size limits, workspace boundary), this function ONLY reclassifies
+// paths that are already present in one of the existing hashsets (config /
+// code / doc / model). Paths that the walker excluded — including paths
+// outside the workspace produced by a malformed `../` location — are silently
+// ignored. ONNX parse failures degrade gracefully: a WARNING is printed and
+// the affected .onnx's external tensors keep whatever classification the
+// walker assigned (the pre-fix behavior).
 func (mf *modelfile) reclassifyONNXExternalData() {
+	walkerCollected := func(rel string) bool {
+		return mf.model.Contains(rel) || mf.code.Contains(rel) ||
+			mf.config.Contains(rel) || mf.doc.Contains(rel)
+	}
+
 	for _, raw := range mf.model.Values() {
 		modelRel, ok := raw.(string)
 		if !ok || !strings.HasSuffix(strings.ToLower(modelRel), ".onnx") {
@@ -371,12 +385,24 @@ func (mf *modelfile) reclassifyONNXExternalData() {
 		onnxAbs := filepath.Join(mf.workspace, modelRel)
 		extPaths, err := ExtractONNXExternalDataPaths(onnxAbs)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "modelfile: parse ONNX external_data from %s failed: %v\n", modelRel, err)
+			fmt.Fprintf(os.Stderr,
+				"WARNING: modelfile: failed to parse ONNX external_data from %s: %v "+
+					"-- external tensor files (if any) will keep walker-assigned classification\n",
+				modelRel, err)
 			continue
 		}
 		onnxDir := filepath.Dir(modelRel)
 		for _, ext := range extPaths {
-			relExt := filepath.Join(onnxDir, ext)
+			relExt := filepath.Clean(filepath.Join(onnxDir, ext))
+			// Walker membership check absorbs all of:
+			//  - exclude pattern (walker dropped it -> not in any bucket)
+			//  - skippable directories (.git, etc.)
+			//  - file count / size limits (walker errored before adding)
+			//  - workspace boundary (walker never sees ../outside paths)
+			//  - file simply doesn't exist on disk
+			if !walkerCollected(relExt) {
+				continue
+			}
 			mf.code.Remove(relExt)
 			mf.config.Remove(relExt)
 			mf.doc.Remove(relExt)

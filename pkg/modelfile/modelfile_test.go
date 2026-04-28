@@ -2296,3 +2296,86 @@ func TestNewModelfileByWorkspace_ONNXExternalData(t *testing.T) {
 	// tf_signature.txt is a doc per default DocFilePatterns (*.txt).
 	assert.Contains(t, mf.GetDocs(), "tf_signature.txt")
 }
+
+// P1 coverage: an external_data.location of "../escape" must NOT promote
+// anything outside the workspace. The walker never collected such a path, so
+// it must be silently dropped from reclassification.
+func TestNewModelfileByWorkspace_ONNXExternalDataPathTraversalIgnored(t *testing.T) {
+	tempDir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(
+		filepath.Join(tempDir, "model.onnx"),
+		buildMinimalONNXBytes([]string{"../escape", "weights.bin"}),
+		0o644,
+	))
+	// weights.bin is a real, walker-collected file — should reclassify normally.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights.bin"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "onnx-traversal",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+
+	models := mf.GetModels()
+	assert.Contains(t, models, "weights.bin", "in-workspace external tensor must be reclassified")
+	for _, m := range models {
+		assert.NotContains(t, m, "..", "no model entry should escape the workspace")
+		assert.NotEqual(t, "../escape", m)
+		assert.NotEqual(t, "escape", m)
+	}
+}
+
+// P1 coverage: ExcludePatterns must not be silently overridden by ONNX
+// reclassification. If the walker excluded a tensor file, it must remain
+// excluded — even if model.onnx references it via external_data.
+func TestNewModelfileByWorkspace_ONNXExternalDataRespectsExclude(t *testing.T) {
+	tempDir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(
+		filepath.Join(tempDir, "model.onnx"),
+		buildMinimalONNXBytes([]string{"weights_keep.bin", "weights_drop.bin"}),
+		0o644,
+	))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights_keep.bin"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights_drop.bin"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:            "onnx-exclude",
+		Workspace:       tempDir,
+		ExcludePatterns: []string{"weights_drop.bin"},
+	})
+	require.NoError(t, err)
+
+	models := mf.GetModels()
+	assert.Contains(t, models, "weights_keep.bin")
+	assert.NotContains(t, models, "weights_drop.bin",
+		"excluded path must not be re-added by ONNX reclassification")
+	// And it must not have leaked into any other bucket either.
+	all := append(append(append([]string{}, mf.GetCodes()...), mf.GetConfigs()...), mf.GetDocs()...)
+	assert.NotContains(t, all, "weights_drop.bin")
+}
+
+// P3 coverage: a corrupted .onnx file must not crash generate. The .onnx
+// itself stays in MODEL (it matches *.onnx), and any sibling tensor files
+// keep whatever classification the walker already gave them — i.e., the
+// pre-fix behavior. A WARNING is emitted to stderr (not asserted here, but
+// captured via the parser's error path).
+func TestNewModelfileByWorkspace_ONNXParseFailureFallsBack(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Corrupted bytes that look like ONNX but aren't valid wire format.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "model.onnx"), []byte{0xff, 0xff, 0xff, 0xff}, 0o644))
+	// A small extension-less file the walker would classify as CODE — stays CODE on parse failure.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "auxiliary_blob"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "onnx-corrupt",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err, "corrupted ONNX must not abort generate")
+	assert.Contains(t, mf.GetModels(), "model.onnx", ".onnx file itself stays in MODEL by extension")
+	// auxiliary_blob keeps walker classification (CODE for small extension-less);
+	// we don't assert exact bucket — only that generate succeeded and produced output.
+	assert.NotEmpty(t, mf.GetModels())
+}
