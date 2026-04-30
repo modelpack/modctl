@@ -121,6 +121,15 @@ func TestInferFileType(t *testing.T) {
 		{"at threshold", "borderline", WeightFileSizeThreshold, FileTypeCode},
 		// Just above threshold should be model
 		{"above threshold", "borderline", WeightFileSizeThreshold + 1, FileTypeModel},
+
+		// TF SavedModel literal-name files: must be MODEL even when 0 bytes,
+		// independent of the size heuristic that would otherwise classify them as CODE.
+		{"feature_map literal", "feature_map", 0, FileTypeModel},
+		{"feature_map small", "feature_map", 1024, FileTypeModel},
+		{"checkpoint literal small", "checkpoint", 32, FileTypeModel},
+		// Negative: the literal patterns must not match same-stem-different-extension files.
+		{"feature_map.json is config", "feature_map.json", 1024, FileTypeConfig},
+		{"checkpoint.bin is model via *.bin", "checkpoint.bin", 1024, FileTypeModel},
 	}
 
 	assert := assert.New(t)
