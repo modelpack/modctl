@@ -2528,3 +2528,27 @@ func TestNewModelfileByWorkspace_InferFormatGGUF(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "gguf", mf.GetFormat())
 }
+
+// TestNewModelfileByWorkspace_InferFormatSavedModelPbtxt is regression coverage
+// for a Codex finding: `saved_model.pbtxt` is not in ModelFilePatterns, so the
+// walker lands it in CODE (or DOC). An earlier inferFormat that scanned only
+// mf.model would silently miss the textual SavedModel variant. The fixed
+// implementation scans all walker buckets, so a workspace whose only TF signal
+// is a sibling .pbtxt still resolves to format=tensorflow.
+func TestNewModelfileByWorkspace_InferFormatSavedModelPbtxt(t *testing.T) {
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "saved_model.pbtxt"), nil, 0o644))
+	// A real model file so generateByWorkspace doesn't error on empty MODEL set.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights.safetensors"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "tf-textual",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+
+	// SavedModel signal must outrank the sibling .safetensors per the
+	// documented priority order, even though the .pbtxt is not in MODEL.
+	assert.Equal(t, "tensorflow", mf.GetFormat(),
+		"saved_model.pbtxt in any walker bucket must trigger format=tensorflow")
+}
