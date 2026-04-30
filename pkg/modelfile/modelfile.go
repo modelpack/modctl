@@ -218,6 +218,12 @@ func NewModelfileByWorkspace(workspace string, config *configmodelfile.GenerateC
 	}
 
 	mf.generateByConfig(config)
+
+	// Best-effort: fill mf.format from MODEL file evidence when the user did not
+	// pass --format. Failure (no recognizable signal, panic in the loop, etc.)
+	// MUST NOT abort generation — Format is metadata, not load-bearing.
+	mf.inferFormat()
+
 	return mf, nil
 }
 
@@ -417,6 +423,71 @@ func (mf *modelfile) reclassifyONNXExternalData() {
 			mf.doc.Remove(relExt)
 			mf.model.Add(relExt)
 		}
+	}
+}
+
+// inferFormat fills mf.format from filename evidence in the MODEL set when the
+// user did not pass --format on the CLI. It only emits a value for highly
+// specific signals (saved_model.pb / *.onnx / *.gguf / *.safetensors); generic
+// extensions like *.bin / *.pt are left alone because they appear in many
+// formats and would produce false positives.
+//
+// Priority order, when multiple signals coexist:
+//
+//  1. tensorflow — saved_model.pb / saved_model.pbtxt (SavedModel directory)
+//  2. onnx       — *.onnx
+//  3. gguf       — *.gguf
+//  4. safetensors — *.safetensors
+//
+// SavedModel and ONNX are listed first because their layouts are uniquely
+// identifiable; safetensors is last because it sometimes coexists with raw
+// PyTorch shards in HF repos.
+//
+// Failure modes (no recognized signal, panic from a malformed value in the
+// hashset, etc.) MUST NOT abort generation. The recover() guard ensures any
+// unexpected panic degrades to "format stays empty" rather than killing the
+// whole modelfile build. Format is best-effort metadata; the package gracefully
+// handles a blank Format throughout the build/push/pull pipeline.
+func (mf *modelfile) inferFormat() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr,
+				"WARNING: modelfile: format inference panicked, leaving Format empty: %v\n", r)
+		}
+	}()
+
+	if mf.format != "" {
+		return
+	}
+
+	var hasSavedModel, hasONNX, hasGGUF, hasSafetensors bool
+	for _, raw := range mf.model.Values() {
+		rel, ok := raw.(string)
+		if !ok {
+			continue
+		}
+		base := strings.ToLower(filepath.Base(rel))
+		switch {
+		case base == "saved_model.pb" || base == "saved_model.pbtxt":
+			hasSavedModel = true
+		case strings.HasSuffix(base, ".onnx"):
+			hasONNX = true
+		case strings.HasSuffix(base, ".gguf"):
+			hasGGUF = true
+		case strings.HasSuffix(base, ".safetensors"):
+			hasSafetensors = true
+		}
+	}
+
+	switch {
+	case hasSavedModel:
+		mf.format = "tensorflow"
+	case hasONNX:
+		mf.format = "onnx"
+	case hasGGUF:
+		mf.format = "gguf"
+	case hasSafetensors:
+		mf.format = "safetensors"
 	}
 }
 

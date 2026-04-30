@@ -389,6 +389,9 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 				"assets/images/preview.jpg",
 			},
 			expectName: "nested-model",
+			// inferFormat picks safetensors on seeing weights/model.safetensors;
+			// model.bin is too generic to be a signal.
+			expectFormat: "safetensors",
 		},
 		{
 			name: "deep nested directories",
@@ -622,6 +625,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			expectName:      "llama-7b",
 			expectArch:      "transformer",
 			expectFamily:    "llama",
+			expectFormat:    "safetensors",
 			expectPrecision: "bfloat16",
 			expectParamsize: "7B",
 		},
@@ -861,6 +865,8 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			expectCodes: []string{"ais-sync.done"},
 			expectDocs:  []string{"tf_signature.txt"},
 			expectName:  "tf-savedmodel",
+			// saved_model.pb in MODEL set is the canonical SavedModel signal.
+			expectFormat: "tensorflow",
 		},
 		{
 			// Mirrors screenshot 3/4/5: a parent directory containing base/<ts>/
@@ -916,6 +922,9 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 				"delta/20251202060205/tf_signature.txt",
 			},
 			expectName: "online-learning",
+			// Multiple saved_model.pb instances under base/ and delta/ all signal
+			// tensorflow; inferFormat is set-based, so duplicates do not matter.
+			expectFormat: "tensorflow",
 		},
 	}
 
@@ -2296,6 +2305,8 @@ func TestNewModelfileByWorkspace_ONNXExternalData(t *testing.T) {
 	assert.Contains(t, models, "variable_sequence_def_0.onnx")
 	// tf_signature.txt is a doc per default DocFilePatterns (*.txt).
 	assert.Contains(t, mf.GetDocs(), "tf_signature.txt")
+	// inferFormat: any *.onnx in MODEL emits format=onnx.
+	assert.Equal(t, "onnx", mf.GetFormat())
 }
 
 // P1 coverage: an external_data.location of "../escape" must NOT promote
@@ -2444,4 +2455,76 @@ func TestNewModelfileByWorkspace_ONNXExternalDataAbsolutePathRejected(t *testing
 	// Join could produce a misleading "decoy" relative path.
 	assert.NotContains(t, mf.GetModels(), "decoy",
 		"absolute external_data.location must not promote unrelated workspace files")
+}
+
+// TestNewModelfileByWorkspace_InferFormatCLIFlagWins verifies that an explicit
+// --format on the CLI is never overridden by inferFormat, even when the
+// workspace contains a clear signal (saved_model.pb) for a different format.
+// Inference is best-effort metadata fill and must defer to user intent.
+func TestNewModelfileByWorkspace_InferFormatCLIFlagWins(t *testing.T) {
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "saved_model.pb"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "tf-but-custom",
+		Workspace: tempDir,
+		Format:    "custom-format",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "custom-format", mf.GetFormat(),
+		"explicit --format must override inferFormat's tensorflow guess")
+}
+
+// TestNewModelfileByWorkspace_InferFormatNoSignal verifies that an unambiguous
+// no-signal directory (e.g. a generic *.bin with no recognizable extension)
+// leaves Format empty. We deliberately do NOT infer "pytorch" from .bin/.pt,
+// because those extensions appear in many formats and would produce false
+// positives on existing HF / TF / ONNX repos that also ship raw binary blobs.
+func TestNewModelfileByWorkspace_InferFormatNoSignal(t *testing.T) {
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "model.bin"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights.pt"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "README.md"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "no-signal",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "", mf.GetFormat(),
+		"generic .bin/.pt files alone must not trigger format inference")
+}
+
+// TestNewModelfileByWorkspace_InferFormatPriority verifies the priority order:
+// saved_model.pb wins over a sibling *.safetensors, because the SavedModel
+// signal is uniquely diagnostic while *.safetensors can coexist with raw
+// PyTorch shards in HF repos.
+func TestNewModelfileByWorkspace_InferFormatPriority(t *testing.T) {
+	tempDir := t.TempDir()
+	// SavedModel layout + an unrelated safetensors blob in the same dir.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "saved_model.pb"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "extra.safetensors"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "priority-mix",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "tensorflow", mf.GetFormat(),
+		"saved_model.pb must outrank a sibling .safetensors")
+}
+
+// TestNewModelfileByWorkspace_InferFormatGGUF locks the .gguf signal — used by
+// llama.cpp and adjacent ecosystems. .gguf is a self-contained quantized model
+// container and is safe to map to format=gguf on filename alone.
+func TestNewModelfileByWorkspace_InferFormatGGUF(t *testing.T) {
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "ggml-model.gguf"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "gguf-only",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "gguf", mf.GetFormat())
 }
