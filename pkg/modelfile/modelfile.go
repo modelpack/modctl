@@ -426,11 +426,11 @@ func (mf *modelfile) reclassifyONNXExternalData() {
 	}
 }
 
-// inferFormat fills mf.format from filename evidence in the MODEL set when the
-// user did not pass --format on the CLI. It only emits a value for highly
-// specific signals (saved_model.pb / *.onnx / *.gguf / *.safetensors); generic
-// extensions like *.bin / *.pt are left alone because they appear in many
-// formats and would produce false positives.
+// inferFormat fills mf.format from filename evidence collected by the walker
+// when the user did not pass --format on the CLI. It only emits a value for
+// highly specific signals (saved_model.pb[txt] / *.onnx / *.gguf /
+// *.safetensors); generic extensions like *.bin / *.pt are left alone because
+// they appear in many formats and would produce false positives.
 //
 // Priority order, when multiple signals coexist:
 //
@@ -442,6 +442,13 @@ func (mf *modelfile) reclassifyONNXExternalData() {
 // SavedModel and ONNX are listed first because their layouts are uniquely
 // identifiable; safetensors is last because it sometimes coexists with raw
 // PyTorch shards in HF repos.
+//
+// We scan ALL four walker buckets (model / config / code / doc), not just
+// mf.model. Reason: signals like `saved_model.pbtxt` are not in
+// ModelFilePatterns and the walker therefore lands them in code/doc; if we
+// scanned only mf.model, a SavedModel that ships only the .pbtxt variant would
+// silently fall through. A set-based scan over every bucket closes that gap
+// without changing how the walker classifies each individual file.
 //
 // Failure modes (no recognized signal, panic from a malformed value in the
 // hashset, etc.) MUST NOT abort generation. The recover() guard ensures any
@@ -461,23 +468,29 @@ func (mf *modelfile) inferFormat() {
 	}
 
 	var hasSavedModel, hasONNX, hasGGUF, hasSafetensors bool
-	for _, raw := range mf.model.Values() {
-		rel, ok := raw.(string)
-		if !ok {
-			continue
-		}
-		base := strings.ToLower(filepath.Base(rel))
-		switch {
-		case base == "saved_model.pb" || base == "saved_model.pbtxt":
-			hasSavedModel = true
-		case strings.HasSuffix(base, ".onnx"):
-			hasONNX = true
-		case strings.HasSuffix(base, ".gguf"):
-			hasGGUF = true
-		case strings.HasSuffix(base, ".safetensors"):
-			hasSafetensors = true
+	scan := func(set *hashset.Set) {
+		for _, raw := range set.Values() {
+			rel, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			base := strings.ToLower(filepath.Base(rel))
+			switch {
+			case base == "saved_model.pb" || base == "saved_model.pbtxt":
+				hasSavedModel = true
+			case strings.HasSuffix(base, ".onnx"):
+				hasONNX = true
+			case strings.HasSuffix(base, ".gguf"):
+				hasGGUF = true
+			case strings.HasSuffix(base, ".safetensors"):
+				hasSafetensors = true
+			}
 		}
 	}
+	scan(mf.model)
+	scan(mf.config)
+	scan(mf.code)
+	scan(mf.doc)
 
 	switch {
 	case hasSavedModel:
