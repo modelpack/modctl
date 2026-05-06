@@ -43,11 +43,23 @@ func TestComputePerAttemptTimeout(t *testing.T) {
 		{"100 MB clamps to floor", 100 * oneMB, minPerAttemptTimeout},
 		{"1 GB clamps to floor", oneGB, minPerAttemptTimeout},
 		// 5 GB / 10 MB/s * 2 = 1024s ≈ 17 min, above the 5min floor
-		{"5 GB scales above floor", 5 * oneGB, time.Duration(5*oneGB/minThroughput*safetyFactor) * time.Second},
+		{
+			"5 GB scales above floor",
+			5 * oneGB,
+			time.Duration(5*oneGB/minThroughput*safetyFactor) * time.Second,
+		},
 		// 10 GB / 10 MB/s * 2 = 2048s ≈ 34 min
-		{"10 GB scales linearly", tenGB, time.Duration(tenGB/minThroughput*safetyFactor) * time.Second},
+		{
+			"10 GB scales linearly",
+			tenGB,
+			time.Duration(tenGB/minThroughput*safetyFactor) * time.Second,
+		},
 		// 100 GB / 10 MB/s * 2 = 20480s ≈ 5.7h, still under the 8h ceiling
-		{"100 GB still under ceiling", hundGB, time.Duration(hundGB/minThroughput*safetyFactor) * time.Second},
+		{
+			"100 GB still under ceiling",
+			hundGB,
+			time.Duration(hundGB/minThroughput*safetyFactor) * time.Second,
+		},
 		// 200 GB hits ceiling
 		{"200 GB clamps to ceiling", 2 * hundGB, maxPerAttemptTimeout},
 	}
@@ -73,7 +85,11 @@ func TestIsRetryable(t *testing.T) {
 		{"context.Canceled", context.Canceled, false},
 		{"context.DeadlineExceeded", context.DeadlineExceeded, false},
 		{"5xx server error", errors.New("response status code 500"), true},
-		{"503 service unavailable", errors.New("response status code 503: Service Unavailable"), true},
+		{
+			"503 service unavailable",
+			errors.New("response status code 503: Service Unavailable"),
+			true,
+		},
 		{"408 request timeout", errors.New("response status code 408"), true},
 		{"429 too many requests", errors.New("response status code 429"), true},
 		{"401 unauthorized", errors.New("response status code 401"), false},
@@ -135,8 +151,8 @@ func TestComputeBackoff(t *testing.T) {
 		attempt uint
 		want    time.Duration
 	}{
-		{1, 1 * time.Second},  // first sleep
-		{2, 2 * time.Second},  // doubled
+		{1, 1 * time.Second}, // first sleep
+		{2, 2 * time.Second}, // doubled
 		{3, 4 * time.Second},
 		{4, 8 * time.Second},
 		{5, 10 * time.Second}, // capped
@@ -320,7 +336,10 @@ func TestDo_ParentContextCancel(t *testing.T) {
 		t.Fatal("Do returned nil, want context cancellation error")
 	}
 	if got := atomic.LoadInt32(&calls); got > 50 {
-		t.Errorf("calls = %d, want significantly fewer than MaxAttempts (parent ctx cancelled)", got)
+		t.Errorf(
+			"calls = %d, want significantly fewer than MaxAttempts (parent ctx cancelled)",
+			got,
+		)
 	}
 }
 
@@ -396,7 +415,12 @@ func TestDo_RetryBudgetIndependentOfFileSize(t *testing.T) {
 		diff = -diff
 	}
 	if diff > 100*time.Millisecond {
-		t.Errorf("retry budget varied with file size: small=%v huge=%v (diff=%v)", small, huge, diff)
+		t.Errorf(
+			"retry budget varied with file size: small=%v huge=%v (diff=%v)",
+			small,
+			huge,
+			diff,
+		)
 	}
 }
 

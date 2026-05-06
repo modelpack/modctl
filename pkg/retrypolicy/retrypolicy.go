@@ -223,14 +223,14 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 			elapsed := time.Since(startTime)
 
 			log.WithFields(log.Fields{
-				"file":               opts.FileName,
-				"size":               sizeStr,
-				"error":              err.Error(),
-				"max_attempts":       maxAttempts,
-				"max_backoff":        maxBackoff.String(),
-				"per_attempt_to":     perAttemptTimeout.String(),
-				"next_retry_in":      backoff.Truncate(time.Second).String(),
-				"elapsed":            elapsed.Truncate(time.Second).String(),
+				"file":           opts.FileName,
+				"size":           sizeStr,
+				"error":          err.Error(),
+				"max_attempts":   maxAttempts,
+				"max_backoff":    maxBackoff.String(),
+				"per_attempt_to": perAttemptTimeout.String(),
+				"next_retry_in":  backoff.Truncate(time.Second).String(),
+				"elapsed":        elapsed.Truncate(time.Second).String(),
 			}).Warnf("[RETRY] attempt %d/%d for %q (%s)", attempt, maxAttempts, opts.FileName, sizeStr)
 
 			if opts.OnRetry != nil {
