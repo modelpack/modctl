@@ -56,7 +56,8 @@ func init() {
 	flags.StringSliceVar(&fetchConfig.Patterns, "patterns", []string{}, "specify the patterns for fetching the model artifact")
 	flags.StringVar(&fetchConfig.DragonflyEndpoint, "dragonfly-endpoint", "", "specify the dragonfly endpoint for the pull operation, which will download and hardlink the blob by dragonfly GRPC service.")
 	flags.BoolVar(&fetchConfig.RetryConfig.NoRetry, "no-retry", false, "Disable retry on transient errors")
-	flags.DurationVar(&fetchConfig.RetryConfig.MaxRetryTime, "retry-max-time", 0, "Max total retry time per file (0 = dynamic based on file size)")
+	flags.IntVar(&fetchConfig.RetryConfig.MaxAttempts, "retry-attempts", 0, "Max total attempts per file (initial + retries; 0 = use default of 6)")
+	flags.DurationVar(&fetchConfig.RetryConfig.PerAttemptTimeout, "per-attempt-timeout", 0, "Timeout for a single transfer attempt (0 = derive from file size; <0 = disabled)")
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind fetch flags to viper: %w", err))

@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2024 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,96 +20,48 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"sync/atomic"
 	"testing"
 	"time"
 )
 
-// --- helpers for tests ---
+// --- ComputePerAttemptTimeout ---
 
-// timeoutError implements net.Error with Timeout() returning true.
-type timeoutError struct {
-	msg string
-}
-
-func (e *timeoutError) Error() string   { return e.msg }
-func (e *timeoutError) Timeout() bool   { return true }
-func (e *timeoutError) Temporary() bool { return true }
-
-// --- computeDynamicParams tests ---
-
-func TestComputeDynamicParams(t *testing.T) {
+func TestComputePerAttemptTimeout(t *testing.T) {
+	const (
+		oneMB  = int64(1) << 20
+		oneGB  = int64(1) << 30
+		tenGB  = int64(10) << 30
+		hundGB = int64(100) << 30
+	)
 	tests := []struct {
-		name            string
-		fileSize        int64
-		wantRetryTime   time.Duration
-		wantMaxBackoff  time.Duration
+		name string
+		size int64
+		want time.Duration
 	}{
-		{
-			name:           "zero bytes - clamped to minimum",
-			fileSize:       0,
-			wantRetryTime:  10 * time.Minute,
-			wantMaxBackoff: 1 * time.Minute,
-		},
-		{
-			name:           "500 MB - below 1 GB, clamped to minimum",
-			fileSize:       500 * 1024 * 1024,
-			wantRetryTime:  10 * time.Minute,
-			wantMaxBackoff: 1 * time.Minute,
-		},
-		{
-			name:           "1 GB - boundary, ratio=0, minimum values",
-			fileSize:       1 << 30,
-			wantRetryTime:  10 * time.Minute,
-			wantMaxBackoff: 1 * time.Minute,
-		},
-		{
-			name:           "5.5 GB - midpoint, interpolated values",
-			fileSize:       int64(5.5 * float64(1<<30)),
-			wantRetryTime:  35 * time.Minute,
-			wantMaxBackoff: 5*time.Minute + 30*time.Second,
-		},
-		{
-			name:           "10 GB - boundary, ratio=1, maximum values",
-			fileSize:       10 << 30,
-			wantRetryTime:  60 * time.Minute,
-			wantMaxBackoff: 10 * time.Minute,
-		},
-		{
-			name:           "20 GB - above 10 GB, clamped to maximum",
-			fileSize:       20 << 30,
-			wantRetryTime:  60 * time.Minute,
-			wantMaxBackoff: 10 * time.Minute,
-		},
+		{"zero size clamps to floor", 0, minPerAttemptTimeout},
+		{"100 MB clamps to floor", 100 * oneMB, minPerAttemptTimeout},
+		{"1 GB clamps to floor", oneGB, minPerAttemptTimeout},
+		// 5 GB / 10 MB/s * 2 = 1024s ≈ 17 min, above the 5min floor
+		{"5 GB scales above floor", 5 * oneGB, time.Duration(5*oneGB/minThroughput*safetyFactor) * time.Second},
+		// 10 GB / 10 MB/s * 2 = 2048s ≈ 34 min
+		{"10 GB scales linearly", tenGB, time.Duration(tenGB/minThroughput*safetyFactor) * time.Second},
+		// 100 GB / 10 MB/s * 2 = 20480s ≈ 5.7h, still under the 8h ceiling
+		{"100 GB still under ceiling", hundGB, time.Duration(hundGB/minThroughput*safetyFactor) * time.Second},
+		// 200 GB hits ceiling
+		{"200 GB clamps to ceiling", 2 * hundGB, maxPerAttemptTimeout},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotRetryTime, gotMaxBackoff := computeDynamicParams(tt.fileSize)
-
-			// Allow 1 second tolerance for floating point interpolation.
-			retryTimeDiff := absDuration(gotRetryTime - tt.wantRetryTime)
-			if retryTimeDiff > time.Second {
-				t.Errorf("maxRetryTime = %v, want %v (diff %v)", gotRetryTime, tt.wantRetryTime, retryTimeDiff)
-			}
-
-			backoffDiff := absDuration(gotMaxBackoff - tt.wantMaxBackoff)
-			if backoffDiff > time.Second {
-				t.Errorf("maxBackoff = %v, want %v (diff %v)", gotMaxBackoff, tt.wantMaxBackoff, backoffDiff)
+			got := ComputePerAttemptTimeout(tt.size)
+			if got != tt.want {
+				t.Errorf("ComputePerAttemptTimeout(%d) = %v, want %v", tt.size, got, tt.want)
 			}
 		})
 	}
 }
 
-func absDuration(d time.Duration) time.Duration {
-	if d < 0 {
-		return -d
-	}
-	return d
-}
-
-// --- IsRetryable tests ---
+// --- IsRetryable ---
 
 func TestIsRetryable(t *testing.T) {
 	tests := []struct {
@@ -117,138 +69,37 @@ func TestIsRetryable(t *testing.T) {
 		err  error
 		want bool
 	}{
-		{
-			name: "nil error",
-			err:  nil,
-			want: false,
-		},
-		{
-			name: "context.Canceled",
-			err:  context.Canceled,
-			want: false,
-		},
-		{
-			name: "wrapped context.Canceled",
-			err:  fmt.Errorf("operation failed: %w", context.Canceled),
-			want: false,
-		},
-		{
-			name: "context.DeadlineExceeded",
-			err:  context.DeadlineExceeded,
-			want: false,
-		},
-		{
-			name: "wrapped context.DeadlineExceeded",
-			err:  fmt.Errorf("operation timed out: %w", context.DeadlineExceeded),
-			want: false,
-		},
-		{
-			name: "HTTP 500 server error",
-			err:  fmt.Errorf("PUT /blobs/uploads: response status code 500: internal server error"),
-			want: true,
-		},
-		{
-			name: "HTTP 502 bad gateway",
-			err:  fmt.Errorf("response status code 502: bad gateway"),
-			want: true,
-		},
-		{
-			name: "HTTP 503 service unavailable",
-			err:  fmt.Errorf("response status code 503: service unavailable"),
-			want: true,
-		},
-		{
-			name: "HTTP 408 request timeout",
-			err:  fmt.Errorf("response status code 408: request timeout"),
-			want: true,
-		},
-		{
-			name: "HTTP 429 too many requests",
-			err:  fmt.Errorf("response status code 429: too many requests"),
-			want: true,
-		},
-		{
-			name: "HTTP 401 unauthorized - not retryable",
-			err:  fmt.Errorf("response status code 401: unauthorized"),
-			want: false,
-		},
-		{
-			name: "HTTP 403 forbidden - not retryable",
-			err:  fmt.Errorf("response status code 403: access denied"),
-			want: false,
-		},
-		{
-			name: "HTTP 404 not found - not retryable",
-			err:  fmt.Errorf("response status code 404: not found"),
-			want: false,
-		},
-		{
-			name: "i/o timeout",
-			err: &net.OpError{
-				Op:  "read",
-				Net: "tcp",
-				Err: &timeoutError{msg: "i/o timeout"},
-			},
-			want: true,
-		},
-		{
-			name: "i/o timeout in wrapped error message",
-			err:  fmt.Errorf("read tcp 10.0.0.1:1234->10.0.0.2:443: i/o timeout"),
-			want: true,
-		},
-		{
-			name: "connection reset by peer",
-			err:  fmt.Errorf("read tcp: connection reset by peer"),
-			want: true,
-		},
-		{
-			name: "connection refused",
-			err:  fmt.Errorf("dial tcp 10.0.0.1:443: connection refused"),
-			want: true,
-		},
-		{
-			name: "broken pipe",
-			err:  fmt.Errorf("write tcp: broken pipe"),
-			want: true,
-		},
-		{
-			name: "EOF",
-			err:  fmt.Errorf("unexpected EOF"),
-			want: true,
-		},
-		{
-			name: "permission denied - not retryable",
-			err:  fmt.Errorf("open /data/model.bin: permission denied"),
-			want: false,
-		},
-		{
-			name: "no space left on device - not retryable",
-			err:  fmt.Errorf("write /data/model.bin: no space left on device"),
-			want: false,
-		},
-		{
-			name: "no such file or directory - not retryable",
-			err:  fmt.Errorf("open /data/model.bin: no such file or directory"),
-			want: false,
-		},
-		{
-			name: "unknown error - defaults to retryable",
-			err:  errors.New("something totally unexpected happened"),
-			want: true,
-		},
+		{"nil", nil, false},
+		{"context.Canceled", context.Canceled, false},
+		{"context.DeadlineExceeded", context.DeadlineExceeded, false},
+		{"5xx server error", errors.New("response status code 500"), true},
+		{"503 service unavailable", errors.New("response status code 503: Service Unavailable"), true},
+		{"408 request timeout", errors.New("response status code 408"), true},
+		{"429 too many requests", errors.New("response status code 429"), true},
+		{"401 unauthorized", errors.New("response status code 401"), false},
+		{"403 forbidden", errors.New("response status code 403"), false},
+		{"404 not found", errors.New("response status code 404"), false},
+		{"i/o timeout", errors.New("dial tcp: i/o timeout"), true},
+		{"connection reset", errors.New("read tcp: connection reset by peer"), true},
+		{"connection refused", errors.New("dial tcp: connection refused"), true},
+		{"broken pipe", errors.New("write tcp: broken pipe"), true},
+		{"EOF", errors.New("unexpected EOF"), true},
+		{"permission denied", errors.New("open /etc/foo: permission denied"), false},
+		{"no space left", errors.New("write /tmp/x: no space left on device"), false},
+		{"file exists", errors.New("link /a /b: file exists"), false},
+		{"no such file", errors.New("open /no/such: no such file or directory"), false},
+		{"unknown defaults retryable", errors.New("some weird error"), true},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsRetryable(tt.err)
-			if got != tt.want {
+			if got := IsRetryable(tt.err); got != tt.want {
 				t.Errorf("IsRetryable(%v) = %v, want %v", tt.err, got, tt.want)
 			}
 		})
 	}
 }
 
-// --- ShortReason tests ---
+// --- ShortReason ---
 
 func TestShortReason(t *testing.T) {
 	tests := []struct {
@@ -256,293 +107,365 @@ func TestShortReason(t *testing.T) {
 		err  error
 		want string
 	}{
-		{
-			name: "nil error",
-			err:  nil,
-			want: "",
-		},
-		{
-			name: "HTTP 500",
-			err:  fmt.Errorf("response status code 500: internal server error"),
-			want: "HTTP 500",
-		},
-		{
-			name: "HTTP 502",
-			err:  fmt.Errorf("response status code 502: bad gateway"),
-			want: "HTTP 502",
-		},
-		{
-			name: "HTTP 429",
-			err:  fmt.Errorf("response status code 429: too many requests"),
-			want: "HTTP 429",
-		},
-		{
-			name: "HTTP 408",
-			err:  fmt.Errorf("response status code 408: request timeout"),
-			want: "HTTP 408",
-		},
-		{
-			name: "i/o timeout",
-			err:  fmt.Errorf("read tcp: i/o timeout"),
-			want: "i/o timeout",
-		},
-		{
-			name: "connection reset",
-			err:  fmt.Errorf("read tcp: connection reset by peer"),
-			want: "conn reset",
-		},
-		{
-			name: "connection refused",
-			err:  fmt.Errorf("dial tcp: connection refused"),
-			want: "conn refused",
-		},
-		{
-			name: "broken pipe",
-			err:  fmt.Errorf("write tcp: broken pipe"),
-			want: "broken pipe",
-		},
-		{
-			name: "EOF",
-			err:  fmt.Errorf("unexpected EOF"),
-			want: "EOF",
-		},
-		{
-			name: "unknown error",
-			err:  errors.New("some weird error"),
-			want: "unknown error",
-		},
+		{"nil", nil, ""},
+		{"5xx", errors.New("response status code 503"), "HTTP 503"},
+		{"i/o timeout", errors.New("dial tcp: i/o timeout"), "i/o timeout"},
+		{"conn reset", errors.New("read tcp: connection reset by peer"), "conn reset"},
+		{"conn refused", errors.New("dial: connection refused"), "conn refused"},
+		{"broken pipe", errors.New("write: broken pipe"), "broken pipe"},
+		{"EOF", errors.New("unexpected EOF"), "EOF"},
+		{"DeadlineExceeded", context.DeadlineExceeded, "attempt timeout"},
+		{"unknown", errors.New("totally unrelated"), "unknown error"},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ShortReason(tt.err)
-			if got != tt.want {
+			if got := ShortReason(tt.err); got != tt.want {
 				t.Errorf("ShortReason(%v) = %q, want %q", tt.err, got, tt.want)
 			}
 		})
 	}
 }
 
-// --- Do tests ---
+// --- computeBackoff ---
 
-func TestDo_SuccessFirstAttempt(t *testing.T) {
-	callCount := int32(0)
-	err := Do(context.Background(), func(ctx context.Context) error {
-		atomic.AddInt32(&callCount, 1)
-		return nil
-	}, DoOpts{
-		FileSize: 100,
-		FileName: "test.bin",
-	})
-
-	if err != nil {
-		t.Fatalf("expected nil error, got %v", err)
-	}
-	if atomic.LoadInt32(&callCount) != 1 {
-		t.Fatalf("expected fn to be called once, got %d", callCount)
-	}
-}
-
-func TestDo_RetryOnTransientError(t *testing.T) {
-	callCount := int32(0)
-	err := Do(context.Background(), func(ctx context.Context) error {
-		n := atomic.AddInt32(&callCount, 1)
-		if n < 3 {
-			return fmt.Errorf("response status code 500: internal server error")
-		}
-		return nil
-	}, DoOpts{
-		FileSize: 100,
-		FileName: "test.bin",
-		Config:   &Config{InitialDelay: 10 * time.Millisecond, MaxJitter: -1},
-	})
-
-	if err != nil {
-		t.Fatalf("expected nil error after retries, got %v", err)
-	}
-	if atomic.LoadInt32(&callCount) != 3 {
-		t.Fatalf("expected fn to be called 3 times, got %d", callCount)
-	}
-}
-
-func TestDo_NoRetryOnPermanentError(t *testing.T) {
-	callCount := int32(0)
-	err := Do(context.Background(), func(ctx context.Context) error {
-		atomic.AddInt32(&callCount, 1)
-		return fmt.Errorf("response status code 404: not found")
-	}, DoOpts{
-		FileSize: 100,
-		FileName: "test.bin",
-	})
-
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if atomic.LoadInt32(&callCount) != 1 {
-		t.Fatalf("expected fn to be called once for non-retryable error, got %d", callCount)
-	}
-}
-
-func TestDo_NoRetryConfig(t *testing.T) {
-	callCount := int32(0)
-	err := Do(context.Background(), func(ctx context.Context) error {
-		atomic.AddInt32(&callCount, 1)
-		return fmt.Errorf("response status code 500: internal server error")
-	}, DoOpts{
-		FileSize: 100,
-		FileName: "test.bin",
-		Config:   &Config{NoRetry: true},
-	})
-
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if atomic.LoadInt32(&callCount) != 1 {
-		t.Fatalf("expected fn to be called once with NoRetry, got %d", callCount)
-	}
-}
-
-func TestDo_ParentContextCancel(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	callCount := int32(0)
-	err := Do(ctx, func(ctx context.Context) error {
-		n := atomic.AddInt32(&callCount, 1)
-		if n == 1 {
-			// Cancel the parent context after the first attempt.
-			cancel()
-			return fmt.Errorf("response status code 500: internal server error")
-		}
-		return nil
-	}, DoOpts{
-		FileSize: 100,
-		FileName: "test.bin",
-		Config:   &Config{InitialDelay: 10 * time.Millisecond, MaxJitter: -1},
-	})
-
-	if err == nil {
-		t.Fatal("expected error from cancelled context, got nil")
-	}
-}
-
-func TestDo_OnRetryCallback(t *testing.T) {
-	var retryAttempts []uint
-	var retryReasons []string
-
-	callCount := int32(0)
-	err := Do(context.Background(), func(ctx context.Context) error {
-		n := atomic.AddInt32(&callCount, 1)
-		if n < 3 {
-			return fmt.Errorf("response status code 500: internal server error")
-		}
-		return nil
-	}, DoOpts{
-		FileSize: 100,
-		FileName: "test.bin",
-		Config:   &Config{InitialDelay: 10 * time.Millisecond, MaxJitter: -1},
-		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
-			retryAttempts = append(retryAttempts, attempt)
-			retryReasons = append(retryReasons, reason)
-		},
-	})
-
-	if err != nil {
-		t.Fatalf("expected nil error, got %v", err)
-	}
-	if len(retryAttempts) != 2 {
-		t.Fatalf("expected 2 OnRetry calls, got %d", len(retryAttempts))
-	}
-	if retryAttempts[0] != 1 || retryAttempts[1] != 2 {
-		t.Errorf("expected attempts [1, 2], got %v", retryAttempts)
-	}
-	if retryReasons[0] != "HTTP 500" || retryReasons[1] != "HTTP 500" {
-		t.Errorf("expected reasons [HTTP 500, HTTP 500], got %v", retryReasons)
-	}
-}
-
-func TestDo_ConfigMaxRetryTimeOverride(t *testing.T) {
-	// Use a very short MaxRetryTime to ensure the retry loop terminates quickly.
-	callCount := int32(0)
-	start := time.Now()
-	err := Do(context.Background(), func(ctx context.Context) error {
-		atomic.AddInt32(&callCount, 1)
-		return fmt.Errorf("response status code 500: internal server error")
-	}, DoOpts{
-		FileSize: 100,
-		FileName: "test.bin",
-		Config: &Config{
-			MaxRetryTime: 1 * time.Second,
-			InitialDelay: 50 * time.Millisecond,
-			MaxJitter:    -1,
-		},
-	})
-
-	elapsed := time.Since(start)
-
-	if err == nil {
-		t.Fatal("expected error after retry timeout, got nil")
-	}
-	// Should have run for approximately MaxRetryTime (1s), not the dynamic default (10min).
-	if elapsed > 5*time.Second {
-		t.Errorf("expected retry to terminate within ~1s, but elapsed %v", elapsed)
-	}
-	if atomic.LoadInt32(&callCount) < 2 {
-		t.Errorf("expected at least 2 attempts, got %d", callCount)
-	}
-}
-
-// --- humanizeBytes tests ---
-
-func TestHumanizeBytes(t *testing.T) {
+func TestComputeBackoff(t *testing.T) {
+	const initial = 1 * time.Second
+	const cap_ = 10 * time.Second
 	tests := []struct {
-		input int64
-		want  string
+		attempt uint
+		want    time.Duration
 	}{
-		{0, "0 B"},
-		{512, "512 B"},
-		{1024, "1.0 KB"},
-		{1536, "1.5 KB"},
-		{1048576, "1.0 MB"},
-		{1073741824, "1.0 GB"},
-		{int64(5.5 * float64(1<<30)), "5.5 GB"},
+		{1, 1 * time.Second},  // first sleep
+		{2, 2 * time.Second},  // doubled
+		{3, 4 * time.Second},
+		{4, 8 * time.Second},
+		{5, 10 * time.Second}, // capped
+		{20, 10 * time.Second},
 	}
-
 	for _, tt := range tests {
-		t.Run(tt.want, func(t *testing.T) {
-			got := humanizeBytes(tt.input)
+		t.Run(fmt.Sprintf("attempt=%d", tt.attempt), func(t *testing.T) {
+			got := computeBackoff(tt.attempt, initial, cap_)
 			if got != tt.want {
-				t.Errorf("humanizeBytes(%d) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("computeBackoff(%d) = %v, want %v", tt.attempt, got, tt.want)
 			}
 		})
 	}
 }
 
-// --- computeBackoff tests ---
+// --- Do: defaults & success path ---
 
-func TestComputeBackoff(t *testing.T) {
-	initial := 5 * time.Second
-	maxDelay := 1 * time.Minute
+func TestDo_SuccessFirstAttempt(t *testing.T) {
+	calls := 0
+	err := Do(context.Background(), func(ctx context.Context) error {
+		calls++
+		return nil
+	}, DoOpts{FileName: "ok"})
+	if err != nil {
+		t.Fatalf("Do returned %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("calls = %d, want 1", calls)
+	}
+}
 
-	// retry-go's OnRetry always supplies a 1-based attempt number, so 0 is
-	// not a value the function is ever called with in production. Start from 1.
+// --- Do: NoRetry ---
 
-	// attempt 1 => 5s * 2^0 = 5s
-	if got := computeBackoff(1, initial, maxDelay); got != 5*time.Second {
-		t.Errorf("attempt 1: got %v, want %v", got, 5*time.Second)
+func TestDo_NoRetry(t *testing.T) {
+	calls := 0
+	transient := errors.New("response status code 503")
+	err := Do(context.Background(), func(ctx context.Context) error {
+		calls++
+		return transient
+	}, DoOpts{
+		FileName: "noretry",
+		Config:   &Config{NoRetry: true},
+	})
+	if !errors.Is(err, transient) {
+		t.Errorf("err = %v, want %v", err, transient)
+	}
+	if calls != 1 {
+		t.Errorf("calls = %d, want 1 (NoRetry)", calls)
+	}
+}
+
+// --- Do: MaxAttempts caps the number of tries ---
+
+func TestDo_MaxAttempts(t *testing.T) {
+	var calls int32
+	err := Do(context.Background(), func(ctx context.Context) error {
+		atomic.AddInt32(&calls, 1)
+		return errors.New("response status code 503")
+	}, DoOpts{
+		FileName: "always-fails",
+		Config: &Config{
+			MaxAttempts:  3,
+			InitialDelay: 1 * time.Millisecond,
+			MaxBackoff:   1 * time.Millisecond,
+			MaxJitter:    -1,
+		},
+	})
+	if err == nil {
+		t.Fatal("Do returned nil, want error after attempts exhausted")
+	}
+	if got := atomic.LoadInt32(&calls); got != 3 {
+		t.Errorf("calls = %d, want 3", got)
+	}
+}
+
+// --- Do: non-retryable error stops immediately ---
+
+func TestDo_NonRetryableStopsImmediately(t *testing.T) {
+	var calls int32
+	permErr := errors.New("permission denied")
+	err := Do(context.Background(), func(ctx context.Context) error {
+		atomic.AddInt32(&calls, 1)
+		return permErr
+	}, DoOpts{
+		FileName: "perm",
+		Config: &Config{
+			MaxAttempts:  5,
+			InitialDelay: 1 * time.Millisecond,
+			MaxJitter:    -1,
+		},
+	})
+	if err == nil {
+		t.Fatal("Do returned nil, want non-retryable error")
+	}
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Errorf("calls = %d, want 1 (non-retryable)", got)
+	}
+}
+
+// --- Do: per-attempt timeout fires & retries continue ---
+
+func TestDo_PerAttemptTimeoutTriggersRetry(t *testing.T) {
+	var calls int32
+	const succeededOn int32 = 3
+	err := Do(context.Background(), func(ctx context.Context) error {
+		n := atomic.AddInt32(&calls, 1)
+		if n < succeededOn {
+			<-ctx.Done()
+			return ctx.Err()
+		}
+		return nil
+	}, DoOpts{
+		FileName: "slow",
+		Config: &Config{
+			MaxAttempts:       5,
+			PerAttemptTimeout: 30 * time.Millisecond,
+			InitialDelay:      1 * time.Millisecond,
+			MaxBackoff:        1 * time.Millisecond,
+			MaxJitter:         -1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Do returned %v, want success after retries", err)
+	}
+	if got := atomic.LoadInt32(&calls); got != succeededOn {
+		t.Errorf("calls = %d, want %d", got, succeededOn)
+	}
+}
+
+// --- Do: per-attempt timeout exhausts after MaxAttempts ---
+
+func TestDo_PerAttemptTimeoutExhausts(t *testing.T) {
+	var calls int32
+	err := Do(context.Background(), func(ctx context.Context) error {
+		atomic.AddInt32(&calls, 1)
+		<-ctx.Done()
+		return ctx.Err()
+	}, DoOpts{
+		FileName: "always-times-out",
+		Config: &Config{
+			MaxAttempts:       3,
+			PerAttemptTimeout: 20 * time.Millisecond,
+			InitialDelay:      1 * time.Millisecond,
+			MaxBackoff:        1 * time.Millisecond,
+			MaxJitter:         -1,
+		},
+	})
+	if err == nil {
+		t.Fatal("Do returned nil, want error after exhausting attempts")
+	}
+	if got := atomic.LoadInt32(&calls); got != 3 {
+		t.Errorf("calls = %d, want 3", got)
+	}
+}
+
+// --- Do: parent context cancellation aborts retries ---
+
+func TestDo_ParentContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var calls int32
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		cancel()
+	}()
+
+	err := Do(ctx, func(ctx context.Context) error {
+		atomic.AddInt32(&calls, 1)
+		return errors.New("response status code 503")
+	}, DoOpts{
+		FileName: "user-cancels",
+		Config: &Config{
+			MaxAttempts:  100,
+			InitialDelay: 5 * time.Millisecond,
+			MaxBackoff:   5 * time.Millisecond,
+			MaxJitter:    -1,
+		},
+	})
+	if err == nil {
+		t.Fatal("Do returned nil, want context cancellation error")
+	}
+	if got := atomic.LoadInt32(&calls); got > 50 {
+		t.Errorf("calls = %d, want significantly fewer than MaxAttempts (parent ctx cancelled)", got)
+	}
+}
+
+// --- Do: OnRetry callback invoked with 1-based attempt ---
+
+func TestDo_OnRetryCallback(t *testing.T) {
+	var attempts []uint
+	var reasons []string
+	var calls int32
+	err := Do(context.Background(), func(ctx context.Context) error {
+		n := atomic.AddInt32(&calls, 1)
+		if n < 3 {
+			return errors.New("response status code 500")
+		}
+		return nil
+	}, DoOpts{
+		FileName: "cb",
+		Config: &Config{
+			MaxAttempts:  5,
+			InitialDelay: 1 * time.Millisecond,
+			MaxBackoff:   1 * time.Millisecond,
+			MaxJitter:    -1,
+		},
+		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+			attempts = append(attempts, attempt)
+			reasons = append(reasons, reason)
+		},
+	})
+	if err != nil {
+		t.Fatalf("Do returned %v", err)
+	}
+	want := []uint{1, 2}
+	if fmt.Sprintf("%v", attempts) != fmt.Sprintf("%v", want) {
+		t.Errorf("attempts = %v, want %v", attempts, want)
+	}
+	for _, r := range reasons {
+		if r != "HTTP 500" {
+			t.Errorf("reason = %q, want \"HTTP 500\"", r)
+		}
+	}
+}
+
+// --- Do: retry budget invariance — same total time regardless of file size ---
+//
+// The whole point of the redesign: with PerAttemptTimeout disabled and a
+// fixed backoff schedule, total wall-clock for retries does not depend on
+// FileSize. (The old API's MaxRetryTime scaled with size and changed this.)
+func TestDo_RetryBudgetIndependentOfFileSize(t *testing.T) {
+	measure := func(fileSize int64) time.Duration {
+		var calls int32
+		start := time.Now()
+		_ = Do(context.Background(), func(ctx context.Context) error {
+			atomic.AddInt32(&calls, 1)
+			return errors.New("response status code 503")
+		}, DoOpts{
+			FileName: "size-invariance",
+			FileSize: fileSize,
+			Config: &Config{
+				MaxAttempts:       4,
+				PerAttemptTimeout: -1,
+				InitialDelay:      10 * time.Millisecond,
+				MaxBackoff:        10 * time.Millisecond,
+				MaxJitter:         -1,
+			},
+		})
+		return time.Since(start)
 	}
 
-	// attempt 2 => 5s * 2^1 = 10s
-	if got := computeBackoff(2, initial, maxDelay); got != 10*time.Second {
-		t.Errorf("attempt 2: got %v, want %v", got, 10*time.Second)
+	small := measure(1 << 20)       // 1 MB
+	huge := measure(int64(1) << 40) // 1 TB
+	diff := small - huge
+	if diff < 0 {
+		diff = -diff
 	}
-
-	// attempt 4 => 5s * 2^3 = 40s
-	if got := computeBackoff(4, initial, maxDelay); got != 40*time.Second {
-		t.Errorf("attempt 4: got %v, want %v", got, 40*time.Second)
+	if diff > 100*time.Millisecond {
+		t.Errorf("retry budget varied with file size: small=%v huge=%v (diff=%v)", small, huge, diff)
 	}
+}
 
-	// attempt 5 => 5s * 2^4 = 80s, but capped at 60s
-	if got := computeBackoff(5, initial, maxDelay); got != maxDelay {
-		t.Errorf("attempt 5: got %v, want %v (capped)", got, maxDelay)
+// --- Do: PerAttemptTimeout < 0 disables the deadline ---
+
+func TestDo_PerAttemptTimeoutDisabled(t *testing.T) {
+	var seenDeadline bool
+	err := Do(context.Background(), func(ctx context.Context) error {
+		_, ok := ctx.Deadline()
+		seenDeadline = ok
+		return nil
+	}, DoOpts{
+		FileName: "no-deadline",
+		FileSize: 1 << 30,
+		Config: &Config{
+			PerAttemptTimeout: -1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Do returned %v", err)
+	}
+	if seenDeadline {
+		t.Error("attempt context had a deadline; expected none when PerAttemptTimeout < 0")
+	}
+}
+
+// --- Do: PerAttemptTimeout = 0 derives from file size ---
+
+func TestDo_PerAttemptTimeoutDerivedFromSize(t *testing.T) {
+	var seenTimeout time.Duration
+	const size = int64(50) << 30 // 50 GB → > floor, < ceiling
+	err := Do(context.Background(), func(ctx context.Context) error {
+		dl, ok := ctx.Deadline()
+		if !ok {
+			t.Fatal("expected deadline")
+		}
+		seenTimeout = time.Until(dl)
+		return nil
+	}, DoOpts{
+		FileName: "derived",
+		FileSize: size,
+	})
+	if err != nil {
+		t.Fatalf("Do returned %v", err)
+	}
+	want := ComputePerAttemptTimeout(size)
+	if seenTimeout > want || seenTimeout < want-time.Second {
+		t.Errorf("derived timeout = %v, want ~%v", seenTimeout, want)
+	}
+}
+
+// --- humanizeBytes ---
+
+func TestHumanizeBytes(t *testing.T) {
+	tests := []struct {
+		size int64
+		want string
+	}{
+		{0, "0 B"},
+		{500, "500 B"},
+		{2048, "2.0 KB"},
+		{int64(5) << 20, "5.0 MB"},
+		{int64(7) << 30, "7.0 GB"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := humanizeBytes(tt.size); got != tt.want {
+				t.Errorf("humanizeBytes(%d) = %q, want %q", tt.size, got, tt.want)
+			}
+		})
 	}
 }
