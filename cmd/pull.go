@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2024 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 
 	"github.com/modelpack/modctl/pkg/backend"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/envinfo"
 )
 
 var pullConfig = config.NewPull()
@@ -63,6 +64,10 @@ func init() {
 
 // runPull runs the pull modctl.
 func runPull(ctx context.Context, target string) error {
+	if pullConfig.ExtractDir != "" {
+		envinfo.LogDiskInfo("pullExtractDir", pullConfig.ExtractDir)
+	}
+
 	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err
