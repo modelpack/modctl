@@ -49,6 +49,9 @@ func TestIsFileTypeModelPatterns(t *testing.T) {
 		{"model.bin.part2", true},
 		{"model.gguf.part1", true},
 		{"model.gguf.00001-of-00003", true},
+		{"model.onnx_data", true},
+		{"model.onnx_data_1", true},
+		{"ckpt-0/tensor00001_000", true},
 		{"model.llamafile.zip", true},
 		{"model.llamafile.gz", true},
 
@@ -56,9 +59,11 @@ func TestIsFileTypeModelPatterns(t *testing.T) {
 		{"model.safetensors", true},
 		{"model.bin", true},
 		{"model.gguf", true},
+		{"model.mil", true},
 		{"model.llamafile", true},
 
 		// Non-matching files.
+		{"merges.txt", false},
 		{"readme.txt", false},
 		{"script.py", false},
 		{"events.out.tfevents.1679012345.hostname", false}, // tfevents moved to DocFilePatterns
@@ -67,6 +72,30 @@ func TestIsFileTypeModelPatterns(t *testing.T) {
 	assert := assert.New(t)
 	for _, tc := range testCases {
 		assert.Equal(tc.expected, IsFileType(tc.filename, ModelFilePatterns), "filename: %s", tc.filename)
+	}
+}
+
+func TestIsFileTypeConfigPatterns(t *testing.T) {
+	testCases := []struct {
+		filename string
+		expected bool
+	}{
+		{"vocab.txt", true},
+		{"merges.txt", true},
+		{"added_tokens.txt", true},
+		{"chat_template.jinja", true},
+		{"tokenizer.tiktoken", true},
+		{"spiece.model", true},
+		{"sentencepiece.bpe.model", true},
+		{"sentencepiece.bpe.vocab", true},
+		{"tiktoken.model", true},
+		{"weights.model", false},
+		{"readme.txt", false},
+	}
+
+	assert := assert.New(t)
+	for _, tc := range testCases {
+		assert.Equal(tc.expected, IsFileType(tc.filename, ConfigFilePatterns), "filename: %s", tc.filename)
 	}
 }
 
@@ -98,10 +127,20 @@ func TestInferFileType(t *testing.T) {
 		{"config yaml", "settings.yaml", 1024, FileTypeConfig},
 		{"model safetensors", "model.safetensors", 1024, FileTypeModel},
 		{"model bin", "weights.bin", 1024, FileTypeModel},
+		{"model onnx external data", "model.onnx_data_1", 1024, FileTypeModel},
+		{"model coreml mil", "model.mil", 1024, FileTypeModel},
+		{"checkpoint tensor shard", "ckpt-0/tensor00001_000", 1024, FileTypeModel},
 		{"code python", "script.py", 1024, FileTypeCode},
 		{"code go", "main.go", 1024, FileTypeCode},
 		{"doc markdown", "README.md", 1024, FileTypeDoc},
 		{"doc pdf", "guide.pdf", 1024, FileTypeDoc},
+		{"tokenizer vocab txt", "vocab.txt", 1024, FileTypeConfig},
+		{"tokenizer merges txt", "merges.txt", 1024, FileTypeConfig},
+		{"tokenizer added tokens txt", "added_tokens.txt", 1024, FileTypeConfig},
+		{"sentencepiece spiece model", "spiece.model", 1024, FileTypeConfig},
+		{"sentencepiece bpe model", "sentencepiece.bpe.model", 1024, FileTypeConfig},
+		{"tiktoken model", "tiktoken.model", 1024, FileTypeConfig},
+		{"chat template jinja", "chat_template.jinja", 1024, FileTypeConfig},
 
 		// Dotfile with known secondary extension
 		{".cache.json is config", ".cache.json", 1024, FileTypeConfig},
