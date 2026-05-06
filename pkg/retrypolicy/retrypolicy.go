@@ -145,21 +145,35 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 		cfg = &Config{}
 	}
 
-	if cfg.NoRetry {
-		return fn(ctx)
-	}
-
-	maxAttempts := cfg.MaxAttempts
-	if maxAttempts <= 0 {
-		maxAttempts = DefaultMaxAttempts
-	}
-
 	perAttemptTimeout := cfg.PerAttemptTimeout
 	switch {
 	case perAttemptTimeout == 0:
 		perAttemptTimeout = ComputePerAttemptTimeout(opts.FileSize)
 	case perAttemptTimeout < 0:
 		perAttemptTimeout = 0 // disabled
+	}
+
+	// runAttempt applies the per-attempt deadline regardless of retry policy:
+	// a single hung transfer must still be terminated even when retries are
+	// disabled, so users of --no-retry get failure visibility instead of a
+	// stalled CLI.
+	runAttempt := func() error {
+		attemptCtx := ctx
+		if perAttemptTimeout > 0 {
+			var cancel context.CancelFunc
+			attemptCtx, cancel = context.WithTimeout(ctx, perAttemptTimeout)
+			defer cancel()
+		}
+		return fn(attemptCtx)
+	}
+
+	if cfg.NoRetry {
+		return runAttempt()
+	}
+
+	maxAttempts := cfg.MaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = DefaultMaxAttempts
 	}
 
 	initialDelay := cfg.InitialDelay
@@ -183,15 +197,7 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 	startTime := time.Now()
 
 	return retry.Do(
-		func() error {
-			attemptCtx := ctx
-			if perAttemptTimeout > 0 {
-				var cancel context.CancelFunc
-				attemptCtx, cancel = context.WithTimeout(ctx, perAttemptTimeout)
-				defer cancel()
-			}
-			return fn(attemptCtx)
-		},
+		runAttempt,
 		retry.Attempts(uint(maxAttempts)),
 		retry.Context(ctx),
 		retry.DelayType(retry.BackOffDelay),

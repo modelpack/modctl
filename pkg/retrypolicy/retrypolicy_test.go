@@ -204,6 +204,37 @@ func TestDo_NoRetry(t *testing.T) {
 	}
 }
 
+// --- Do: NoRetry still honors per-attempt timeout ---
+//
+// `--no-retry` disables extra attempts, but a single transfer must still
+// terminate on a hung connection — otherwise users get a stalled CLI with
+// no failure signal.
+func TestDo_NoRetryHonorsPerAttemptTimeout(t *testing.T) {
+	var calls int32
+	start := time.Now()
+	err := Do(context.Background(), func(ctx context.Context) error {
+		atomic.AddInt32(&calls, 1)
+		<-ctx.Done()
+		return ctx.Err()
+	}, DoOpts{
+		FileName: "noretry-but-bounded",
+		Config: &Config{
+			NoRetry:           true,
+			PerAttemptTimeout: 30 * time.Millisecond,
+		},
+	})
+	elapsed := time.Since(start)
+	if err == nil {
+		t.Fatal("Do returned nil, want context deadline error")
+	}
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Errorf("calls = %d, want 1 (NoRetry)", got)
+	}
+	if elapsed > 500*time.Millisecond {
+		t.Errorf("Do hung for %v, want quick exit via per-attempt timeout", elapsed)
+	}
+}
+
 // --- Do: MaxAttempts caps the number of tries ---
 
 func TestDo_MaxAttempts(t *testing.T) {
