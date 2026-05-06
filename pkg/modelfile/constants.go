@@ -140,6 +140,10 @@ var (
 		"*.ftz",     // FastText compressed model
 		"*.ark",     // Kaldi ark format (speech/audio models)
 		"*.db",      // Database files (LMDB, etc.)
+
+		// TensorFlow SavedModel literal-name files (no extension).
+		"feature_map", // TF SavedModel feature map definition
+		"checkpoint",  // TF checkpoint pointer file (literal name)
 	}
 
 	// Code file patterns - supported script and notebook files.

@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -388,6 +389,9 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 				"assets/images/preview.jpg",
 			},
 			expectName: "nested-model",
+			// inferFormat picks safetensors on seeing weights/model.safetensors;
+			// model.bin is too generic to be a signal.
+			expectFormat: "safetensors",
 		},
 		{
 			name: "deep nested directories",
@@ -621,6 +625,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			expectName:      "llama-7b",
 			expectArch:      "transformer",
 			expectFamily:    "llama",
+			expectFormat:    "safetensors",
 			expectPrecision: "bfloat16",
 			expectParamsize: "7B",
 		},
@@ -810,6 +815,116 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			expectModels:  []string{"model.bin", ".weights/model.bin"},
 			expectCodes:   []string{},
 			expectName:    "selective-include",
+		},
+		{
+			// Mirrors screenshot 1 (TF SavedModel directory) plus the screenshots 4/5
+			// /home/admin/<ts>/{checkpoint,variables,...} layout: variables/ shards
+			// and a sibling checkpoint/ directory with model.ckpt-NNN.{data-*,index,meta}.
+			// Pre-fix, feature_map and the literal `checkpoint` files would have been
+			// classified as CODE because they have no extension and are small.
+			name: "tensorflow saved_model directory",
+			setupFiles: map[string]string{
+				"saved_model.pb":                          "",
+				"feature_map":                             "",
+				"tf_signature.txt":                        "",
+				"alps.meta":                               "",
+				"ais-sync.done":                           "",
+				"variables/checkpoint":                    "",
+				"variables/variables.index":               "",
+				"variables/variables.data-00000-of-00002": "",
+				"variables/variables.data-00001-of-00002": "",
+				"checkpoint/checkpoint":                   "",
+				"checkpoint/model.ckpt-756921.index":      "",
+				"checkpoint/model.ckpt-756921.meta":       "",
+				"checkpoint/model.ckpt-756921.data-00000-of-00002": "",
+				"checkpoint/model.ckpt-756921.data-00001-of-00002": "",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "tf-savedmodel",
+			},
+			expectError: false,
+			// *.meta hits ConfigFilePatterns first (alps.meta, model.ckpt-*.meta).
+			expectConfigs: []string{
+				"alps.meta",
+				"checkpoint/model.ckpt-756921.meta",
+			},
+			expectModels: []string{
+				"saved_model.pb",
+				"feature_map",
+				"variables/checkpoint",
+				"variables/variables.index",
+				"variables/variables.data-00000-of-00002",
+				"variables/variables.data-00001-of-00002",
+				"checkpoint/checkpoint",
+				"checkpoint/model.ckpt-756921.index",
+				"checkpoint/model.ckpt-756921.data-00000-of-00002",
+				"checkpoint/model.ckpt-756921.data-00001-of-00002",
+			},
+			// ais-sync.done has no extension and is empty -> falls back to CODE by
+			// the size heuristic. Documented intentional behavior (user accepted).
+			expectCodes: []string{"ais-sync.done"},
+			expectDocs:  []string{"tf_signature.txt"},
+			expectName:  "tf-savedmodel",
+			// saved_model.pb in MODEL set is the canonical SavedModel signal.
+			expectFormat: "tensorflow",
+		},
+		{
+			// Mirrors screenshot 3/4/5: a parent directory containing base/<ts>/
+			// and delta/<ts>/ subdirs, each holding a complete TF SavedModel +
+			// checkpoint layout. Verifies the walker recurses correctly and that
+			// relative paths in the resulting Modelfile preserve the timestamp
+			// directory prefix so pull-side reconstruction restores the full tree.
+			name: "online-learning base plus delta tree",
+			setupFiles: map[string]string{
+				"base/20251202030708/saved_model.pb":                          "",
+				"base/20251202030708/feature_map":                             "",
+				"base/20251202030708/tf_signature.txt":                        "",
+				"base/20251202030708/alps.meta":                               "",
+				"base/20251202030708/ais-sync.done":                           "",
+				"base/20251202030708/variables/checkpoint":                    "",
+				"base/20251202030708/variables/variables.index":               "",
+				"base/20251202030708/variables/variables.data-00000-of-00002": "",
+				"delta/20251202060205/saved_model.pb":                         "",
+				"delta/20251202060205/feature_map":                            "",
+				"delta/20251202060205/tf_signature.txt":                       "",
+				"delta/20251202060205/alps.meta":                              "",
+				"delta/20251202060205/ais-sync.done":                          "",
+				"delta/20251202060205/variables/checkpoint":                   "",
+				"delta/20251202060205/variables/variables.index":              "",
+				"delta/20251202060205/variables/variables.data-00000-of-00002": "",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "online-learning",
+			},
+			expectError: false,
+			expectConfigs: []string{
+				"base/20251202030708/alps.meta",
+				"delta/20251202060205/alps.meta",
+			},
+			expectModels: []string{
+				"base/20251202030708/saved_model.pb",
+				"base/20251202030708/feature_map",
+				"base/20251202030708/variables/checkpoint",
+				"base/20251202030708/variables/variables.index",
+				"base/20251202030708/variables/variables.data-00000-of-00002",
+				"delta/20251202060205/saved_model.pb",
+				"delta/20251202060205/feature_map",
+				"delta/20251202060205/variables/checkpoint",
+				"delta/20251202060205/variables/variables.index",
+				"delta/20251202060205/variables/variables.data-00000-of-00002",
+			},
+			expectCodes: []string{
+				"base/20251202030708/ais-sync.done",
+				"delta/20251202060205/ais-sync.done",
+			},
+			expectDocs: []string{
+				"base/20251202030708/tf_signature.txt",
+				"delta/20251202060205/tf_signature.txt",
+			},
+			expectName: "online-learning",
+			// Multiple saved_model.pb instances under base/ and delta/ all signal
+			// tensorflow; inferFormat is set-based, so duplicates do not matter.
+			expectFormat: "tensorflow",
 		},
 	}
 
@@ -2124,4 +2239,316 @@ func min(a, b int64) int64 {
 		return a
 	}
 	return b
+}
+
+// TestNewModelfileByWorkspace_ONNXExternalData mirrors screenshot 2: an ONNX
+// directory where model.onnx references many extension-less tensor files via
+// external_data. Pre-fix, small external tensor files were classified as CODE
+// by the size heuristic; the ONNX post-processor must reclassify them all as
+// MODEL deterministically — regardless of the file's size.
+func TestNewModelfileByWorkspace_ONNXExternalData(t *testing.T) {
+	// Subset of the 36 extension-less files seen in screenshot 2. Names taken
+	// verbatim from the actual workflow_10062365 directory.
+	externalLocations := []string{
+		"tower_deep_layer_0_kernel_read__448_1",
+		"tower_shallow_layer_0_kernel_read__440_0",
+		"moe_layer_layer_0_kernel__399_15",
+		"moe_layer_layer_0_domain_bn_ExpandDims__400_16",
+		"moe_layer_search_layer_0_kernel__413_3",
+		"moe_layer_non_search_layer_0_kernel__427_9",
+		"feature_gate_main_kernel_read__352_27",
+		"feature_gate_main_domain_bn_ExpandDims__354_28",
+		"gated_dcn_layer_0_transform_kernel__385_21",
+		"conversion_layer_0_kernel_read__364_35",
+		"main_domain_embedding_Mark_output_user_main_domain_kernel_read__270_20",
+		"external_data_for_resource_handle",
+	}
+
+	tempDir, err := os.MkdirTemp("", "modelfile-onnx-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Write the ONNX file with external_data references encoded into protobuf bytes.
+	require.NoError(t, os.WriteFile(
+		filepath.Join(tempDir, "model.onnx"),
+		buildMinimalONNXBytes(externalLocations),
+		0o644,
+	))
+
+	// Create each external tensor file as an empty placeholder.
+	for _, name := range externalLocations {
+		require.NoError(t, os.WriteFile(filepath.Join(tempDir, name), nil, 0o644))
+	}
+
+	// Sibling files from the screenshot.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "tf_signature.txt"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "variable_sequence_def_0.onnx"), buildMinimalONNXBytes(nil), 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "onnx-external-data",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+
+	models := mf.GetModels()
+	codes := mf.GetCodes()
+	configs := mf.GetConfigs()
+
+	// Every external_data location must appear in MODEL, regardless of file size.
+	for _, name := range externalLocations {
+		assert.Contains(t, models, name, "external_data tensor %q must be reclassified as MODEL", name)
+		assert.NotContains(t, codes, name, "external_data tensor %q must NOT be in CODE", name)
+		assert.NotContains(t, configs, name, "external_data tensor %q must NOT be in CONFIG", name)
+	}
+	// Both .onnx files themselves are MODELs by extension.
+	assert.Contains(t, models, "model.onnx")
+	assert.Contains(t, models, "variable_sequence_def_0.onnx")
+	// tf_signature.txt is a doc per default DocFilePatterns (*.txt).
+	assert.Contains(t, mf.GetDocs(), "tf_signature.txt")
+	// inferFormat: any *.onnx in MODEL emits format=onnx.
+	assert.Equal(t, "onnx", mf.GetFormat())
+}
+
+// P1 coverage: an external_data.location of "../escape" must NOT promote
+// anything outside the workspace. The walker never collected such a path, so
+// it must be silently dropped from reclassification.
+func TestNewModelfileByWorkspace_ONNXExternalDataPathTraversalIgnored(t *testing.T) {
+	tempDir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(
+		filepath.Join(tempDir, "model.onnx"),
+		buildMinimalONNXBytes([]string{"../escape", "weights.bin"}),
+		0o644,
+	))
+	// weights.bin is a real, walker-collected file — should reclassify normally.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights.bin"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "onnx-traversal",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+
+	models := mf.GetModels()
+	assert.Contains(t, models, "weights.bin", "in-workspace external tensor must be reclassified")
+	for _, m := range models {
+		assert.NotContains(t, m, "..", "no model entry should escape the workspace")
+		assert.NotEqual(t, "../escape", m)
+		assert.NotEqual(t, "escape", m)
+	}
+}
+
+// P1 coverage: ExcludePatterns must not be silently overridden by ONNX
+// reclassification. If the walker excluded a tensor file, it must remain
+// excluded — even if model.onnx references it via external_data.
+func TestNewModelfileByWorkspace_ONNXExternalDataRespectsExclude(t *testing.T) {
+	tempDir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(
+		filepath.Join(tempDir, "model.onnx"),
+		buildMinimalONNXBytes([]string{"weights_keep.bin", "weights_drop.bin"}),
+		0o644,
+	))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights_keep.bin"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights_drop.bin"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:            "onnx-exclude",
+		Workspace:       tempDir,
+		ExcludePatterns: []string{"weights_drop.bin"},
+	})
+	require.NoError(t, err)
+
+	models := mf.GetModels()
+	assert.Contains(t, models, "weights_keep.bin")
+	assert.NotContains(t, models, "weights_drop.bin",
+		"excluded path must not be re-added by ONNX reclassification")
+	// And it must not have leaked into any other bucket either.
+	all := append(append(append([]string{}, mf.GetCodes()...), mf.GetConfigs()...), mf.GetDocs()...)
+	assert.NotContains(t, all, "weights_drop.bin")
+}
+
+// captureStderr redirects os.Stderr through a pipe while fn runs and returns
+// everything written to it. Standard Go pattern for asserting on stderr text
+// without coupling tests to a specific log library.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	old := os.Stderr
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+
+	done := make(chan string, 1)
+	go func() {
+		var buf strings.Builder
+		_, _ = io.Copy(&buf, r)
+		done <- buf.String()
+	}()
+
+	fn()
+	require.NoError(t, w.Close())
+	return <-done
+}
+
+// P3 coverage: a corrupted .onnx file must not crash generate. The .onnx
+// itself stays in MODEL (it matches *.onnx), any sibling tensor files keep
+// whatever classification the walker already gave them, AND a clearly-prefixed
+// WARNING is emitted to stderr — locking that user-visible contract.
+func TestNewModelfileByWorkspace_ONNXParseFailureFallsBack(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Corrupted bytes that look like ONNX but aren't valid wire format.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "model.onnx"), []byte{0xff, 0xff, 0xff, 0xff}, 0o644))
+	// A small extension-less file the walker would classify as CODE — stays CODE on parse failure.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "auxiliary_blob"), nil, 0o644))
+
+	var (
+		mf  Modelfile
+		err error
+	)
+	stderr := captureStderr(t, func() {
+		mf, err = NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+			Name:      "onnx-corrupt",
+			Workspace: tempDir,
+		})
+	})
+
+	require.NoError(t, err, "corrupted ONNX must not abort generate")
+	assert.Contains(t, mf.GetModels(), "model.onnx", ".onnx file itself stays in MODEL by extension")
+	assert.NotEmpty(t, mf.GetModels())
+
+	// Lock the WARNING contract: prefix + offending file path + fallback note.
+	assert.Contains(t, stderr, "WARNING:", "warning prefix must be printed")
+	assert.Contains(t, stderr, "model.onnx", "warning must name the failing file")
+	assert.Contains(t, stderr, "keep walker-assigned classification",
+		"warning must explain the fallback so users know external tensors were not reclassified")
+}
+
+// P1 follow-up: an absolute external_data.location must be rejected outright,
+// even when the absolute path's stripped form happens to match a real
+// workspace file. Previously filepath.Join(".", "/decoy") would produce
+// "decoy" and reclassify an unrelated file.
+func TestNewModelfileByWorkspace_ONNXExternalDataAbsolutePathRejected(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Locations: one absolute (must be rejected), one normal (must reclassify).
+	require.NoError(t, os.WriteFile(
+		filepath.Join(tempDir, "model.onnx"),
+		buildMinimalONNXBytes([]string{"/decoy", "weights.bin"}),
+		0o644,
+	))
+	// "decoy" exists in the workspace at root — would be the misclassification
+	// target if Join silently strips the leading slash from "/decoy".
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "decoy"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights.bin"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "onnx-abs",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+
+	// weights.bin reclassifies normally.
+	assert.Contains(t, mf.GetModels(), "weights.bin")
+	// "decoy" must NOT be in MODEL — the abs path "/decoy" was rejected before
+	// Join could produce a misleading "decoy" relative path.
+	assert.NotContains(t, mf.GetModels(), "decoy",
+		"absolute external_data.location must not promote unrelated workspace files")
+}
+
+// TestNewModelfileByWorkspace_InferFormatCLIFlagWins verifies that an explicit
+// --format on the CLI is never overridden by inferFormat, even when the
+// workspace contains a clear signal (saved_model.pb) for a different format.
+// Inference is best-effort metadata fill and must defer to user intent.
+func TestNewModelfileByWorkspace_InferFormatCLIFlagWins(t *testing.T) {
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "saved_model.pb"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "tf-but-custom",
+		Workspace: tempDir,
+		Format:    "custom-format",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "custom-format", mf.GetFormat(),
+		"explicit --format must override inferFormat's tensorflow guess")
+}
+
+// TestNewModelfileByWorkspace_InferFormatNoSignal verifies that an unambiguous
+// no-signal directory (e.g. a generic *.bin with no recognizable extension)
+// leaves Format empty. We deliberately do NOT infer "pytorch" from .bin/.pt,
+// because those extensions appear in many formats and would produce false
+// positives on existing HF / TF / ONNX repos that also ship raw binary blobs.
+func TestNewModelfileByWorkspace_InferFormatNoSignal(t *testing.T) {
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "model.bin"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights.pt"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "README.md"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "no-signal",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "", mf.GetFormat(),
+		"generic .bin/.pt files alone must not trigger format inference")
+}
+
+// TestNewModelfileByWorkspace_InferFormatPriority verifies the priority order:
+// saved_model.pb wins over a sibling *.safetensors, because the SavedModel
+// signal is uniquely diagnostic while *.safetensors can coexist with raw
+// PyTorch shards in HF repos.
+func TestNewModelfileByWorkspace_InferFormatPriority(t *testing.T) {
+	tempDir := t.TempDir()
+	// SavedModel layout + an unrelated safetensors blob in the same dir.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "saved_model.pb"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "extra.safetensors"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "priority-mix",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "tensorflow", mf.GetFormat(),
+		"saved_model.pb must outrank a sibling .safetensors")
+}
+
+// TestNewModelfileByWorkspace_InferFormatGGUF locks the .gguf signal — used by
+// llama.cpp and adjacent ecosystems. .gguf is a self-contained quantized model
+// container and is safe to map to format=gguf on filename alone.
+func TestNewModelfileByWorkspace_InferFormatGGUF(t *testing.T) {
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "ggml-model.gguf"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "gguf-only",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "gguf", mf.GetFormat())
+}
+
+// TestNewModelfileByWorkspace_InferFormatSavedModelPbtxt is regression coverage
+// for a Codex finding: `saved_model.pbtxt` is not in ModelFilePatterns, so the
+// walker lands it in CODE (or DOC). An earlier inferFormat that scanned only
+// mf.model would silently miss the textual SavedModel variant. The fixed
+// implementation scans all walker buckets, so a workspace whose only TF signal
+// is a sibling .pbtxt still resolves to format=tensorflow.
+func TestNewModelfileByWorkspace_InferFormatSavedModelPbtxt(t *testing.T) {
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "saved_model.pbtxt"), nil, 0o644))
+	// A real model file so generateByWorkspace doesn't error on empty MODEL set.
+	require.NoError(t, os.WriteFile(filepath.Join(tempDir, "weights.safetensors"), nil, 0o644))
+
+	mf, err := NewModelfileByWorkspace(tempDir, &configmodelfile.GenerateConfig{
+		Name:      "tf-textual",
+		Workspace: tempDir,
+	})
+	require.NoError(t, err)
+
+	// SavedModel signal must outrank the sibling .safetensors per the
+	// documented priority order, even though the .pbtxt is not in MODEL.
+	assert.Equal(t, "tensorflow", mf.GetFormat(),
+		"saved_model.pbtxt in any walker bucket must trigger format=tensorflow")
 }
