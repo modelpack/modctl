@@ -16,6 +16,86 @@ $ make
 $ ./output/modctl -h
 ```
 
+## GitHub Action
+
+`modctl` provides a composite GitHub Action at the repository root, so you can call it as:
+
+```yaml
+uses: modelpack/modctl@<ref>
+```
+
+### Basic usage
+
+```yaml
+name: Build model with modctl
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build model artifact
+        uses: modelpack/modctl@main
+        with:
+          artifact_name: ghcr.io/${{ github.repository_owner }}/my-model:latest
+          modelfile_path: ./Modelfile
+          context_path: .
+```
+
+### Inputs
+
+| Input | Required | Default | Description |
+| --- | --- | --- | --- |
+| `artifact_name` | Yes | N/A | Target model artifact reference for `modctl build --target`. |
+| `modelfile_path` | No | `Modelfile` | Path to the Modelfile passed to `modctl build -f`. |
+| `context_path` | No | `.` | Build context path argument for `modctl build`. |
+| `modctl_version` | No | latest | `modctl` release version to install (supports `0.2.0` and `v0.2.0`). |
+| `output_remote` | No | `false` | When `true`, adds `--output-remote` to `modctl build`. |
+| `plain_http` | No | `false` | When `true`, adds `--plain-http` to optional `login` and `build`. |
+| `insecure` | No | `false` | When `true`, adds `--insecure` to optional `login` and `build`. |
+| `registry` | No | empty | Optional registry host used for `modctl login`. |
+| `registry_username` | No | empty | Optional username for registry login. |
+| `registry_password` | No | empty | Optional password/token for registry login. |
+
+### Optional version pinning
+
+```yaml
+- name: Build with a specific modctl version
+  uses: modelpack/modctl@main
+  with:
+    modctl_version: 0.2.0
+    artifact_name: ghcr.io/${{ github.repository_owner }}/my-model:latest
+```
+
+### Optional container registry integration
+
+Registry login is conditional. If any of `registry`, `registry_username`, or `registry_password` is provided, all three must be provided.
+
+```yaml
+permissions:
+  contents: read
+  packages: write
+
+steps:
+  - uses: actions/checkout@v4
+  - name: Build and push directly to a registry
+    uses: modelpack/modctl@main
+    with:
+      artifact_name: ghcr.io/${{ github.repository_owner }}/my-model:latest
+      modelfile_path: ./Modelfile
+      context_path: .
+      output_remote: "true"
+      registry: ghcr.io
+      registry_username: ${{ github.actor }}
+      registry_password: ${{ github.token }}
+
+```
+
+When a dedicated action release tag is available, replace `@main` with that tag.
+
 ## Usage
 
 ### Modelfile

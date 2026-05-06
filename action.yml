@@ -1,0 +1,219 @@
+name: "modctl build"
+description: "Install modctl and build a model artifact, with optional registry login."
+author: "ModelPack"
+
+inputs:
+  modctl_version:
+    description: "modctl version to install (for example: 0.2.0 or v0.2.0). Empty means latest release."
+    required: false
+    default: ""
+  modelfile_path:
+    description: "Path to the Modelfile used by modctl build."
+    required: false
+    default: "Modelfile"
+  artifact_name:
+    description: "Model artifact reference passed to modctl build --target."
+    required: true
+  context_path:
+    description: "Build context path passed as the final modctl build argument."
+    required: false
+    default: "."
+  output_remote:
+    description: "Set to true to pass --output-remote to modctl build."
+    required: false
+    default: "false"
+  plain_http:
+    description: "Set to true to use plain HTTP for optional login and build operations."
+    required: false
+    default: "false"
+  insecure:
+    description: "Set to true to disable TLS verification for optional login and build operations."
+    required: false
+    default: "false"
+  registry:
+    description: "Optional registry host for modctl login (for example: ghcr.io)."
+    required: false
+    default: ""
+  registry_username:
+    description: "Optional registry username for modctl login."
+    required: false
+    default: ""
+  registry_password:
+    description: "Optional registry password or token for modctl login."
+    required: false
+    default: ""
+
+outputs:
+  modctl-version:
+    description: "Installed modctl version without the leading v prefix."
+    value: ${{ steps.install.outputs.modctl-version }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Validate action inputs
+      shell: bash
+      env:
+        ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        MODELFILE_PATH: ${{ inputs.modelfile_path }}
+        CONTEXT_PATH: ${{ inputs.context_path }}
+        OUTPUT_REMOTE: ${{ inputs.output_remote }}
+        PLAIN_HTTP: ${{ inputs.plain_http }}
+        INSECURE: ${{ inputs.insecure }}
+        REGISTRY: ${{ inputs.registry }}
+        REGISTRY_USERNAME: ${{ inputs.registry_username }}
+        REGISTRY_PASSWORD: ${{ inputs.registry_password }}
+      run: |
+        set -euo pipefail
+
+        validate_bool() {
+          local name="$1"
+          local value="$2"
+          if [[ "$value" != "true" && "$value" != "false" ]]; then
+            echo "Input '${name}' must be 'true' or 'false', got '${value}'." >&2
+            exit 1
+          fi
+        }
+
+        if [[ -z "${ARTIFACT_NAME}" ]]; then
+          echo "Input 'artifact_name' is required." >&2
+          exit 1
+        fi
+
+        if [[ ! -f "${MODELFILE_PATH}" ]]; then
+          echo "Modelfile not found at '${MODELFILE_PATH}'." >&2
+          exit 1
+        fi
+
+        if [[ ! -e "${CONTEXT_PATH}" ]]; then
+          echo "Context path '${CONTEXT_PATH}' does not exist." >&2
+          exit 1
+        fi
+
+        validate_bool "output_remote" "${OUTPUT_REMOTE}"
+        validate_bool "plain_http" "${PLAIN_HTTP}"
+        validate_bool "insecure" "${INSECURE}"
+
+        if [[ -n "${REGISTRY}" || -n "${REGISTRY_USERNAME}" || -n "${REGISTRY_PASSWORD}" ]]; then
+          if [[ -z "${REGISTRY}" || -z "${REGISTRY_USERNAME}" || -z "${REGISTRY_PASSWORD}" ]]; then
+            echo "Optional registry integration requires 'registry', 'registry_username', and 'registry_password' together." >&2
+            exit 1
+          fi
+        fi
+
+    - name: Install modctl
+      id: install
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        MODCTL_VERSION: ${{ inputs.modctl_version }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "${MODCTL_VERSION}" ]]; then
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "GitHub CLI 'gh' is required to resolve the latest modctl release." >&2
+            exit 1
+          fi
+          release_tag="$(gh api repos/modelpack/modctl/releases/latest --jq '.tag_name')"
+          if [[ -z "${release_tag}" || "${release_tag}" == "null" ]]; then
+            echo "Unable to resolve latest modctl release tag via gh api." >&2
+            exit 1
+          fi
+        else
+          if [[ "${MODCTL_VERSION}" == v* ]]; then
+            release_tag="${MODCTL_VERSION}"
+          else
+            release_tag="v${MODCTL_VERSION}"
+          fi
+        fi
+
+        version="${release_tag#v}"
+
+        case "$(uname -s)" in
+          Linux) os="linux" ;;
+          Darwin) os="darwin" ;;
+          *)
+            echo "Unsupported runner OS: $(uname -s)" >&2
+            exit 1
+            ;;
+        esac
+
+        case "$(uname -m)" in
+          x86_64|amd64) arch="amd64" ;;
+          arm64|aarch64) arch="arm64" ;;
+          *)
+            echo "Unsupported runner architecture: $(uname -m)" >&2
+            exit 1
+            ;;
+        esac
+
+        asset="modctl-${version}-${os}-${arch}.tar.gz"
+        download_url="https://github.com/modelpack/modctl/releases/download/${release_tag}/${asset}"
+        tmp_dir="$(mktemp -d)"
+        trap 'rm -rf "$tmp_dir"' EXIT
+
+        curl -fsSL "$download_url" -o "${tmp_dir}/${asset}"
+        tar -xzf "${tmp_dir}/${asset}" -C "$tmp_dir"
+
+        if [[ ! -f "${tmp_dir}/modctl" ]]; then
+          echo "Downloaded release archive did not contain a modctl binary." >&2
+          exit 1
+        fi
+
+        install_dir="${RUNNER_TEMP}/modctl-bin"
+        mkdir -p "$install_dir"
+        mv "${tmp_dir}/modctl" "${install_dir}/modctl"
+        chmod +x "${install_dir}/modctl"
+
+        echo "$install_dir" >> "$GITHUB_PATH"
+        echo "modctl-version=${version}" >> "$GITHUB_OUTPUT"
+
+    - name: Login to registry
+      if: ${{ inputs.registry != '' && inputs.registry_username != '' && inputs.registry_password != '' }}
+      shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        REGISTRY_USERNAME: ${{ inputs.registry_username }}
+        REGISTRY_PASSWORD: ${{ inputs.registry_password }}
+        PLAIN_HTTP: ${{ inputs.plain_http }}
+        INSECURE: ${{ inputs.insecure }}
+      run: |
+        set -euo pipefail
+
+        login_cmd=(modctl login -u "${REGISTRY_USERNAME}" -p "${REGISTRY_PASSWORD}")
+        if [[ "${PLAIN_HTTP}" == "true" ]]; then
+          login_cmd+=(--plain-http)
+        fi
+        if [[ "${INSECURE}" == "true" ]]; then
+          login_cmd+=(--insecure)
+        fi
+        login_cmd+=("${REGISTRY}")
+
+        "${login_cmd[@]}"
+
+    - name: Build model artifact
+      shell: bash
+      env:
+        MODELFILE_PATH: ${{ inputs.modelfile_path }}
+        ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        CONTEXT_PATH: ${{ inputs.context_path }}
+        OUTPUT_REMOTE: ${{ inputs.output_remote }}
+        PLAIN_HTTP: ${{ inputs.plain_http }}
+        INSECURE: ${{ inputs.insecure }}
+      run: |
+        set -euo pipefail
+
+        build_cmd=(modctl build -f "${MODELFILE_PATH}" -t "${ARTIFACT_NAME}")
+        if [[ "${OUTPUT_REMOTE}" == "true" ]]; then
+          build_cmd+=(--output-remote)
+        fi
+        if [[ "${PLAIN_HTTP}" == "true" ]]; then
+          build_cmd+=(--plain-http)
+        fi
+        if [[ "${INSECURE}" == "true" ]]; then
+          build_cmd+=(--insecure)
+        fi
+        build_cmd+=("${CONTEXT_PATH}")
+
+        "${build_cmd[@]}"
