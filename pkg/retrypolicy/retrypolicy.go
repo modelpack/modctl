@@ -90,8 +90,8 @@ const (
 // DefaultMaxBackoff.
 type Config struct {
 	// MaxAttempts is the total number of attempts (initial + retries).
-	// 0 means "use DefaultMaxAttempts". Use NoRetry to call fn exactly
-	// once.
+	// 0 means "use DefaultMaxAttempts". Set to 1 to disable retries
+	// (single attempt, no retry on failure).
 	MaxAttempts int
 
 	// PerAttemptTimeout is the maximum duration for a single attempt.
@@ -99,10 +99,6 @@ type Config struct {
 	//   <0 → no per-attempt timeout (caller fully controls deadlines).
 	//   >0 → use this value verbatim.
 	PerAttemptTimeout time.Duration
-
-	// NoRetry disables retry entirely; fn is called once with the parent
-	// context.
-	NoRetry bool
 
 	// InitialDelay overrides the first inter-attempt sleep. 0 = default.
 	// Primarily for tests.
@@ -153,10 +149,9 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 		perAttemptTimeout = 0 // disabled
 	}
 
-	// runAttempt applies the per-attempt deadline regardless of retry policy:
-	// a single hung transfer must still be terminated even when retries are
-	// disabled, so users of --no-retry get failure visibility instead of a
-	// stalled CLI.
+	// runAttempt applies the per-attempt deadline. retry-go calls this
+	// for each attempt; if MaxAttempts == 1 the loop exits after one
+	// invocation (equivalent to "no retry").
 	runAttempt := func() error {
 		attemptCtx := ctx
 		if perAttemptTimeout > 0 {
@@ -165,10 +160,6 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 			defer cancel()
 		}
 		return fn(attemptCtx)
-	}
-
-	if cfg.NoRetry {
-		return runAttempt()
 	}
 
 	maxAttempts := cfg.MaxAttempts

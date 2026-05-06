@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modelpack/modctl/pkg/backend"
-	"github.com/modelpack/modctl/pkg/config"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/modelpack/modctl/pkg/backend"
+	"github.com/modelpack/modctl/pkg/config"
 )
 
 var pushConfig = config.NewPush()
@@ -48,14 +48,38 @@ var pushCmd = &cobra.Command{
 // init initializes push command.
 func init() {
 	flags := pushCmd.Flags()
-	flags.IntVar(&pushConfig.Concurrency, "concurrency", pushConfig.Concurrency, "specify the number of concurrent push operations")
+	flags.IntVar(
+		&pushConfig.Concurrency,
+		"concurrency",
+		pushConfig.Concurrency,
+		"specify the number of concurrent push operations",
+	)
 	flags.BoolVar(&pushConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
-	flags.BoolVar(&pushConfig.Insecure, "insecure", false, "turning on this flag will disable TLS verification")
-	flags.BoolVar(&pushConfig.Nydusify, "nydusify", false, "[EXPERIMENTAL] nydusify the model artifact")
+	flags.BoolVar(
+		&pushConfig.Insecure,
+		"insecure",
+		false,
+		"turning on this flag will disable TLS verification",
+	)
+	flags.BoolVar(
+		&pushConfig.Nydusify,
+		"nydusify",
+		false,
+		"[EXPERIMENTAL] nydusify the model artifact",
+	)
 	flags.MarkHidden("nydusify")
-	flags.BoolVar(&pushConfig.RetryConfig.NoRetry, "no-retry", false, "Disable retry on transient errors")
-	flags.IntVar(&pushConfig.RetryConfig.MaxAttempts, "retry-attempts", 0, "Max total attempts per file (initial + retries; 0 = use default of 6)")
-	flags.DurationVar(&pushConfig.RetryConfig.PerAttemptTimeout, "per-attempt-timeout", 0, "Timeout for a single transfer attempt (0 = derive from file size; <0 = disabled)")
+	flags.IntVar(
+		&pushConfig.RetryConfig.MaxAttempts,
+		"retry-attempts",
+		0,
+		"Max total attempts per file (initial + retries; 0 = use default of 6, 1 = no retry)",
+	)
+	flags.DurationVar(
+		&pushConfig.RetryConfig.PerAttemptTimeout,
+		"per-attempt-timeout",
+		0,
+		"Timeout for a single transfer attempt (0 = derive from file size; <0 = disabled)",
+	)
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind push flags to viper: %w", err))

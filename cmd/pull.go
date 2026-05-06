@@ -55,8 +55,7 @@ func init() {
 	flags.StringVar(&pullConfig.ExtractDir, "extract-dir", "", "specify the extract dir for extracting the model artifact")
 	flags.BoolVar(&pullConfig.ExtractFromRemote, "extract-from-remote", false, "turning on this flag will pull and extract the data from remote registry and no longer store model artifact locally, so user must specify extract-dir as the output directory")
 	flags.StringVar(&pullConfig.DragonflyEndpoint, "dragonfly-endpoint", "", "specify the dragonfly endpoint for the pull operation, which will download and hardlink the blob by dragonfly GRPC service, this mode requires extract-from-remote must be true")
-	flags.BoolVar(&pullConfig.RetryConfig.NoRetry, "no-retry", false, "Disable retry on transient errors")
-	flags.IntVar(&pullConfig.RetryConfig.MaxAttempts, "retry-attempts", 0, "Max total attempts per file (initial + retries; 0 = use default of 6)")
+	flags.IntVar(&pullConfig.RetryConfig.MaxAttempts, "retry-attempts", 0, "Max total attempts per file (initial + retries; 0 = use default of 6, 1 = no retry)")
 	flags.DurationVar(&pullConfig.RetryConfig.PerAttemptTimeout, "per-attempt-timeout", 0, "Timeout for a single transfer attempt (0 = derive from file size; <0 = disabled)")
 
 	if err := viper.BindPFlags(flags); err != nil {

@@ -61,8 +61,7 @@ func init() {
 	flags.BoolVar(&buildConfig.Raw, "raw", true, "turning on this flag will build model artifact layers in raw format")
 	flags.BoolVar(&buildConfig.Reasoning, "reasoning", false, "turning on this flag will mark this model as reasoning model in the config")
 	flags.BoolVar(&buildConfig.NoCreationTime, "no-creation-time", false, "turning on this flag will not set createdAt in the config, which will be helpful for repeated builds")
-	flags.BoolVar(&buildConfig.RetryConfig.NoRetry, "no-retry", false, "Disable retry on transient errors")
-	flags.IntVar(&buildConfig.RetryConfig.MaxAttempts, "retry-attempts", 0, "Max total attempts per file (initial + retries; 0 = use default of 6)")
+	flags.IntVar(&buildConfig.RetryConfig.MaxAttempts, "retry-attempts", 0, "Max total attempts per file (initial + retries; 0 = use default of 6, 1 = no retry)")
 	flags.DurationVar(&buildConfig.RetryConfig.PerAttemptTimeout, "per-attempt-timeout", 0, "Timeout for a single transfer attempt (0 = derive from file size; <0 = disabled)")
 
 	if err := viper.BindPFlags(flags); err != nil {

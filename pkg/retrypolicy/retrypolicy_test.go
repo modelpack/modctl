@@ -184,32 +184,31 @@ func TestDo_SuccessFirstAttempt(t *testing.T) {
 	}
 }
 
-// --- Do: NoRetry ---
+// --- Do: MaxAttempts=1 is the canonical "no retry" knob ---
 
-func TestDo_NoRetry(t *testing.T) {
+func TestDo_MaxAttempts1(t *testing.T) {
 	calls := 0
 	transient := errors.New("response status code 503")
 	err := Do(context.Background(), func(ctx context.Context) error {
 		calls++
 		return transient
 	}, DoOpts{
-		FileName: "noretry",
-		Config:   &Config{NoRetry: true},
+		FileName: "single-attempt",
+		Config:   &Config{MaxAttempts: 1},
 	})
-	if !errors.Is(err, transient) {
-		t.Errorf("err = %v, want %v", err, transient)
+	if err == nil {
+		t.Fatal("Do returned nil, want transient error returned verbatim")
 	}
 	if calls != 1 {
-		t.Errorf("calls = %d, want 1 (NoRetry)", calls)
+		t.Errorf("calls = %d, want 1 (MaxAttempts=1)", calls)
 	}
 }
 
-// --- Do: NoRetry still honors per-attempt timeout ---
+// --- Do: single attempt still honors per-attempt timeout ---
 //
-// `--no-retry` disables extra attempts, but a single transfer must still
-// terminate on a hung connection — otherwise users get a stalled CLI with
-// no failure signal.
-func TestDo_NoRetryHonorsPerAttemptTimeout(t *testing.T) {
+// Even when retries are disabled (MaxAttempts=1), a hung transfer must still
+// terminate; otherwise users get a stalled CLI with no failure signal.
+func TestDo_SingleAttemptHonorsPerAttemptTimeout(t *testing.T) {
 	var calls int32
 	start := time.Now()
 	err := Do(context.Background(), func(ctx context.Context) error {
@@ -217,9 +216,9 @@ func TestDo_NoRetryHonorsPerAttemptTimeout(t *testing.T) {
 		<-ctx.Done()
 		return ctx.Err()
 	}, DoOpts{
-		FileName: "noretry-but-bounded",
+		FileName: "single-but-bounded",
 		Config: &Config{
-			NoRetry:           true,
+			MaxAttempts:       1,
 			PerAttemptTimeout: 30 * time.Millisecond,
 		},
 	})
@@ -228,7 +227,7 @@ func TestDo_NoRetryHonorsPerAttemptTimeout(t *testing.T) {
 		t.Fatal("Do returned nil, want context deadline error")
 	}
 	if got := atomic.LoadInt32(&calls); got != 1 {
-		t.Errorf("calls = %d, want 1 (NoRetry)", got)
+		t.Errorf("calls = %d, want 1", got)
 	}
 	if elapsed > 500*time.Millisecond {
 		t.Errorf("Do hung for %v, want quick exit via per-attempt timeout", elapsed)
