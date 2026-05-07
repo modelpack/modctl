@@ -177,7 +177,6 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 			}, retrypolicy.DoOpts{
 				FileSize: fileSize,
 				FileName: filepath.Base(path),
-				Config:   processOpts.retryConfig,
 			}); err != nil {
 				logrus.Error(err)
 				mu.Lock()

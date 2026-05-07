@@ -123,7 +123,6 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			}, retrypolicy.DoOpts{
 				FileSize: layer.Size,
 				FileName: annoFilepath,
-				Config:   &cfg.RetryConfig,
 				OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 					if bar := pb.Get(layer.Digest.String()); bar != nil {
 						bar.SetRefill(bar.Current())

@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-
-	"github.com/modelpack/modctl/pkg/retrypolicy"
 )
 
 const (
@@ -40,7 +38,6 @@ type Fetch struct {
 	ProgressWriter    io.Writer
 	DisableProgress   bool
 	Hooks             PullHooks
-	RetryConfig       retrypolicy.Config
 }
 
 func NewFetch() *Fetch {

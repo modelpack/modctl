@@ -68,18 +68,6 @@ func init() {
 		"[EXPERIMENTAL] nydusify the model artifact",
 	)
 	flags.MarkHidden("nydusify")
-	flags.IntVar(
-		&pushConfig.RetryConfig.MaxAttempts,
-		"retry-attempts",
-		0,
-		"Max total attempts per file (initial + retries; 0 = use default of 6, 1 = no retry)",
-	)
-	flags.DurationVar(
-		&pushConfig.RetryConfig.PerAttemptTimeout,
-		"per-attempt-timeout",
-		0,
-		"Timeout for a single transfer attempt (0 = derive from file size; <0 = disabled)",
-	)
 
 	if err := viper.BindPFlags(flags); err != nil {
 		panic(fmt.Errorf("bind push flags to viper: %w", err))

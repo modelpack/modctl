@@ -44,7 +44,11 @@ const (
 )
 
 // Build builds the user materials into the model artifact which follows the Model Spec.
-func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string, cfg *config.Build) error {
+func (b *backend) Build(
+	ctx context.Context,
+	modelfilePath, workDir, target string,
+	cfg *config.Build,
+) error {
 	logrus.Infof("build: building artifact %s", target)
 	// parse the repo name and tag name from target.
 	ref, err := ParseReference(target)
@@ -139,7 +143,6 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	}, retrypolicy.DoOpts{
 		FileSize: 0, // config is small
 		FileName: "config",
-		Config:   &cfg.RetryConfig,
 	}); err != nil {
 		return fmt.Errorf("failed to build model config: %w", err)
 	}
@@ -161,7 +164,6 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	}, retrypolicy.DoOpts{
 		FileSize: 0, // manifest is small
 		FileName: "manifest",
-		Config:   &cfg.RetryConfig,
 	}); err != nil {
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
@@ -170,7 +172,10 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	return nil
 }
 
-func (b *backend) getProcessors(modelfile modelfile.Modelfile, cfg *config.Build) []processor.Processor {
+func (b *backend) getProcessors(
+	modelfile modelfile.Modelfile,
+	cfg *config.Build,
+) []processor.Processor {
 	processors := []processor.Processor{}
 
 	if configs := modelfile.GetConfigs(); len(configs) > 0 {
@@ -178,7 +183,10 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile, cfg *config.Build
 		if cfg.Raw {
 			mediaType = modelspec.MediaTypeModelWeightConfigRaw
 		}
-		processors = append(processors, processor.NewModelConfigProcessor(b.store, mediaType, configs, ""))
+		processors = append(
+			processors,
+			processor.NewModelConfigProcessor(b.store, mediaType, configs, ""),
+		)
 	}
 
 	if models := modelfile.GetModels(); len(models) > 0 {
@@ -209,10 +217,23 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile, cfg *config.Build
 }
 
 // process walks the user work directory and process the identified files.
-func (b *backend) process(ctx context.Context, builder build.Builder, workDir string, pb *internalpb.ProgressBar, cfg *config.Build, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
+func (b *backend) process(
+	ctx context.Context,
+	builder build.Builder,
+	workDir string,
+	pb *internalpb.ProgressBar,
+	cfg *config.Build,
+	processors ...processor.Processor,
+) ([]ocispec.Descriptor, error) {
 	descriptors := []ocispec.Descriptor{}
 	for _, p := range processors {
-		descs, err := p.Process(ctx, builder, workDir, processor.WithConcurrency(cfg.Concurrency), processor.WithProgressTracker(pb), processor.WithRetryConfig(cfg.RetryConfig))
+		descs, err := p.Process(
+			ctx,
+			builder,
+			workDir,
+			processor.WithConcurrency(cfg.Concurrency),
+			processor.WithProgressTracker(pb),
+		)
 		if err != nil {
 			return nil, err
 		}

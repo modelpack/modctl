@@ -134,7 +134,6 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 			}, retrypolicy.DoOpts{
 				FileSize: layer.Size,
 				FileName: layer.Digest.String(),
-				Config:   &cfg.RetryConfig,
 				OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 					pb.Placeholder(layer.Digest.String(), internalpb.NormalizePrompt("Pulling blob"), layer.Size)
 				},
@@ -177,7 +176,6 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}, retrypolicy.DoOpts{
 		FileSize: manifest.Config.Size,
 		FileName: "config",
-		Config:   &cfg.RetryConfig,
 		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 			pb.Placeholder(manifest.Config.Digest.String(), internalpb.NormalizePrompt("Pulling config"), manifest.Config.Size)
 		},
@@ -191,7 +189,6 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}, retrypolicy.DoOpts{
 		FileSize: manifestDesc.Size,
 		FileName: "manifest",
-		Config:   &cfg.RetryConfig,
 		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 			pb.Placeholder(manifestDesc.Digest.String(), internalpb.NormalizePrompt("Pulling manifest"), manifestDesc.Size)
 		},

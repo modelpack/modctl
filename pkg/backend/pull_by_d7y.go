@@ -206,7 +206,6 @@ func processLayer(ctx context.Context, pb *internalpb.ProgressBar, client dfdaem
 	}, retrypolicy.DoOpts{
 		FileSize: desc.Size,
 		FileName: annoFilepath,
-		Config:   &cfg.RetryConfig,
 		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 			if bar := pb.Get(desc.Digest.String()); bar != nil {
 				bar.SetRefill(bar.Current())

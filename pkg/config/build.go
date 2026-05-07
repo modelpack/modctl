@@ -18,8 +18,6 @@ package config
 
 import (
 	"fmt"
-
-	"github.com/modelpack/modctl/pkg/retrypolicy"
 )
 
 const (
@@ -40,7 +38,6 @@ type Build struct {
 	Raw            bool
 	Reasoning      bool
 	NoCreationTime bool
-	RetryConfig    retrypolicy.Config
 }
 
 func NewBuild() *Build {

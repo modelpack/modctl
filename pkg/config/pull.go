@@ -22,8 +22,6 @@ import (
 	"os"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-
-	"github.com/modelpack/modctl/pkg/retrypolicy"
 )
 
 const (
@@ -42,7 +40,6 @@ type Pull struct {
 	ProgressWriter    io.Writer
 	DisableProgress   bool
 	DragonflyEndpoint string
-	RetryConfig       retrypolicy.Config
 }
 
 func NewPull() *Pull {

@@ -18,8 +18,6 @@ package config
 
 import (
 	"fmt"
-
-	"github.com/modelpack/modctl/pkg/retrypolicy"
 )
 
 const (
@@ -32,7 +30,6 @@ type Push struct {
 	PlainHTTP   bool
 	Insecure    bool
 	Nydusify    bool
-	RetryConfig retrypolicy.Config
 }
 
 func NewPush() *Push {

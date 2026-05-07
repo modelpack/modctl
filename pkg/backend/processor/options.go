@@ -18,7 +18,6 @@ package processor
 
 import (
 	"github.com/modelpack/modctl/internal/pb"
-	"github.com/modelpack/modctl/pkg/retrypolicy"
 )
 
 type ProcessOption func(*processOptions)
@@ -28,8 +27,6 @@ type processOptions struct {
 	concurrency int
 	// progressTracker is the progress bar to use for tracking progress.
 	progressTracker *pb.ProgressBar
-	// retryConfig is the retry configuration to use for processing.
-	retryConfig *retrypolicy.Config
 }
 
 func WithConcurrency(concurrency int) ProcessOption {
@@ -41,11 +38,5 @@ func WithConcurrency(concurrency int) ProcessOption {
 func WithProgressTracker(tracker *pb.ProgressBar) ProcessOption {
 	return func(o *processOptions) {
 		o.progressTracker = tracker
-	}
-}
-
-func WithRetryConfig(cfg retrypolicy.Config) ProcessOption {
-	return func(o *processOptions) {
-		o.retryConfig = &cfg
 	}
 }

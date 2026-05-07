@@ -104,7 +104,6 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 			}, retrypolicy.DoOpts{
 				FileSize: layer.Size,
 				FileName: layer.Digest.String(),
-				Config:   &cfg.RetryConfig,
 				OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 					prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
 						internalpb.NormalizePrompt("Copying blob"), attempt, reason, backoff.Truncate(time.Second))
@@ -140,7 +139,6 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	}, retrypolicy.DoOpts{
 		FileSize: manifest.Config.Size,
 		FileName: "config",
-		Config:   &cfg.RetryConfig,
 		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 			prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
 				internalpb.NormalizePrompt("Copying config"), attempt, reason, backoff.Truncate(time.Second))
@@ -162,7 +160,6 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	}, retrypolicy.DoOpts{
 		FileSize: manifestDesc.Size,
 		FileName: "manifest",
-		Config:   &cfg.RetryConfig,
 		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
 			prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
 				internalpb.NormalizePrompt("Copying manifest"), attempt, reason, backoff.Truncate(time.Second))
