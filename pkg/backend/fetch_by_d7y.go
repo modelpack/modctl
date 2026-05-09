@@ -157,9 +157,14 @@ func (b *backend) fetchByDragonfly(ctx context.Context, target string, cfg *conf
 func fetchLayerByDragonfly(ctx context.Context, pb *internalpb.ProgressBar, client dfdaemon.DfdaemonDownloadClient, ref Referencer, manifest ocispec.Manifest, desc ocispec.Descriptor, authToken string, cfg *config.Fetch) error {
 	err := retry.Do(func() error {
 		logrus.Debugf("fetch: processing layer %s", desc.Digest)
-		cfg.Hooks.BeforePullLayer(desc, manifest) // Call before hook
+		if cfg.Hooks.BeforePullLayer(desc, manifest) {
+			logrus.Debugf("fetch: layer %s skipped by hook", desc.Digest)
+			pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
+			cfg.Hooks.AfterPullLayer(desc, true, nil)
+			return nil
+		}
 		err := downloadAndExtractFetchLayer(ctx, pb, client, ref, desc, authToken, cfg)
-		cfg.Hooks.AfterPullLayer(desc, err) // Call after hook
+		cfg.Hooks.AfterPullLayer(desc, false, err) // Call after hook
 		if err != nil {
 			err = fmt.Errorf("pull: failed to download and extract layer %s: %w", desc.Digest, err)
 			logrus.Error(err)
