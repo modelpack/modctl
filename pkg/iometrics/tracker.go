@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2024 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,13 +112,13 @@ func (t *Tracker) Summary() {
 
 	// Log structured fields to log file.
 	logrus.WithFields(logrus.Fields{
-		"operation":            t.operation,
-		"totalBytes":           humanize.IBytes(uint64(totalBytes)),
-		"wallClock":            wallClock.Round(time.Millisecond).String(),
-		"effectiveThroughput":  formatThroughput(totalBytes, wallClock),
-		t.sourceLabel():        sourceThroughput,
-		t.sinkLabel():          sinkThroughput,
-		"bottleneck":           bottleneck,
+		"operation":           t.operation,
+		"totalBytes":          humanize.IBytes(uint64(totalBytes)),
+		"wallClock":           wallClock.Round(time.Millisecond).String(),
+		"effectiveThroughput": formatThroughput(totalBytes, wallClock),
+		t.sourceLabel():       sourceThroughput,
+		t.sinkLabel():         sinkThroughput,
+		"bottleneck":          bottleneck,
 	}).Info("io throughput summary")
 
 	// Print concise summary to terminal.
