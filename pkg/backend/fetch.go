@@ -38,6 +38,12 @@ import (
 func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) error {
 	logrus.Infof("fetch: fetching from %s", target)
 
+	// Apply default hooks when caller leaves it unset to avoid nil deref.
+	if cfg.Hooks == nil {
+		defaults := config.NewFetch()
+		cfg.Hooks = defaults.Hooks
+	}
+
 	// fetchByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
 	if cfg.DragonflyEndpoint != "" {
 		logrus.Infof("fetch: using dragonfly for %s", target)
@@ -117,11 +123,19 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			}
 
 			logrus.Debugf("fetch: processing layer %s", layer.Digest)
+			if cfg.Hooks.BeforePullLayer(layer, manifest) {
+				logrus.Debugf("fetch: layer %s skipped by hook", layer.Digest)
+				pb.Complete(layer.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), layer.Digest.String()))
+				cfg.Hooks.AfterPullLayer(layer, true, nil)
+				return nil
+			}
 			if err := tracker.TrackTransfer(func() error {
 				return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer, tracker)
 			}); err != nil {
+				cfg.Hooks.AfterPullLayer(layer, false, err)
 				return err
 			}
+			cfg.Hooks.AfterPullLayer(layer, false, nil)
 
 			logrus.Debugf("fetch: successfully processed layer %s", layer.Digest)
 			return nil

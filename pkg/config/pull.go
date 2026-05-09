@@ -78,16 +78,29 @@ func (p *Pull) Validate() error {
 }
 
 // PullHooks is the hook events during the pull operation.
+//
+// Note: every retry attempt re-invokes BeforePullLayer / AfterPullLayer.
 type PullHooks interface {
-	// BeforePullLayer will execute before pulling the layer described as desc, will carry the manifest as well.
-	BeforePullLayer(desc ocispec.Descriptor, manifest ocispec.Manifest)
+	// BeforePullLayer will execute before pulling the layer described as desc,
+	// will carry the manifest as well.
+	//
+	// If the hook returns skip=true, the backend will treat this layer as
+	// already satisfied and will NOT actually pull/extract it. The caller is
+	// responsible for ensuring the corresponding content already exists and
+	// matches the descriptor's digest. AfterPullLayer will still be invoked
+	// with skipped=true and a nil error.
+	BeforePullLayer(desc ocispec.Descriptor, manifest ocispec.Manifest) (skip bool)
 
-	// AfterPullLayer will execute after pulling the layer described as desc, the error will be nil if pulled successfully.
-	AfterPullLayer(desc ocispec.Descriptor, err error)
+	// AfterPullLayer will execute after pulling the layer described as desc.
+	// skipped indicates whether the layer was skipped by BeforePullLayer's
+	// decision. err will be nil if pulled (or skipped) successfully.
+	AfterPullLayer(desc ocispec.Descriptor, skipped bool, err error)
 }
 
 // emptyPullHook is the empty pull hook implementation with do nothing.
 type emptyPullHook struct{}
 
-func (emptyPullHook) BeforePullLayer(desc ocispec.Descriptor, manifest ocispec.Manifest) {}
-func (emptyPullHook) AfterPullLayer(desc ocispec.Descriptor, err error)                  {}
+func (emptyPullHook) BeforePullLayer(desc ocispec.Descriptor, manifest ocispec.Manifest) bool {
+	return false
+}
+func (emptyPullHook) AfterPullLayer(desc ocispec.Descriptor, skipped bool, err error) {}
