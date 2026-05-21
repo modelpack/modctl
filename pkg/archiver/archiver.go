@@ -25,6 +25,16 @@ import (
 	"strings"
 )
 
+type noLookupFileInfo struct {
+	os.FileInfo
+}
+
+// Uname returns an empty user name to skip CGO-based uid→name lookup.
+func (n noLookupFileInfo) Uname() (string, error) { return "", nil }
+
+// Gname returns an empty group name to skip CGO-based gid→name lookup.
+func (n noLookupFileInfo) Gname() (string, error) { return "", nil }
+
 // Tar creates a tar archive of the specified path (file or directory)
 // and returns the content as a stream. For individual files, it preserves
 // the directory structure relative to the working directory.
@@ -50,24 +60,35 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 					return err
 				}
 
-				// Create a relative path for the tar file header.
-				relPath, err := filepath.Rel(workDir, path)
-				if err != nil {
-					return fmt.Errorf("failed to get relative path: %w", err)
+				// Resolve symlink target if needed.
+				link := ""
+				if info.Mode()&os.ModeSymlink != 0 {
+					link, err = os.Readlink(path)
+					if err != nil {
+						return fmt.Errorf("failed to read symlink %s: %w", path, err)
+					}
 				}
 
-				header, err := tar.FileInfoHeader(info, "")
+				header, err := tar.FileInfoHeader(noLookupFileInfo{info}, link)
 				if err != nil {
 					return fmt.Errorf("failed to create tar header: %w", err)
 				}
 
-				// Set the header name to preserve directory structure.
+				// FileInfoHeader only fills the base name; set the full relative path.
+				relPath, err := filepath.Rel(workDir, path)
+				if err != nil {
+					return fmt.Errorf("failed to get relative path: %w", err)
+				}
 				header.Name = relPath
+				if info.IsDir() {
+					header.Name += "/"
+				}
+
 				if err := tw.WriteHeader(header); err != nil {
 					return fmt.Errorf("failed to write header: %w", err)
 				}
 
-				if !info.IsDir() {
+				if !info.IsDir() && info.Mode()&os.ModeSymlink == 0 {
 					file, err := os.Open(path)
 					if err != nil {
 						return fmt.Errorf("failed to open file %s: %w", path, err)
@@ -95,22 +116,29 @@ func Tar(srcPath string, workDir string) (io.Reader, error) {
 			}
 			defer file.Close()
 
-			header, err := tar.FileInfoHeader(info, "")
+			// Resolve symlink target if needed.
+			link := ""
+			if info.Mode()&os.ModeSymlink != 0 {
+				link, err = os.Readlink(srcPath)
+				if err != nil {
+					pw.CloseWithError(fmt.Errorf("failed to read symlink %s: %w", srcPath, err))
+					return
+				}
+			}
+			header, err := tar.FileInfoHeader(noLookupFileInfo{info}, link)
 			if err != nil {
 				pw.CloseWithError(fmt.Errorf("failed to create tar header: %w", err))
 				return
 			}
 
-			// Use relative path as the header name to preserve directory structure
-			// This keeps the directory structure as part of the file path in the tar.
+			// FileInfoHeader only fills the base name; set the full relative path.
 			relPath, err := filepath.Rel(workDir, srcPath)
 			if err != nil {
 				pw.CloseWithError(fmt.Errorf("failed to get relative path: %w", err))
 				return
 			}
-
-			// Use the relative path (including directories) as the header name.
 			header.Name = relPath
+
 			if err := tw.WriteHeader(header); err != nil {
 				pw.CloseWithError(fmt.Errorf("failed to write header: %w", err))
 				return
@@ -189,9 +217,9 @@ func Untar(reader io.Reader, destPath string) error {
 			}
 			file.Close()
 
-			// Set correct permissions for the directory.
+			// Set correct permissions for the file.
 			if err := os.Chmod(targetPath, os.FileMode(header.Mode)); err != nil {
-				return fmt.Errorf("failed to set directory permissions %s: %w", targetPath, err)
+				return fmt.Errorf("failed to set file permissions %s: %w", targetPath, err)
 			}
 			// Set modification time for the file.
 			if err := os.Chtimes(targetPath, header.ModTime, header.ModTime); err != nil {
