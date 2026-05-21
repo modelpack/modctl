@@ -218,6 +218,12 @@ func NewModelfileByWorkspace(workspace string, config *configmodelfile.GenerateC
 	}
 
 	mf.generateByConfig(config)
+
+	// Best-effort: fill mf.format from MODEL file evidence when the user did not
+	// pass --format. Failure (no recognizable signal, panic in the loop, etc.)
+	// MUST NOT abort generation — Format is metadata, not load-bearing.
+	mf.inferFormat()
+
 	return mf, nil
 }
 
@@ -346,11 +352,156 @@ func (mf *modelfile) generateByWorkspace(config *configmodelfile.GenerateConfig)
 		return err
 	}
 
+	// ONNX external_data post-processing: any tensor file referenced by an .onnx
+	// file via external_data.location is unconditionally a model weight file,
+	// regardless of its name or size. Walker may have classified small external
+	// tensor files as code/config/doc by extension/size heuristic; reclassify them.
+	mf.reclassifyONNXExternalData()
+
 	if mf.model.Size() == 0 && mf.code.Size() == 0 && mf.dataset.Size() == 0 {
 		return fmt.Errorf("no model/code/dataset found - you have to create the Modelfile by yourself")
 	}
 
 	return nil
+}
+
+// reclassifyONNXExternalData scans every .onnx file already in mf.model,
+// extracts external_data.location paths, and moves those paths from whichever
+// bucket the walker placed them in into mf.model.
+//
+// To avoid bypassing the walker's filtering (ExcludePatterns, isSkippable, file
+// count / size limits, workspace boundary), this function ONLY reclassifies
+// paths that are already present in one of the existing hashsets (config /
+// code / doc / model). Paths that the walker excluded — including paths
+// outside the workspace produced by a malformed `../` location — are silently
+// ignored. ONNX parse failures degrade gracefully: a WARNING is printed and
+// the affected .onnx's external tensors keep whatever classification the
+// walker assigned (the pre-fix behavior).
+func (mf *modelfile) reclassifyONNXExternalData() {
+	walkerCollected := func(rel string) bool {
+		return mf.model.Contains(rel) || mf.code.Contains(rel) ||
+			mf.config.Contains(rel) || mf.doc.Contains(rel)
+	}
+
+	for _, raw := range mf.model.Values() {
+		modelRel, ok := raw.(string)
+		if !ok || !strings.HasSuffix(strings.ToLower(modelRel), ".onnx") {
+			continue
+		}
+		onnxAbs := filepath.Join(mf.workspace, modelRel)
+		extPaths, err := ExtractONNXExternalDataPaths(onnxAbs)
+		if err != nil {
+			fmt.Fprintf(os.Stderr,
+				"WARNING: modelfile: failed to parse ONNX external_data from %s: %v "+
+					"-- external tensor files (if any) will keep walker-assigned classification\n",
+				modelRel, err)
+			continue
+		}
+		onnxDir := filepath.Dir(modelRel)
+		for _, ext := range extPaths {
+			// Reject absolute external_data.location values outright. ONNX
+			// spec defines location as relative to the .onnx file's
+			// directory, so an absolute path is malformed; worse,
+			// filepath.Join silently strips the leading separator
+			// (Join(".", "/etc/secret") -> "etc/secret"), which would let
+			// an unrelated workspace file get reclassified to MODEL.
+			if filepath.IsAbs(ext) {
+				continue
+			}
+			relExt := filepath.Clean(filepath.Join(onnxDir, ext))
+			// Walker membership check absorbs all of:
+			//  - exclude pattern (walker dropped it -> not in any bucket)
+			//  - skippable directories (.git, etc.)
+			//  - file count / size limits (walker errored before adding)
+			//  - workspace boundary (walker never sees ../outside paths)
+			//  - file simply doesn't exist on disk
+			if !walkerCollected(relExt) {
+				continue
+			}
+			mf.code.Remove(relExt)
+			mf.config.Remove(relExt)
+			mf.doc.Remove(relExt)
+			mf.model.Add(relExt)
+		}
+	}
+}
+
+// inferFormat fills mf.format from filename evidence collected by the walker
+// when the user did not pass --format on the CLI. It only emits a value for
+// highly specific signals (saved_model.pb[txt] / *.onnx / *.gguf /
+// *.safetensors); generic extensions like *.bin / *.pt are left alone because
+// they appear in many formats and would produce false positives.
+//
+// Priority order, when multiple signals coexist:
+//
+//  1. tensorflow — saved_model.pb / saved_model.pbtxt (SavedModel directory)
+//  2. onnx       — *.onnx
+//  3. gguf       — *.gguf
+//  4. safetensors — *.safetensors
+//
+// SavedModel and ONNX are listed first because their layouts are uniquely
+// identifiable; safetensors is last because it sometimes coexists with raw
+// PyTorch shards in HF repos.
+//
+// We scan ALL four walker buckets (model / config / code / doc), not just
+// mf.model. Reason: signals like `saved_model.pbtxt` are not in
+// ModelFilePatterns and the walker therefore lands them in code/doc; if we
+// scanned only mf.model, a SavedModel that ships only the .pbtxt variant would
+// silently fall through. A set-based scan over every bucket closes that gap
+// without changing how the walker classifies each individual file.
+//
+// Failure modes (no recognized signal, panic from a malformed value in the
+// hashset, etc.) MUST NOT abort generation. The recover() guard ensures any
+// unexpected panic degrades to "format stays empty" rather than killing the
+// whole modelfile build. Format is best-effort metadata; the package gracefully
+// handles a blank Format throughout the build/push/pull pipeline.
+func (mf *modelfile) inferFormat() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr,
+				"WARNING: modelfile: format inference panicked, leaving Format empty: %v\n", r)
+		}
+	}()
+
+	if mf.format != "" {
+		return
+	}
+
+	var hasSavedModel, hasONNX, hasGGUF, hasSafetensors bool
+	scan := func(set *hashset.Set) {
+		for _, raw := range set.Values() {
+			rel, ok := raw.(string)
+			if !ok {
+				continue
+			}
+			base := strings.ToLower(filepath.Base(rel))
+			switch {
+			case base == "saved_model.pb" || base == "saved_model.pbtxt":
+				hasSavedModel = true
+			case strings.HasSuffix(base, ".onnx"):
+				hasONNX = true
+			case strings.HasSuffix(base, ".gguf"):
+				hasGGUF = true
+			case strings.HasSuffix(base, ".safetensors"):
+				hasSafetensors = true
+			}
+		}
+	}
+	scan(mf.model)
+	scan(mf.config)
+	scan(mf.code)
+	scan(mf.doc)
+
+	switch {
+	case hasSavedModel:
+		mf.format = "tensorflow"
+	case hasONNX:
+		mf.format = "onnx"
+	case hasGGUF:
+		mf.format = "gguf"
+	case hasSafetensors:
+		mf.format = "safetensors"
+	}
 }
 
 // generateByModelConfig generates the modelfile by the model config, such as config.json and generation_config.json.
