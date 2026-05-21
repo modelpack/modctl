@@ -218,7 +218,7 @@ func (ab *abstractBuilder) BuildConfig(ctx context.Context, config modelspec.Mod
 	}
 
 	digest := fmt.Sprintf("sha256:%x", sha256.Sum256(configJSON))
-	return ab.strategy.OutputConfig(ctx, modelspec.MediaTypeModelConfig, digest, int64(len(configJSON)), bytes.NewReader(configJSON), hooks)
+	return ab.strategy.OutputConfig(ctx, LegacyMediaTypeModelConfig, digest, int64(len(configJSON)), bytes.NewReader(configJSON), hooks)
 }
 
 func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.Descriptor, config ocispec.Descriptor, annotations map[string]string, hooks hooks.Hooks) (ocispec.Descriptor, error) {
@@ -227,7 +227,7 @@ func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.D
 			SchemaVersion: 2,
 		},
 		Annotations:  annotations,
-		ArtifactType: modelspec.ArtifactTypeModelManifest,
+		ArtifactType: LegacyArtifactTypeModelManifest,
 		Config: ocispec.Descriptor{
 			MediaType: config.MediaType,
 			Digest:    config.Digest,
@@ -249,7 +249,7 @@ func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.D
 // computeDigestAndSize computes the digest and size for the encoded content, using cache if available.
 func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, path, workDirPath string, info os.FileInfo, reader io.Reader, codec pkgcodec.Codec) (io.Reader, string, int64, error) {
 	// Try to retrieve valid digest from cache for raw model weights.
-	if mediaType == modelspec.MediaTypeModelWeightRaw {
+	if mediaType == LegacyMediaTypeModelWeightRaw {
 		if digest, size, ok := ab.retrieveCache(ctx, path, info); ok {
 			return reader, digest, size, nil
 		}
@@ -273,7 +273,7 @@ func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, 
 	}
 
 	// Update cache.
-	if mediaType == modelspec.MediaTypeModelWeightRaw {
+	if mediaType == LegacyMediaTypeModelWeightRaw {
 		if err := ab.updateCache(ctx, path, info.ModTime(), size, digest); err != nil {
 			logrus.Warnf("builder: failed to update cache for file %s: %s", path, err)
 		}
@@ -405,7 +405,7 @@ func addFileMetadata(desc *ocispec.Descriptor, path, relPath string) error {
 	if desc.Annotations == nil {
 		desc.Annotations = make(map[string]string)
 	}
-	desc.Annotations[modelspec.AnnotationFileMetadata] = string(metadataStr)
+	desc.Annotations[LegacyAnnotationFileMetadata] = string(metadataStr)
 	return nil
 }
 

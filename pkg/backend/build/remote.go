@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
@@ -61,7 +60,7 @@ func (ro *remoteOutput) OutputLayer(ctx context.Context, mediaType, relPath, des
 		Digest:    godigest.Digest(digest),
 		Size:      size,
 		Annotations: map[string]string{
-			modelspec.AnnotationFilepath: destPath,
+			LegacyAnnotationFilepath: destPath,
 		},
 	}
 

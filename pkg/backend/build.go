@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 
 	retry "github.com/avast/retry-go/v4"
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 
@@ -40,7 +39,9 @@ import (
 
 const (
 	// annotationModelfile is the annotation key for the Modelfile.
-	annotationModelfile = "org.cncf.modctl.modelfile"
+	// Uses the legacy "org.cnai.*" prefix to remain compatible with registry
+	// processors keyed on the pre-CNCF identifiers; see pkg/backend/build/legacy.go.
+	annotationModelfile = "org.cnai.modctl.modelfile"
 )
 
 // Build builds the user materials into the model artifact which follows the Model Spec.
@@ -166,33 +167,33 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile, cfg *config.Build
 	processors := []processor.Processor{}
 
 	if configs := modelfile.GetConfigs(); len(configs) > 0 {
-		mediaType := modelspec.MediaTypeModelWeightConfig
+		mediaType := build.LegacyMediaTypeModelWeightConfig
 		if cfg.Raw {
-			mediaType = modelspec.MediaTypeModelWeightConfigRaw
+			mediaType = build.LegacyMediaTypeModelWeightConfigRaw
 		}
 		processors = append(processors, processor.NewModelConfigProcessor(b.store, mediaType, configs, ""))
 	}
 
 	if models := modelfile.GetModels(); len(models) > 0 {
-		mediaType := modelspec.MediaTypeModelWeight
+		mediaType := build.LegacyMediaTypeModelWeight
 		if cfg.Raw {
-			mediaType = modelspec.MediaTypeModelWeightRaw
+			mediaType = build.LegacyMediaTypeModelWeightRaw
 		}
 		processors = append(processors, processor.NewModelProcessor(b.store, mediaType, models, ""))
 	}
 
 	if codes := modelfile.GetCodes(); len(codes) > 0 {
-		mediaType := modelspec.MediaTypeModelCode
+		mediaType := build.LegacyMediaTypeModelCode
 		if cfg.Raw {
-			mediaType = modelspec.MediaTypeModelCodeRaw
+			mediaType = build.LegacyMediaTypeModelCodeRaw
 		}
 		processors = append(processors, processor.NewCodeProcessor(b.store, mediaType, codes, ""))
 	}
 
 	if docs := modelfile.GetDocs(); len(docs) > 0 {
-		mediaType := modelspec.MediaTypeModelDoc
+		mediaType := build.LegacyMediaTypeModelDoc
 		if cfg.Raw {
-			mediaType = modelspec.MediaTypeModelDocRaw
+			mediaType = build.LegacyMediaTypeModelDocRaw
 		}
 		processors = append(processors, processor.NewDocProcessor(b.store, mediaType, docs, ""))
 	}

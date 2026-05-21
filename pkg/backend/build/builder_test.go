@@ -29,7 +29,6 @@ import (
 	"testing"
 	"time"
 
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
@@ -148,7 +147,7 @@ func (s *BuilderTestSuite) TestBuildLayer() {
 func (s *BuilderTestSuite) TestBuildConfig() {
 	s.Run("successful build config", func() {
 		expectedDesc := ocispec.Descriptor{
-			MediaType: modelspec.MediaTypeModelConfig,
+			MediaType: LegacyMediaTypeModelConfig,
 			Digest:    "sha256:test",
 			Size:      100,
 		}
@@ -166,7 +165,7 @@ func (s *BuilderTestSuite) TestBuildConfig() {
 		config, err := BuildModelConfig(modelConfig, []ocispec.Descriptor{})
 		s.NoError(err)
 
-		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		s.mockOutputStrategy.On("OutputConfig", mock.Anything, LegacyMediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(expectedDesc, nil).Once()
 
 		desc, err := s.builder.BuildConfig(context.Background(), config, hooks.NewHooks())
@@ -190,7 +189,7 @@ func (s *BuilderTestSuite) TestBuildConfig() {
 		config, err := BuildModelConfig(modelConfig, []ocispec.Descriptor{})
 		s.NoError(err)
 
-		s.mockOutputStrategy.On("OutputConfig", mock.Anything, modelspec.MediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		s.mockOutputStrategy.On("OutputConfig", mock.Anything, LegacyMediaTypeModelConfig, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(ocispec.Descriptor{}, errors.New("output error")).Once()
 
 		_, err = s.builder.BuildConfig(context.Background(), config, hooks.NewHooks())
@@ -209,7 +208,7 @@ func (s *BuilderTestSuite) TestBuildManifest() {
 			},
 		}
 		config := ocispec.Descriptor{
-			MediaType: modelspec.MediaTypeModelConfig,
+			MediaType: LegacyMediaTypeModelConfig,
 			Digest:    "sha256:config",
 			Size:      50,
 		}

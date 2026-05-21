@@ -23,7 +23,6 @@ import (
 	"strings"
 	"testing"
 
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/mock"
@@ -78,7 +77,7 @@ func (s *LocalOutputTestSuite) TestOutputLayer() {
 		s.Equal("test/mediatype", desc.MediaType)
 		s.Equal(godigest.Digest(expectedDigest), desc.Digest)
 		s.Equal(expectedSize, desc.Size)
-		s.Equal("test-file.txt", desc.Annotations[modelspec.AnnotationFilepath])
+		s.Equal("test-file.txt", desc.Annotations[LegacyAnnotationFilepath])
 		s.mockStorage.AssertExpectations(s.T())
 	})
 
