@@ -186,12 +186,9 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		if err != nil {
 			return err
 		}
-		// The ReadCloser returned by PullBlob was previously never closed on
-		// either path, leaking the underlying file descriptor (or HTTP body)
-		// for every blob we pushed. Close on the distribution implementation
-		// returns an error (#50), which is why we still wrap the reader with
-		// io.NopCloser below, but we DO need to close `content` ourselves.
-		// See #491.
+		// Ensure the blob content is closed to avoid leaking resources (#491).
+		// We use defer here and io.NopCloser below to work around the distribution
+		// library's Close() implementation which returns a known error (#50).
 		defer content.Close()
 
 		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, tracker.WrapReader(content))
