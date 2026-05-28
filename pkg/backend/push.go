@@ -186,6 +186,10 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		if err != nil {
 			return err
 		}
+		// Ensure the blob content is closed to avoid leaking resources (#491).
+		// We use defer here and io.NopCloser below to work around the distribution
+		// library's Close() implementation which returns a known error (#50).
+		defer content.Close()
 
 		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, tracker.WrapReader(content))
 		// resolve issue: https://github.com/modelpack/modctl/issues/50
