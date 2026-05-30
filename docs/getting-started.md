@@ -53,7 +53,7 @@ jobs:
 | `modelfile_path` | No | `Modelfile` | Path to the Modelfile passed to `modctl build -f`. |
 | `context_path` | No | `.` | Build context path argument for `modctl build`. |
 | `modctl_version` | No | latest | `modctl` release version to install (supports `0.2.0` and `v0.2.0`). |
-| `output_remote` | No | `false` | When `true`, adds `--output-remote` to `modctl build`. |
+| `push` | No | `false` | When `true`, pushes the built artifact to a remote registry using `--output-remote`. |
 | `plain_http` | No | `false` | When `true`, adds `--plain-http` to optional `login` and `build`. |
 | `insecure` | No | `false` | When `true`, adds `--insecure` to optional `login` and `build`. |
 | `registry` | No | empty | Optional registry host used for `modctl login`. |
@@ -87,7 +87,7 @@ steps:
       artifact_name: ghcr.io/${{ github.repository_owner }}/my-model:latest
       modelfile_path: ./Modelfile
       context_path: .
-      output_remote: "true"
+      push: "true"
       registry: ghcr.io
       registry_username: ${{ github.actor }}
       registry_password: ${{ github.token }}

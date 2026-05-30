@@ -18,8 +18,8 @@ inputs:
     description: "Build context path passed as the final modctl build argument."
     required: false
     default: "."
-  output_remote:
-    description: "Set to true to pass --output-remote to modctl build."
+  push:
+    description: "Set to true to push the built artifact to a remote registry."
     required: false
     default: "false"
   plain_http:
@@ -47,6 +47,9 @@ outputs:
   modctl-version:
     description: "Installed modctl version without the leading v prefix."
     value: ${{ steps.install.outputs.modctl-version }}
+  artifact-location:
+    description: "Location of the published artifact when push=true."
+    value: ${{ steps.build.outputs.artifact-location }}
 
 runs:
   using: "composite"
@@ -57,7 +60,7 @@ runs:
         ARTIFACT_NAME: ${{ inputs.artifact_name }}
         MODELFILE_PATH: ${{ inputs.modelfile_path }}
         CONTEXT_PATH: ${{ inputs.context_path }}
-        OUTPUT_REMOTE: ${{ inputs.output_remote }}
+        PUSH: ${{ inputs.push }}
         PLAIN_HTTP: ${{ inputs.plain_http }}
         INSECURE: ${{ inputs.insecure }}
         REGISTRY: ${{ inputs.registry }}
@@ -90,7 +93,7 @@ runs:
           exit 1
         fi
 
-        validate_bool "output_remote" "${OUTPUT_REMOTE}"
+        validate_bool "push" "${PUSH}"
         validate_bool "plain_http" "${PLAIN_HTTP}"
         validate_bool "insecure" "${INSECURE}"
 
@@ -105,19 +108,14 @@ runs:
       id: install
       shell: bash
       env:
-        GH_TOKEN: ${{ github.token }}
         MODCTL_VERSION: ${{ inputs.modctl_version }}
       run: |
         set -euo pipefail
 
         if [[ -z "${MODCTL_VERSION}" ]]; then
-          if ! command -v gh >/dev/null 2>&1; then
-            echo "GitHub CLI 'gh' is required to resolve the latest modctl release." >&2
-            exit 1
-          fi
-          release_tag="$(gh api repos/modelpack/modctl/releases/latest --jq '.tag_name')"
-          if [[ -z "${release_tag}" || "${release_tag}" == "null" ]]; then
-            echo "Unable to resolve latest modctl release tag via gh api." >&2
+          release_tag="$(curl -fsSL https://api.github.com/repos/modelpack/modctl/releases/latest | sed -n 's/.*\"tag_name\": \"\([^\"]*\)\".*/\1/p' | head -n1)"
+          if [[ -z "${release_tag}" ]]; then
+            echo "Unable to resolve latest modctl release tag." >&2
             exit 1
           fi
         else
@@ -193,19 +191,20 @@ runs:
         "${login_cmd[@]}"
 
     - name: Build model artifact
+      id: build
       shell: bash
       env:
         MODELFILE_PATH: ${{ inputs.modelfile_path }}
         ARTIFACT_NAME: ${{ inputs.artifact_name }}
         CONTEXT_PATH: ${{ inputs.context_path }}
-        OUTPUT_REMOTE: ${{ inputs.output_remote }}
+        PUSH: ${{ inputs.push }}
         PLAIN_HTTP: ${{ inputs.plain_http }}
         INSECURE: ${{ inputs.insecure }}
       run: |
         set -euo pipefail
 
         build_cmd=(modctl build -f "${MODELFILE_PATH}" -t "${ARTIFACT_NAME}")
-        if [[ "${OUTPUT_REMOTE}" == "true" ]]; then
+        if [[ "${PUSH}" == "true" ]]; then
           build_cmd+=(--output-remote)
         fi
         if [[ "${PLAIN_HTTP}" == "true" ]]; then
@@ -216,4 +215,15 @@ runs:
         fi
         build_cmd+=("${CONTEXT_PATH}")
 
-        "${build_cmd[@]}"
+        build_output="$("${build_cmd[@]}" 2>&1)"
+        printf '%s\n' "$build_output"
+
+        if [[ "${PUSH}" == "true" ]]; then
+          artifact_location="$(printf '%s\n' "$build_output" | grep -Eo '(oci://[^[:space:]]+|[A-Za-z0-9._/-]+:[A-Za-z0-9._-]+)' | tail -n1 || true)"
+
+          if [[ -z "$artifact_location" ]]; then
+            artifact_location="${ARTIFACT_NAME}"
+          fi
+
+          echo "artifact-location=${artifact_location}" >> "$GITHUB_OUTPUT"
+        fi
