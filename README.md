@@ -11,6 +11,21 @@ It offers commands such as `build`, `pull`, `push`, and more, making it easy for
 
 You can find the full documentation on the [getting started](./docs/getting-started.md).
 
+## GitHub Action
+
+Use the built-in action to install `modctl` and build a model artifact in GitHub Actions:
+
+```yaml
+- name: Build model artifact
+  uses: modelpack/modctl@main
+  with:
+    artifact_name: ghcr.io/${{ github.repository_owner }}/my-model:latest
+    modelfile_path: ./Modelfile
+    context_path: .
+```
+
+For full inputs, optional version pinning, and optional registry integration, see [GitHub Action usage](./docs/getting-started.md#github-action).
+
 ## Copyright
 
 Copyright © contributors to ModelPack, established as ModelPack a Series of LF Projects, LLC.
