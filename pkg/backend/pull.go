@@ -22,8 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
+	"time"
 
-	retry "github.com/avast/retry-go/v4"
 	sha256 "github.com/minio/sha256-simd"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -34,6 +35,7 @@ import (
 	"github.com/modelpack/modctl/pkg/codec"
 	"github.com/modelpack/modctl/pkg/config"
 	"github.com/modelpack/modctl/pkg/iometrics"
+	"github.com/modelpack/modctl/pkg/retrypolicy"
 	"github.com/modelpack/modctl/pkg/storage"
 )
 
@@ -99,17 +101,20 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 
 	// copy the layers.
 	dst := b.store
-	g, gctx := errgroup.WithContext(ctx)
+	g := new(errgroup.Group)
 	g.SetLimit(cfg.Concurrency)
 
-	var fn func(desc ocispec.Descriptor) error
+	var mu sync.Mutex
+	var errs []error
+
+	var fn func(ctx context.Context, desc ocispec.Descriptor) error
 	if cfg.ExtractFromRemote {
-		fn = func(desc ocispec.Descriptor) error {
-			return pullAndExtractFromRemote(gctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, cfg.ExtractDir, desc, tracker)
+		fn = func(ctx context.Context, desc ocispec.Descriptor) error {
+			return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, cfg.ExtractDir, desc, tracker)
 		}
 	} else {
-		fn = func(desc ocispec.Descriptor) error {
-			return pullIfNotExist(gctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, dst, desc, repo, tag, tracker)
+		fn = func(ctx context.Context, desc ocispec.Descriptor) error {
+			return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, dst, desc, repo, tag, tracker)
 		}
 	}
 
@@ -117,12 +122,12 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
-			case <-gctx.Done():
-				return gctx.Err()
+			case <-ctx.Done():
+				return ctx.Err()
 			default:
 			}
 
-			return retry.Do(func() error {
+			retryErr := retrypolicy.Do(ctx, func(retryCtx context.Context) error {
 				logrus.Debugf("pull: processing layer %s", layer.Digest)
 				// call the before hook; allow caller to skip this layer.
 				if cfg.Hooks.BeforePullLayer(layer, manifest) {
@@ -132,7 +137,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 					return nil
 				}
 				err := tracker.TrackTransfer(func() error {
-					return fn(layer)
+					return fn(retryCtx, layer)
 				})
 				// call the after hook.
 				cfg.Hooks.AfterPullLayer(layer, false, err)
@@ -142,12 +147,35 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 				}
 
 				return err
-			}, append(defaultRetryOpts, retry.Context(gctx))...)
+			}, retrypolicy.DoOpts{
+				FileSize: layer.Size,
+				FileName: layer.Digest.String(),
+				OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+					pb.Placeholder(layer.Digest.String(), internalpb.NormalizePrompt("Pulling blob"), layer.Size)
+				},
+			})
+			if retryErr != nil {
+				mu.Lock()
+				errs = append(errs, retryErr)
+				mu.Unlock()
+			}
+
+			return nil
 		})
 	}
 
-	if err := g.Wait(); err != nil {
-		return fmt.Errorf("failed to pull blob to local: %w", err)
+	if werr := g.Wait(); werr != nil {
+		// Surface cancellation from worker goroutines so a cancelled batch
+		// never slips through as an apparently successful pull.
+		mu.Lock()
+		errs = append(errs, werr)
+		mu.Unlock()
+	}
+	if ctx.Err() != nil {
+		return fmt.Errorf("pull cancelled: %w", ctx.Err())
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to pull blob to local: %w", errors.Join(errs...))
 	}
 
 	logrus.Infof("pull: layers pulled [count: %d]", len(manifest.Layers))
@@ -160,20 +188,32 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}
 
 	// copy the config.
-	if err := retry.Do(func() error {
+	if err := retrypolicy.Do(ctx, func(retryCtx context.Context) error {
 		return tracker.TrackTransfer(func() error {
-			return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling config"), src, dst, manifest.Config, repo, tag, tracker)
+			return pullIfNotExist(retryCtx, pb, internalpb.NormalizePrompt("Pulling config"), src, dst, manifest.Config, repo, tag, tracker)
 		})
-	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
+	}, retrypolicy.DoOpts{
+		FileSize: manifest.Config.Size,
+		FileName: "config",
+		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+			pb.Placeholder(manifest.Config.Digest.String(), internalpb.NormalizePrompt("Pulling config"), manifest.Config.Size)
+		},
+	}); err != nil {
 		return fmt.Errorf("failed to pull config to local: %w", err)
 	}
 
 	// copy the manifest.
-	if err := retry.Do(func() error {
+	if err := retrypolicy.Do(ctx, func(retryCtx context.Context) error {
 		return tracker.TrackTransfer(func() error {
-			return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling manifest"), src, dst, manifestDesc, repo, tag, tracker)
+			return pullIfNotExist(retryCtx, pb, internalpb.NormalizePrompt("Pulling manifest"), src, dst, manifestDesc, repo, tag, tracker)
 		})
-	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
+	}, retrypolicy.DoOpts{
+		FileSize: manifestDesc.Size,
+		FileName: "manifest",
+		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+			pb.Placeholder(manifestDesc.Digest.String(), internalpb.NormalizePrompt("Pulling manifest"), manifestDesc.Size)
+		},
+	}); err != nil {
 		return fmt.Errorf("failed to pull manifest to local: %w", err)
 	}
 
