@@ -57,9 +57,28 @@ type ProgressBar struct {
 
 type progressBar struct {
 	*mpbv8.Bar
-	size      int64
+	size int64
+	// msgMu guards msg, which is read by mpb's render goroutine (via the
+	// prepend decorator) while being written by Placeholder/Complete from
+	// transfer goroutines.
+	msgMu     sync.RWMutex
 	msg       string
 	startTime time.Time
+}
+
+// setMsg updates the bar's prepended message under lock.
+func (b *progressBar) setMsg(msg string) {
+	b.msgMu.Lock()
+	b.msg = msg
+	b.msgMu.Unlock()
+}
+
+// msgText returns the bar's prepended message under lock. It is called from
+// mpb's render goroutine, so it must never block on anything but msgMu.
+func (b *progressBar) msgText() string {
+	b.msgMu.RLock()
+	defer b.msgMu.RUnlock()
+	return b.msg
 }
 
 // NewProgressBar creates a new progress bar.
@@ -113,7 +132,7 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 		mpbv8.BarFillerOnComplete("|"),
 		mpbv8.PrependDecorators(
 			decor.Any(func(s decor.Statistics) string {
-				return newBar.msg
+				return newBar.msgText()
 			}, decor.WCSyncSpaceR),
 		),
 		mpbv8.AppendDecorators(
@@ -140,6 +159,28 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 	return reader
 }
 
+// Placeholder creates or resets a progress bar entry without a reader.
+// It is used during retry backoff to keep a visible bar for the item.
+func (p *ProgressBar) Placeholder(name string, prompt string, size int64) {
+	if disableProgress.Load() {
+		return
+	}
+
+	p.mu.RLock()
+	existing := p.bars[name]
+	p.mu.RUnlock()
+
+	// If the bar already exists, just reset its message.
+	if existing != nil {
+		existing.setMsg(fmt.Sprintf("%s %s", prompt, name))
+		existing.Bar.SetCurrent(0)
+		return
+	}
+
+	// Create a new placeholder bar.
+	p.Add(prompt, name, size, nil)
+}
+
 // Get returns the progress bar.
 func (p *ProgressBar) Get(name string) *progressBar {
 	p.mu.RLock()
@@ -156,7 +197,7 @@ func (p *ProgressBar) Complete(name string, msg string) {
 	p.mu.RUnlock()
 
 	if ok {
-		bar.msg = msg
+		bar.setMsg(msg)
 		bar.Bar.SetCurrent(bar.size)
 	}
 }

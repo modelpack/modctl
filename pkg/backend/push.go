@@ -20,10 +20,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"sync"
+	"time"
 
-	retry "github.com/avast/retry-go/v4"
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -33,6 +35,7 @@ import (
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/config"
 	"github.com/modelpack/modctl/pkg/iometrics"
+	"github.com/modelpack/modctl/pkg/retrypolicy"
 	"github.com/modelpack/modctl/pkg/storage"
 )
 
@@ -80,55 +83,98 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	// note: the order is important, manifest should be pushed at last.
 
 	// copy the layers.
-	g, gctx := errgroup.WithContext(ctx)
+	g := new(errgroup.Group)
 	g.SetLimit(cfg.Concurrency)
+	var mu sync.Mutex
+	var errs []error
 
 	logrus.Infof("push: pushing %d layers for %s", len(manifest.Layers), target)
 	for _, layer := range manifest.Layers {
 		g.Go(func() error {
 			select {
-			case <-gctx.Done():
-				return gctx.Err()
+			case <-ctx.Done():
+				return ctx.Err()
 			default:
 			}
 
-			return retry.Do(func() error {
+			if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 				logrus.Debugf("push: processing layer %s", layer.Digest)
 				if err := tracker.TrackTransfer(func() error {
-					return pushIfNotExist(gctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag, tracker)
+					return pushIfNotExist(rctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag, tracker)
 				}); err != nil {
 					return err
 				}
 				logrus.Debugf("push: successfully processed layer %s", layer.Digest)
 				return nil
-			}, append(defaultRetryOpts, retry.Context(gctx))...)
+			}, retrypolicy.DoOpts{
+				FileSize: layer.Size,
+				FileName: layer.Digest.String(),
+				OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+					prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
+						internalpb.NormalizePrompt("Copying blob"), attempt, reason, backoff.Truncate(time.Second))
+					pb.Placeholder(layer.Digest.String(), prompt, layer.Size)
+				},
+			}); err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			}
+			return nil // never return error to errgroup
 		})
 	}
 
-	if err := g.Wait(); err != nil {
-		return fmt.Errorf("failed to push blob to remote: %w", err)
+	if werr := g.Wait(); werr != nil {
+		// Surface cancellation returned from worker goroutines so we never
+		// fall through to the config/manifest push with an incomplete set
+		// of layer uploads.
+		mu.Lock()
+		errs = append(errs, werr)
+		mu.Unlock()
+	}
+	if ctx.Err() != nil {
+		return fmt.Errorf("push cancelled: %w", ctx.Err())
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to push blob to remote: %w", errors.Join(errs...))
 	}
 
 	// copy the config.
-	if err := retry.Do(func() error {
+	if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 		return tracker.TrackTransfer(func() error {
-			return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag, tracker)
+			return pushIfNotExist(rctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag, tracker)
 		})
-	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
+	}, retrypolicy.DoOpts{
+		FileSize: manifest.Config.Size,
+		FileName: "config",
+		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+			prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
+				internalpb.NormalizePrompt("Copying config"), attempt, reason, backoff.Truncate(time.Second))
+			pb.Placeholder(manifest.Config.Digest.String(), prompt, manifest.Config.Size)
+		},
+	}); err != nil {
 		return fmt.Errorf("failed to push config to remote: %w", err)
 	}
 
 	// copy the manifest.
-	if err := retry.Do(func() error {
+	manifestDesc := ocispec.Descriptor{
+		MediaType: manifest.MediaType,
+		Size:      int64(len(manifestRaw)),
+		Digest:    godigest.FromBytes(manifestRaw),
+		Data:      manifestRaw,
+	}
+	if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 		return tracker.TrackTransfer(func() error {
-			return pushIfNotExist(ctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, ocispec.Descriptor{
-				MediaType: manifest.MediaType,
-				Size:      int64(len(manifestRaw)),
-				Digest:    godigest.FromBytes(manifestRaw),
-				Data:      manifestRaw,
-			}, repo, tag, tracker)
+			return pushIfNotExist(rctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, manifestDesc, repo, tag, tracker)
 		})
-	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
+	}, retrypolicy.DoOpts{
+		FileSize: manifestDesc.Size,
+		FileName: "manifest",
+		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+			prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
+				internalpb.NormalizePrompt("Copying manifest"), attempt, reason, backoff.Truncate(time.Second))
+			pb.Placeholder(manifestDesc.Digest.String(), prompt, manifestDesc.Size)
+		},
+	}); err != nil {
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}
 

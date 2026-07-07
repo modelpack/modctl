@@ -16,7 +16,9 @@
 
 package config
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	// defaultBuildConcurrency is the default number of concurrent builds.
