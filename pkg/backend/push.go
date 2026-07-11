@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -109,17 +108,15 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 			}, retrypolicy.DoOpts{
 				FileSize: layer.Size,
 				FileName: layer.Digest.String(),
-				OnRetry: func(attempt uint, reason string, backoff time.Duration) {
-					prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
-						internalpb.NormalizePrompt("Copying blob"), attempt, reason, backoff.Truncate(time.Second))
-					pb.Placeholder(layer.Digest.String(), prompt, layer.Size)
-				},
+				OnRetry:  newRetryPlaceholder(pb, layer.Digest.String(), internalpb.NormalizePrompt("Copying blob"), layer.Size),
 			}); err != nil {
 				mu.Lock()
 				errs = append(errs, err)
 				mu.Unlock()
 			}
-			return nil // never return error to errgroup
+			// transfer errors are collected in errs; only ctx cancellation
+			// (from the select above) propagates through the errgroup.
+			return nil
 		})
 	}
 
@@ -146,11 +143,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	}, retrypolicy.DoOpts{
 		FileSize: manifest.Config.Size,
 		FileName: "config",
-		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
-			prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
-				internalpb.NormalizePrompt("Copying config"), attempt, reason, backoff.Truncate(time.Second))
-			pb.Placeholder(manifest.Config.Digest.String(), prompt, manifest.Config.Size)
-		},
+		OnRetry:  newRetryPlaceholder(pb, manifest.Config.Digest.String(), internalpb.NormalizePrompt("Copying config"), manifest.Config.Size),
 	}); err != nil {
 		return fmt.Errorf("failed to push config to remote: %w", err)
 	}
@@ -169,11 +162,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	}, retrypolicy.DoOpts{
 		FileSize: manifestDesc.Size,
 		FileName: "manifest",
-		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
-			prompt := fmt.Sprintf("%s (retry %d, %s, waiting %s)",
-				internalpb.NormalizePrompt("Copying manifest"), attempt, reason, backoff.Truncate(time.Second))
-			pb.Placeholder(manifestDesc.Digest.String(), prompt, manifestDesc.Size)
-		},
+		OnRetry:  newRetryPlaceholder(pb, manifestDesc.Digest.String(), internalpb.NormalizePrompt("Copying manifest"), manifestDesc.Size),
 	}); err != nil {
 		return fmt.Errorf("failed to push manifest to remote: %w", err)
 	}

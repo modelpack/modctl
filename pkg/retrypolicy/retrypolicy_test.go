@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The ModelPack Authors
+ *     Copyright 2025 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -514,9 +514,9 @@ func TestHumanizeBytes(t *testing.T) {
 	}{
 		{0, "0 B"},
 		{500, "500 B"},
-		{2048, "2.0 KB"},
-		{int64(5) << 20, "5.0 MB"},
-		{int64(7) << 30, "7.0 GB"},
+		{2048, "2.0 KiB"},
+		{int64(5) << 20, "5.0 MiB"},
+		{int64(7) << 30, "7.0 GiB"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
@@ -525,4 +525,70 @@ func TestHumanizeBytes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// --- Do: OnRetry is not invoked after the final (give-up) attempt ---
+//
+// retry-go calls its internal OnRetry hook after every failed attempt,
+// including the last one where no retry follows. Do must not forward that
+// terminal call to the user callback, otherwise progress bars and logs promise
+// a "next retry" that never happens.
+func TestDo_OnRetryNotInvokedAfterFinalAttempt(t *testing.T) {
+	var attempts, onRetryCalls int32
+	const maxAttempts = 4
+	err := Do(context.Background(), func(ctx context.Context) error {
+		atomic.AddInt32(&attempts, 1)
+		return errors.New("connection reset by peer") // retryable
+	}, DoOpts{
+		FileName: "always-fails",
+		Config: &Config{
+			MaxAttempts:  maxAttempts,
+			InitialDelay: 1 * time.Millisecond,
+			MaxBackoff:   1 * time.Millisecond,
+			MaxJitter:    -1,
+		},
+		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
+			atomic.AddInt32(&onRetryCalls, 1)
+		},
+	})
+	if err == nil {
+		t.Fatal("Do returned nil, want error after attempts exhausted")
+	}
+	if got := atomic.LoadInt32(&attempts); got != maxAttempts {
+		t.Errorf("attempts = %d, want %d", got, maxAttempts)
+	}
+	// One callback per inter-attempt backoff: maxAttempts-1, never maxAttempts.
+	if got := atomic.LoadInt32(&onRetryCalls); got != maxAttempts-1 {
+		t.Errorf("OnRetry calls = %d, want %d (no callback after the final failed attempt)", got, maxAttempts-1)
+	}
+}
+
+// --- Do: jitter selection is panic-safe in both directions ---
+//
+// With jitter > 0 the delay type must combine BackOffDelay with RandomDelay so
+// MaxJitter actually takes effect; RandomDelay calls rand.Int63n(maxJitter),
+// which panics at 0, so the jitter-disabled path must stay on BackOffDelay
+// alone. Exercise real retries down both branches and assert neither panics.
+func TestDo_JitterSelectionPanicSafe(t *testing.T) {
+	run := func(jitter time.Duration) {
+		var calls int32
+		_ = Do(context.Background(), func(ctx context.Context) error {
+			atomic.AddInt32(&calls, 1)
+			return errors.New("connection reset by peer") // retryable
+		}, DoOpts{
+			FileName: "jitter",
+			Config: &Config{
+				MaxAttempts:  3,
+				InitialDelay: 1 * time.Millisecond,
+				MaxBackoff:   2 * time.Millisecond,
+				MaxJitter:    jitter,
+			},
+		})
+		if got := atomic.LoadInt32(&calls); got != 3 {
+			t.Errorf("jitter=%v: calls = %d, want 3", jitter, got)
+		}
+	}
+
+	run(-1)                   // jitter disabled → BackOffDelay only
+	run(5 * time.Millisecond) // jitter enabled → CombineDelay(BackOff, Random)
 }

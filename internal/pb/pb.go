@@ -159,8 +159,15 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 	return reader
 }
 
-// Placeholder creates or resets a progress bar entry without a reader.
-// It is used during retry backoff to keep a visible bar for the item.
+// Placeholder creates or resets a progress bar entry without a reader. It is
+// used during retry backoff to keep a visible bar for the item.
+//
+// A prior failed attempt typically calls Abort, which drops the bar from mpb's
+// render loop; an aborted (or completed) bar cannot be revived, so in that case
+// the bar is recreated via Add. Otherwise the live bar is reset in place: the
+// bytes transferred so far are stashed as a refill mark, progress is rewound to
+// zero, and the speed estimate is reset so the ETA does not count the backoff
+// wait as stalled transfer time.
 func (p *ProgressBar) Placeholder(name string, prompt string, size int64) {
 	if disableProgress.Load() {
 		return
@@ -170,15 +177,16 @@ func (p *ProgressBar) Placeholder(name string, prompt string, size int64) {
 	existing := p.bars[name]
 	p.mu.RUnlock()
 
-	// If the bar already exists, just reset its message.
-	if existing != nil {
-		existing.setMsg(fmt.Sprintf("%s %s", prompt, name))
-		existing.Bar.SetCurrent(0)
+	if existing == nil || existing.Bar.AbortedOrCompleted() {
+		// A nil or aborted/completed bar would render nothing, so recreate it.
+		p.Add(prompt, name, size, nil)
 		return
 	}
 
-	// Create a new placeholder bar.
-	p.Add(prompt, name, size, nil)
+	existing.setMsg(fmt.Sprintf("%s %s", prompt, name))
+	existing.Bar.SetRefill(existing.Bar.Current())
+	existing.Bar.SetCurrent(0)
+	existing.Bar.EwmaSetCurrent(0, time.Second)
 }
 
 // Get returns the progress bar.

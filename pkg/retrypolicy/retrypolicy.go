@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The ModelPack Authors
+ *     Copyright 2025 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,13 +35,13 @@ package retrypolicy
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"regexp"
 	"strings"
 	"time"
 
 	retry "github.com/avast/retry-go/v4"
+	humanize "github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -63,8 +63,9 @@ const (
 
 	// minThroughput is the assumed worst-case usable throughput when
 	// computing per-attempt timeouts. Networks slower than this are out of
-	// scope; users on such links should set Config.PerAttemptTimeout
-	// explicitly.
+	// scope; a programmatic embedder can raise the ceiling by setting
+	// Config.PerAttemptTimeout explicitly (modctl does not expose this as a
+	// CLI flag today).
 	minThroughput = 10 * (1 << 20) // 10 MiB/s
 
 	// safetyFactor multiplies the ideal transfer time when sizing
@@ -83,7 +84,9 @@ const (
 	maxPerAttemptTimeout = 8 * time.Hour
 )
 
-// Config holds user-configurable retry parameters from CLI flags.
+// Config holds retry parameters for programmatic embedders. modctl does not
+// currently wire these to CLI flags, so end users get the defaults; the struct
+// exists so callers embedding this package (and tests) can override behavior.
 //
 // The zero value is valid and yields production defaults: 6 attempts, with
 // per-attempt timeout derived from file size and exponential backoff up to
@@ -187,11 +190,22 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 	sizeStr := humanizeBytes(opts.FileSize)
 	startTime := time.Now()
 
+	// retry-go's zero-config default is CombineDelay(BackOffDelay, RandomDelay);
+	// passing BackOffDelay alone silently drops the jitter term, so MaxJitter
+	// would be dead and concurrent layers failing together would retry in
+	// lockstep against a rate-limited registry. Re-add RandomDelay only when
+	// jitter > 0 — RandomDelay calls rand.Int63n(maxJitter), which panics when
+	// maxJitter == 0.
+	delayType := retry.BackOffDelay
+	if jitter > 0 {
+		delayType = retry.CombineDelay(retry.BackOffDelay, retry.RandomDelay)
+	}
+
 	return retry.Do(
 		runAttempt,
 		retry.Attempts(uint(maxAttempts)),
 		retry.Context(ctx),
-		retry.DelayType(retry.BackOffDelay),
+		retry.DelayType(delayType),
 		retry.Delay(initialDelay),
 		retry.MaxDelay(maxBackoff),
 		retry.MaxJitter(jitter),
@@ -216,9 +230,25 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 			// retry-go calls OnRetry with n = 0-based retry index. Convert
 			// to 1-based for both the log and the user callback.
 			attempt := n + 1
-			backoff := computeBackoff(attempt, initialDelay, maxBackoff)
 			elapsed := time.Since(startTime)
 
+			// retry-go invokes OnRetry after every failed attempt, including
+			// the final one where no further retry follows. Don't advertise a
+			// "next retry" (backoff wait or user callback) that will never
+			// happen; log a terminal give-up line instead.
+			if attempt >= uint(maxAttempts) {
+				log.WithFields(log.Fields{
+					"file":           opts.FileName,
+					"size":           sizeStr,
+					"error":          err.Error(),
+					"max_attempts":   maxAttempts,
+					"per_attempt_to": perAttemptTimeout.String(),
+					"elapsed":        elapsed.Truncate(time.Second).String(),
+				}).Warnf("[RETRY] attempt %d/%d for %q (%s) failed; giving up", attempt, maxAttempts, opts.FileName, sizeStr)
+				return
+			}
+
+			backoff := computeBackoff(attempt, initialDelay, maxBackoff)
 			log.WithFields(log.Fields{
 				"file":           opts.FileName,
 				"size":           sizeStr,
@@ -376,22 +406,13 @@ func ShortReason(err error) string {
 	return "unknown error"
 }
 
-// humanizeBytes converts a byte count to a human-readable string.
+// humanizeBytes converts a byte count to a human-readable IEC string
+// (KiB/MiB/GiB, base 1024). It delegates to go-humanize — already a direct
+// dependency (used by internal/pb) — so the unit labels match the 1024 divisor
+// instead of reimplementing byte formatting.
 func humanizeBytes(b int64) string {
-	const (
-		kb = 1024
-		mb = 1024 * kb
-		gb = 1024 * mb
-	)
-
-	switch {
-	case b >= gb:
-		return fmt.Sprintf("%.1f GB", float64(b)/float64(gb))
-	case b >= mb:
-		return fmt.Sprintf("%.1f MB", float64(b)/float64(mb))
-	case b >= kb:
-		return fmt.Sprintf("%.1f KB", float64(b)/float64(kb))
-	default:
-		return fmt.Sprintf("%d B", b)
+	if b < 0 {
+		b = 0
 	}
+	return humanize.IBytes(uint64(b))
 }
