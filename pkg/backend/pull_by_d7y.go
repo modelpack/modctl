@@ -26,7 +26,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	common "d7y.io/api/v2/pkg/apis/common/v2"
 	dfdaemon "d7y.io/api/v2/pkg/apis/dfdaemon/v2"
@@ -192,33 +191,30 @@ func buildBlobURL(ref Referencer, plainHTTP bool, digest string) string {
 func processLayer(ctx context.Context, pb *internalpb.ProgressBar, client dfdaemon.DfdaemonDownloadClient, ref Referencer, manifest ocispec.Manifest, desc ocispec.Descriptor, authToken string, cfg *config.Pull) error {
 	annoFilepath := getAnnotationFilepath(desc.Annotations)
 
+	// call the before hook once, outside the retry loop, so a skip decision is
+	// not re-evaluated on every attempt.
+	if cfg.Hooks.BeforePullLayer(desc, manifest) {
+		logrus.Debugf("pull: layer %s skipped by hook", desc.Digest)
+		pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
+		cfg.Hooks.AfterPullLayer(desc, true, nil)
+		return nil
+	}
+
 	err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 		logrus.Debugf("pull: processing layer %s", desc.Digest)
-		if cfg.Hooks.BeforePullLayer(desc, manifest) {
-			logrus.Debugf("pull: layer %s skipped by hook", desc.Digest)
-			pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
-			cfg.Hooks.AfterPullLayer(desc, true, nil)
-			return nil
-		}
-		err := downloadAndExtractLayer(rctx, pb, client, ref, desc, authToken, cfg)
-		cfg.Hooks.AfterPullLayer(desc, false, err) // Call after hook
-		if err != nil {
-			err = fmt.Errorf("pull: failed to download and extract layer %s: %w", desc.Digest, err)
-			logrus.Error(err)
-		}
-
-		return err
+		return downloadAndExtractLayer(rctx, pb, client, ref, desc, authToken, cfg)
 	}, retrypolicy.DoOpts{
 		FileSize: desc.Size,
 		FileName: annoFilepath,
-		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
-			if bar := pb.Get(desc.Digest.String()); bar != nil {
-				bar.SetRefill(bar.Current())
-				bar.SetCurrent(0)
-				bar.EwmaSetCurrent(0, time.Second)
-			}
-		},
+		OnRetry:  newRetryPlaceholder(pb, desc.Digest.String(), internalpb.NormalizePrompt("Pulling blob"), desc.Size),
 	})
+
+	// call the after hook once with the final outcome.
+	cfg.Hooks.AfterPullLayer(desc, false, err)
+	if err != nil {
+		err = fmt.Errorf("pull: failed to download and extract layer %s: %w", desc.Digest, err)
+		logrus.Error(err)
+	}
 
 	return err
 }

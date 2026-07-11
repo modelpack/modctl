@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	sha256 "github.com/minio/sha256-simd"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -127,34 +126,31 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 			default:
 			}
 
+			// call the before hook once, outside the retry loop, so a skip
+			// decision is not re-evaluated on every attempt.
+			if cfg.Hooks.BeforePullLayer(layer, manifest) {
+				logrus.Debugf("pull: layer %s skipped by hook", layer.Digest)
+				pb.Complete(layer.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), layer.Digest.String()))
+				cfg.Hooks.AfterPullLayer(layer, true, nil)
+				return nil
+			}
+
 			retryErr := retrypolicy.Do(ctx, func(retryCtx context.Context) error {
 				logrus.Debugf("pull: processing layer %s", layer.Digest)
-				// call the before hook; allow caller to skip this layer.
-				if cfg.Hooks.BeforePullLayer(layer, manifest) {
-					logrus.Debugf("pull: layer %s skipped by hook", layer.Digest)
-					pb.Complete(layer.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), layer.Digest.String()))
-					cfg.Hooks.AfterPullLayer(layer, true, nil)
-					return nil
-				}
-				err := tracker.TrackTransfer(func() error {
+				return tracker.TrackTransfer(func() error {
 					return fn(retryCtx, layer)
 				})
-				// call the after hook.
-				cfg.Hooks.AfterPullLayer(layer, false, err)
-				if err != nil {
-					err = fmt.Errorf("pull: failed to process layer %s: %w", layer.Digest, err)
-					logrus.Error(err)
-				}
-
-				return err
 			}, retrypolicy.DoOpts{
 				FileSize: layer.Size,
 				FileName: layer.Digest.String(),
-				OnRetry: func(attempt uint, reason string, backoff time.Duration) {
-					pb.Placeholder(layer.Digest.String(), internalpb.NormalizePrompt("Pulling blob"), layer.Size)
-				},
+				OnRetry:  newRetryPlaceholder(pb, layer.Digest.String(), internalpb.NormalizePrompt("Pulling blob"), layer.Size),
 			})
+
+			// call the after hook once with the final outcome.
+			cfg.Hooks.AfterPullLayer(layer, false, retryErr)
 			if retryErr != nil {
+				retryErr = fmt.Errorf("pull: failed to process layer %s: %w", layer.Digest, retryErr)
+				logrus.Error(retryErr)
 				mu.Lock()
 				errs = append(errs, retryErr)
 				mu.Unlock()
@@ -195,9 +191,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}, retrypolicy.DoOpts{
 		FileSize: manifest.Config.Size,
 		FileName: "config",
-		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
-			pb.Placeholder(manifest.Config.Digest.String(), internalpb.NormalizePrompt("Pulling config"), manifest.Config.Size)
-		},
+		OnRetry:  newRetryPlaceholder(pb, manifest.Config.Digest.String(), internalpb.NormalizePrompt("Pulling config"), manifest.Config.Size),
 	}); err != nil {
 		return fmt.Errorf("failed to pull config to local: %w", err)
 	}
@@ -210,9 +204,7 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	}, retrypolicy.DoOpts{
 		FileSize: manifestDesc.Size,
 		FileName: "manifest",
-		OnRetry: func(attempt uint, reason string, backoff time.Duration) {
-			pb.Placeholder(manifestDesc.Digest.String(), internalpb.NormalizePrompt("Pulling manifest"), manifestDesc.Size)
-		},
+		OnRetry:  newRetryPlaceholder(pb, manifestDesc.Digest.String(), internalpb.NormalizePrompt("Pulling manifest"), manifestDesc.Size),
 	}); err != nil {
 		return fmt.Errorf("failed to pull manifest to local: %w", err)
 	}

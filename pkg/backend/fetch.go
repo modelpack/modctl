@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -141,13 +140,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			}, retrypolicy.DoOpts{
 				FileSize: layer.Size,
 				FileName: annoFilepath,
-				OnRetry: func(attempt uint, reason string, backoff time.Duration) {
-					if bar := pb.Get(layer.Digest.String()); bar != nil {
-						bar.SetRefill(bar.Current())
-						bar.SetCurrent(0)
-						bar.EwmaSetCurrent(0, time.Second)
-					}
-				},
+				OnRetry:  newRetryPlaceholder(pb, layer.Digest.String(), internalpb.NormalizePrompt("Fetching blob"), layer.Size),
 			}); err != nil {
 				cfg.Hooks.AfterPullLayer(layer, false, err)
 				mu.Lock()
