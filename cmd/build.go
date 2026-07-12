@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2024 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 
 	"github.com/modelpack/modctl/pkg/backend"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/envinfo"
 )
 
 var buildConfig = config.NewBuild()
@@ -69,6 +70,8 @@ func init() {
 
 // runBuild runs the build modctl.
 func runBuild(ctx context.Context, workDir string) error {
+	envinfo.LogDiskInfo("buildWorkDir", workDir)
+
 	b, err := backend.New(rootConfig.StorageDir)
 	if err != nil {
 		return err

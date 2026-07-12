@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2024 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,12 +34,19 @@ import (
 	"github.com/modelpack/modctl/pkg/codec"
 	"github.com/modelpack/modctl/pkg/config"
 	"github.com/modelpack/modctl/pkg/diskspace"
+	"github.com/modelpack/modctl/pkg/iometrics"
 	"github.com/modelpack/modctl/pkg/storage"
 )
 
 // Pull pulls an artifact from a registry.
 func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) error {
 	logrus.Infof("pull: pulling artifact %s", target)
+
+	// Apply default hooks when caller leaves it unset to avoid nil deref.
+	if cfg.Hooks == nil {
+		defaults := config.NewPull()
+		cfg.Hooks = defaults.Hooks
+	}
 
 	// pullByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
 	if cfg.DragonflyEndpoint != "" {
@@ -98,6 +105,8 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	pb.Start()
 	defer pb.Stop()
 
+	tracker := iometrics.NewTracker("pull")
+
 	// copy the image to the destination, there are three steps:
 	// 1. copy the layers.
 	// 2. copy the config.
@@ -112,11 +121,11 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	var fn func(desc ocispec.Descriptor) error
 	if cfg.ExtractFromRemote {
 		fn = func(desc ocispec.Descriptor) error {
-			return pullAndExtractFromRemote(gctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, cfg.ExtractDir, desc)
+			return pullAndExtractFromRemote(gctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, cfg.ExtractDir, desc, tracker)
 		}
 	} else {
 		fn = func(desc ocispec.Descriptor) error {
-			return pullIfNotExist(gctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, dst, desc, repo, tag)
+			return pullIfNotExist(gctx, pb, internalpb.NormalizePrompt("Pulling blob"), src, dst, desc, repo, tag, tracker)
 		}
 	}
 
@@ -131,11 +140,18 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 
 			return retry.Do(func() error {
 				logrus.Debugf("pull: processing layer %s", layer.Digest)
-				// call the before hook.
-				cfg.Hooks.BeforePullLayer(layer, manifest)
-				err := fn(layer)
+				// call the before hook; allow caller to skip this layer.
+				if cfg.Hooks.BeforePullLayer(layer, manifest) {
+					logrus.Debugf("pull: layer %s skipped by hook", layer.Digest)
+					pb.Complete(layer.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), layer.Digest.String()))
+					cfg.Hooks.AfterPullLayer(layer, true, nil)
+					return nil
+				}
+				err := tracker.TrackTransfer(func() error {
+					return fn(layer)
+				})
 				// call the after hook.
-				cfg.Hooks.AfterPullLayer(layer, err)
+				cfg.Hooks.AfterPullLayer(layer, false, err)
 				if err != nil {
 					err = fmt.Errorf("pull: failed to process layer %s: %w", layer.Digest, err)
 					logrus.Error(err)
@@ -155,19 +171,24 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	// return earlier if extract from remote is enabled as config and manifest
 	// are not needed for this operation.
 	if cfg.ExtractFromRemote {
+		tracker.Summary()
 		return nil
 	}
 
 	// copy the config.
 	if err := retry.Do(func() error {
-		return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling config"), src, dst, manifest.Config, repo, tag)
+		return tracker.TrackTransfer(func() error {
+			return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling config"), src, dst, manifest.Config, repo, tag, tracker)
+		})
 	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to pull config to local: %w", err)
 	}
 
 	// copy the manifest.
 	if err := retry.Do(func() error {
-		return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling manifest"), src, dst, manifestDesc, repo, tag)
+		return tracker.TrackTransfer(func() error {
+			return pullIfNotExist(ctx, pb, internalpb.NormalizePrompt("Pulling manifest"), src, dst, manifestDesc, repo, tag, tracker)
+		})
 	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
 		return fmt.Errorf("failed to pull manifest to local: %w", err)
 	}
@@ -182,12 +203,13 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		logrus.Infof("pull: pulled and extracted artifact %s", target)
 	}
 
+	tracker.Summary()
 	logrus.Infof("pull: pulled artifact %s", target)
 	return nil
 }
 
 // pullIfNotExist copies the content from the src storage to the dst storage if the content does not exist.
-func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src *remote.Repository, dst storage.Storage, desc ocispec.Descriptor, repo, tag string) error {
+func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src *remote.Repository, dst storage.Storage, desc ocispec.Descriptor, repo, tag string, tracker *iometrics.Tracker) error {
 	// fetch the content from the source storage.
 	content, err := src.Fetch(ctx, desc)
 	if err != nil {
@@ -196,7 +218,7 @@ func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 
 	defer content.Close()
 
-	reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
+	reader := pb.Add(prompt, desc.Digest.String(), desc.Size, tracker.WrapReader(content))
 	hash := sha256.New()
 	reader = io.TeeReader(reader, hash)
 
@@ -260,7 +282,7 @@ func pullIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 
 // pullAndExtractFromRemote pulls the layer and extract it to the target output path directly,
 // and will not store the layer to the local storage.
-func pullAndExtractFromRemote(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src *remote.Repository, outputDir string, desc ocispec.Descriptor) error {
+func pullAndExtractFromRemote(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src *remote.Repository, outputDir string, desc ocispec.Descriptor, tracker *iometrics.Tracker) error {
 	// fetch the content from the source storage.
 	content, err := src.Fetch(ctx, desc)
 	if err != nil {
@@ -268,7 +290,7 @@ func pullAndExtractFromRemote(ctx context.Context, pb *internalpb.ProgressBar, p
 	}
 	defer content.Close()
 
-	reader := pb.Add(prompt, desc.Digest.String(), desc.Size, content)
+	reader := pb.Add(prompt, desc.Digest.String(), desc.Size, tracker.WrapReader(content))
 	hash := sha256.New()
 	reader = io.TeeReader(reader, hash)
 

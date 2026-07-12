@@ -33,12 +33,12 @@ jobs:
       PACKAGE_DIR: modctl-test-package
     steps:
       - name: Checkout code
-        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98    # v4.3.1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0    # v4.3.1
         with:
           submodules: recursive
 
       - name: Install Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417    # v6.3.0
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16    # v6.5.0
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -49,7 +49,7 @@ jobs:
 
       - name: Cache Package
         id: cache-package
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306    # v5.0.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9    # v6.1.0
         with:
           path: ${{ env.PACKAGE_DIR }}
           key: modctl-test-packages
@@ -79,7 +79,7 @@ jobs:
           go build -tags "static system_libgit2 enable_libgit2"
 
       - name: Upload modctl
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f    # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: modctl-artifact
           path: modctl
@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Cache model
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306    # v5.0.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9    # v6.1.0
         id: cache-model
         with:
           path: ${{ env.MODEL_DIR }}
@@ -98,7 +98,7 @@ jobs:
 
       - name: Set up Python
         if: steps.cache-model.outputs.cache-hit != 'true'
-        uses: actions/setup-python@4f41a90a1f38628c7ccc608d05fbafe701bc20ae    # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405    # v6.1.0
         with:
           python-version: "3.10"
 
@@ -110,7 +110,7 @@ jobs:
           hf download ${{ env.MODEL }} --local-dir ${{ env.MODEL_DIR }}
 
       - name: Upload model
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f    # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: model-artifact
           path: ${{ env.MODEL_DIR }}

@@ -1,5 +1,5 @@
 /*
- *     Copyright 2025 The CNAI Authors
+ *     Copyright 2025 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ type GenerateConfig struct {
 	Provider                    string // Explicit provider for short-form URLs (e.g., "huggingface", "modelscope")
 	DownloadDir                 string // Custom directory for downloading models (optional)
 	ExcludePatterns             []string
+	IncludePatterns             []string
 }
 
 func NewGenerateConfig() *GenerateConfig {
@@ -63,6 +64,7 @@ func NewGenerateConfig() *GenerateConfig {
 		Provider:                    "",
 		DownloadDir:                 "",
 		ExcludePatterns:             []string{},
+		IncludePatterns:             []string{},
 	}
 }
 

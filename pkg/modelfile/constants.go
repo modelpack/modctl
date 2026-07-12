@@ -1,5 +1,5 @@
 /*
- *     Copyright 2025 The CNAI Authors
+ *     Copyright 2025 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,13 +48,22 @@ var (
 		"*.modelcard",       // Model card metadata
 		"*.meta",            // Model metadata
 		"*tokenizer.model*", // Tokenizer files (e.g., Mistral v3)
-		"config.json.*",     // Model configuration variants
-		"*.hparams",         // Hyperparameter files
-		"*.params",          // Parameter files
-		"*.hyperparams",     // Hyperparameter configuration
-		"*.wandb",           // Weights & Biases configuration
-		"*.mlflow",          // MLflow configuration
-		"*.tensorboard",     // TensorBoard configuration
+		"*.tiktoken",        // TikToken vocabulary files
+		"vocab.txt",         // Tokenizer vocabulary files
+		"merges.txt",        // Tokenizer merge rules
+		"added_tokens.txt",  // Additional tokenizer tokens
+		"spiece.model",      // SentencePiece tokenizer files
+		"sentencepiece*.model",
+		"sentencepiece*.vocab",
+		"tiktoken.model",
+		"chat_template.jinja",
+		"config.json.*", // Model configuration variants
+		"*.hparams",     // Hyperparameter files
+		"*.params",      // Parameter files
+		"*.hyperparams", // Hyperparameter configuration
+		"*.wandb",       // Weights & Biases configuration
+		"*.mlflow",      // MLflow configuration
+		"*.tensorboard", // TensorBoard configuration
 	}
 
 	// Model file patterns - supported model file extensions.
@@ -63,13 +72,14 @@ var (
 		"*.safetensors", // Safe and efficient tensor serialization format
 
 		// PyTorch formats.
-		"*.bin", // General binary format
-		"*.pt",  // PyTorch model
-		"*.pth", // PyTorch model (alternative extension)
-		"*.mar", // PyTorch Model Archive
-		"*.pte", // PyTorch ExecuTorch format
-		"*.pt2", // PyTorch 2.0 export format
-		"*.ptl", // PyTorch Mobile format
+		"*.bin",   // General binary format
+		"*.bin.*", // Sharded binary files (e.g., model.bin.1)
+		"*.pt",    // PyTorch model
+		"*.pth",   // PyTorch model (alternative extension)
+		"*.mar",   // PyTorch Model Archive
+		"*.pte",   // PyTorch ExecuTorch format
+		"*.pt2",   // PyTorch 2.0 export format
+		"*.ptl",   // PyTorch Mobile format
 
 		// TensorFlow formats.
 		"*.tflite", // TensorFlow Lite
@@ -82,22 +92,24 @@ var (
 		"*.index",  // TensorFlow checkpoint index
 
 		// GGML formats.
-		"*.gguf", // GGML Universal Format
-		"*.ggml", // GGML format (legacy)
-		"*.ggmf", // GGMF format (deprecated)
-		"*.ggjt", // GGJT format (deprecated)
-		"*.q4_0", // GGML Q4_0 quantization
-		"*.q4_1", // GGML Q4_1 quantization
-		"*.q5_0", // GGML Q5_0 quantization
-		"*.q5_1", // GGML Q5_1 quantization
-		"*.q8_0", // GGML Q8_0 quantization
-		"*.f16",  // GGML F16 format
-		"*.f32",  // GGML F32 format
+		"*.gguf",   // GGML Universal Format
+		"*.gguf.*", // Partitioned GGUF files
+		"*.ggml",   // GGML format (legacy)
+		"*.ggmf",   // GGMF format (deprecated)
+		"*.ggjt",   // GGJT format (deprecated)
+		"*.q4_0",   // GGML Q4_0 quantization
+		"*.q4_1",   // GGML Q4_1 quantization
+		"*.q5_0",   // GGML Q5_0 quantization
+		"*.q5_1",   // GGML Q5_1 quantization
+		"*.q8_0",   // GGML Q8_0 quantization
+		"*.f16",    // GGML F16 format
+		"*.f32",    // GGML F32 format
 
 		// checkpoint formats.
-		"*.ckpt",       // Checkpoint format
-		"*.checkpoint", // Checkpoint format (alternative extension)
-		"*.dist_ckpt",  // Distributed checkpoint format
+		"*.ckpt",              // Checkpoint format
+		"*.checkpoint",        // Checkpoint format (alternative extension)
+		"*.dist_ckpt",         // Distributed checkpoint format
+		"tensor[0-9]*_[0-9]*", // Sharded checkpoint tensor files
 
 		// Semantics-specific formats
 		"*.tensor",    // Generic tensor format
@@ -107,29 +119,39 @@ var (
 		"*.vocab",     // Vocabulary files (when binary)
 
 		// Other ML frameworks.
-		"*.ot",         // OpenVINO format
-		"*.engine",     // TensorRT format
-		"*.trt",        // TensorRT format (alternative extension)
-		"*.onnx",       // Open Neural Network Exchange format
-		"*.msgpack",    // MessagePack serialization
-		"*.model",      // Some NLP frameworks
-		"*.pkl",        // Pickle format
-		"*.pickle",     // Pickle format (alternative extension)
-		"*.keras",      // Keras native format
-		"*.joblib",     // Joblib serialization (scikit-learn)
-		"*.npy",        // NumPy array format
-		"*.npz",        // NumPy compressed archive
-		"*.nc",         // NetCDF format
-		"*.mlmodel",    // Apple Core ML format
-		"*.coreml",     // Apple Core ML format (alternative)
-		"*.mleap",      // MLeap format (Spark ML)
-		"*.surml",      // SurrealML format
-		"*.llamafile",  // Llamafile format
-		"*.caffemodel", // Caffe model format
-		"*.prototxt",   // Caffe model definition
-		"*.dlc",        // Qualcomm Deep Learning Container
-		"*.circle",     // Samsung Circle format
-		"*.nb",         // Neural Network Binary format
+		"*.ot",          // OpenVINO format
+		"*.engine",      // TensorRT format
+		"*.trt",         // TensorRT format (alternative extension)
+		"*.onnx",        // Open Neural Network Exchange format
+		"*.onnx_data*",  // ONNX external data files
+		"*.msgpack",     // MessagePack serialization
+		"*.model",       // Some NLP frameworks
+		"*.pkl",         // Pickle format
+		"*.pickle",      // Pickle format (alternative extension)
+		"*.keras",       // Keras native format
+		"*.joblib",      // Joblib serialization (scikit-learn)
+		"*.npy",         // NumPy array format
+		"*.npz",         // NumPy compressed archive
+		"*.nc",          // NetCDF format
+		"*.mlmodel",     // Apple Core ML format
+		"*.coreml",      // Apple Core ML format (alternative)
+		"*.mil",         // Core ML intermediate language files
+		"*.mleap",       // MLeap format (Spark ML)
+		"*.surml",       // SurrealML format
+		"*.llamafile",   // Llamafile format
+		"*.llamafile.*", // Llamafile variants
+		"*.caffemodel",  // Caffe model format
+		"*.prototxt",    // Caffe model definition
+		"*.dlc",         // Qualcomm Deep Learning Container
+		"*.circle",      // Samsung Circle format
+		"*.nb",          // Neural Network Binary format
+
+		// Data and dataset formats.
+		"*.arrow",   // Apache Arrow columnar format
+		"*.parquet", // Apache Parquet columnar format
+		"*.ftz",     // FastText compressed model
+		"*.ark",     // Kaldi ark format (speech/audio models)
+		"*.db",      // Database files (LMDB, etc.)
 	}
 
 	// Code file patterns - supported script and notebook files.
@@ -294,6 +316,7 @@ var (
 		"SETUP*",         // Setup instructions
 		"*requirements*", // Dependency specifications
 		"*.log",          // Log files
+		"*.tfevents*",    // TensorBoard event files
 
 		// Office documents
 		"*.doc",   // Microsoft Word 97-2003 Document
@@ -419,6 +442,37 @@ var (
 		"*.pyd",       // Python dynamic modules
 	}
 )
+
+// FileType represents the inferred type of a file.
+type FileType int
+
+const (
+	FileTypeConfig FileType = iota
+	FileTypeModel
+	FileTypeCode
+	FileTypeDoc
+)
+
+// InferFileType determines the file type by extension matching first,
+// then falls back to a size-based heuristic for unrecognized files:
+// >128MB -> FileTypeModel, otherwise -> FileTypeCode.
+func InferFileType(filename string, fileSize int64) FileType {
+	switch {
+	case IsFileType(filename, ConfigFilePatterns):
+		return FileTypeConfig
+	case IsFileType(filename, ModelFilePatterns):
+		return FileTypeModel
+	case IsFileType(filename, CodeFilePatterns):
+		return FileTypeCode
+	case IsFileType(filename, DocFilePatterns):
+		return FileTypeDoc
+	default:
+		if SizeShouldBeWeightFile(fileSize) {
+			return FileTypeModel
+		}
+		return FileTypeCode
+	}
+}
 
 const (
 	// File size thresholds and workspace limits
