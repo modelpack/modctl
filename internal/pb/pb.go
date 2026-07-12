@@ -96,7 +96,11 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// If the bar exists, drop and remove it.
+	// If a bar with the same name exists, abort and drop it before creating
+	// the replacement. Note: mpb ignores Abort on already-completed bars, but
+	// with PopCompletedMode those have been popped out of the rendering area,
+	// so the replacement still displays correctly and the map entry is
+	// updated either way.
 	if oldBar := p.bars[name]; oldBar != nil {
 		oldBar.Abort(true)
 	}
@@ -171,8 +175,10 @@ func (p *ProgressBar) Abort(name string, err error) {
 }
 
 // Reset resets an existing progress bar for a new phase.
-// Aborts the old bar and creates a new one with updated prompt,
-// reset progress, and fresh speed counter. Parameter order matches Add.
+// Aborts the old bar (if any, see Add for completed-bar semantics) and
+// creates a new one with updated prompt, reset progress, and fresh speed
+// counter. Creates the bar if it does not exist yet. Parameter order
+// matches Add.
 func (p *ProgressBar) Reset(prompt, name string, size int64, reader io.Reader) io.Reader {
 	return p.Add(prompt, name, size, reader)
 }

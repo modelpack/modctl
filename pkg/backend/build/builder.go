@@ -172,6 +172,9 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		},
 	)
 	if err != nil {
+		// Notify the error hook so the progress bar created by OnHash
+		// (if any) is aborted instead of lingering on screen.
+		hooks.OnError(relPath, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to compute digest and size: %w", err)
 	}
 
@@ -262,7 +265,10 @@ func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, 
 
 	logrus.Infof("builder: calculating digest for file %s", path)
 
-	// Wrap reader with progress tracking via onHash callback.
+	// Wrap reader with progress tracking via onHash callback. Note the bar
+	// total uses the original file size; for tar-encoded content the encoded
+	// stream is slightly larger, so the bar may reach 100% marginally before
+	// hashing finishes. For raw content the size is exact.
 	wrappedReader := onHash(info.Size(), reader)
 
 	hash := sha256.New()

@@ -243,3 +243,29 @@ func TestAdd_AfterAbort(t *testing.T) {
 	require.NotNil(t, bar)
 	assert.Equal(t, int64(200), bar.size)
 }
+
+func TestReset_AfterCompletedPhase(t *testing.T) {
+	pb := NewProgressBar(io.Discard)
+	defer pb.Stop()
+
+	// Phase 1: fully consume the reader so the bar reaches complete state
+	// (mpb ignores Abort on completed bars; PopCompletedMode pops them).
+	data := strings.Repeat("a", 100)
+	reader := pb.Add("Hashing =>", "test-file", 100, strings.NewReader(data))
+	n, err := io.Copy(io.Discard, reader)
+	require.NoError(t, err)
+	require.Equal(t, int64(100), n)
+
+	// Phase 2: Reset must still create a fresh bar and replace the entry.
+	reader2 := pb.Reset("Building =>", "test-file", 100, strings.NewReader(data))
+	require.NotNil(t, reader2)
+
+	bar := pb.Get("test-file")
+	require.NotNil(t, bar)
+	assert.Equal(t, "Building => test-file", bar.msg.Load().(string))
+
+	// New bar must be fully usable.
+	n, err = io.Copy(io.Discard, reader2)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(100), n)
+}

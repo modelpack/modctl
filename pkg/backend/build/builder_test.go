@@ -389,6 +389,29 @@ func (r *failingReader) Read(p []byte) (int, error) {
 	return 0, r.err
 }
 
+func (s *BuilderTestSuite) TestBuildLayer_OnErrorOnHashFailure() {
+	// OnHash injects a failing reader so digest computation fails;
+	// BuildLayer must then invoke OnError so the hashing bar is aborted.
+	var onErrorCalled bool
+	var onErrorName string
+	h := hooks.NewHooks(
+		hooks.WithOnHash(func(name string, size int64, reader io.Reader) io.Reader {
+			return &failingReader{err: errors.New("hash read error")}
+		}),
+		hooks.WithOnError(func(name string, err error) {
+			onErrorCalled = true
+			onErrorName = name
+		}),
+	)
+
+	_, err := s.builder.BuildLayer(context.Background(), "test/media-type.raw", s.tempDir, s.tempFile, "", h)
+
+	s.Error(err)
+	s.Contains(err.Error(), "hash read error")
+	s.True(onErrorCalled, "OnError hook should be called on hash failure")
+	s.Equal("test-file.txt", onErrorName)
+}
+
 func TestBuilderSuite(t *testing.T) {
 	suite.Run(t, new(BuilderTestSuite))
 }
