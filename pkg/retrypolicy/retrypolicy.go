@@ -129,7 +129,8 @@ type DoOpts struct {
 
 	// OnRetry is invoked before each sleep (after a failed attempt) so
 	// callers can update progress UI. attempt is 1-based; reason is a
-	// short label from ShortReason.
+	// short label from ShortReason. backoff is the deterministic base delay;
+	// the actual sleep may add up to Config.MaxJitter.
 	OnRetry func(attempt uint, reason string, backoff time.Duration)
 }
 
@@ -256,7 +257,8 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 				"max_attempts":   maxAttempts,
 				"max_backoff":    maxBackoff.String(),
 				"per_attempt_to": perAttemptTimeout.String(),
-				"next_retry_in":  backoff.Truncate(time.Second).String(),
+				"base_backoff":   backoff.Truncate(time.Second).String(),
+				"max_jitter":     jitter.String(),
 				"elapsed":        elapsed.Truncate(time.Second).String(),
 			}).Warnf("[RETRY] attempt %d/%d for %q (%s)", attempt, maxAttempts, opts.FileName, sizeStr)
 
