@@ -159,8 +159,14 @@ func (s *BuilderTestSuite) TestBuildLayer() {
 		// Use a hand-written strategy instead of the testify mock: BuildLayer
 		// passes OutputLayer a live *io.PipeReader, and the mock's argument
 		// diffing formats it with fmt, racing with the pipe's writer goroutine.
-		strategy := &recordingStrategy{desc: expectedDesc}
+		strategy := &recordingStrategy{
+			OutputStrategy: s.mockOutputStrategy,
+			desc:           expectedDesc,
+		}
 		s.builder.strategy = strategy
+		defer func() {
+			s.builder.strategy = s.mockOutputStrategy
+		}()
 
 		desc, err := s.builder.BuildLayer(context.Background(), "test/media-type.tar", s.tempDir, s.tempFile, "", hooks.NewHooks())
 		s.NoError(err)
