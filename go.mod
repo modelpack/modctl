@@ -3,7 +3,7 @@ module github.com/modelpack/modctl
 go 1.25.5
 
 require (
-	d7y.io/api/v2 v2.2.30
+	d7y.io/api/v2 v2.2.32
 	github.com/antgroup/hugescm v0.18.3
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/aws/aws-sdk-go-v2 v1.42.1
@@ -33,7 +33,7 @@ require (
 	golang.org/x/crypto v0.53.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.46.0
-	google.golang.org/grpc v1.82.0
+	google.golang.org/grpc v1.82.1
 	oras.land/oras-go/v2 v2.6.2
 )
 
