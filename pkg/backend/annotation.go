@@ -17,14 +17,20 @@
 package backend
 
 import (
-	"time"
-
-	retry "github.com/avast/retry-go/v4"
+	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 )
 
-var defaultRetryOpts = []retry.Option{
-	retry.Attempts(6),
-	retry.DelayType(retry.BackOffDelay),
-	retry.Delay(5 * time.Second),
-	retry.MaxDelay(60 * time.Second),
+// getAnnotationFilepath returns the filepath stored on a descriptor's
+// annotations, preferring the modelpack key and falling back to the legacy
+// dragonflyoss key so older artifacts remain readable. Returns empty string
+// when neither key is present.
+func getAnnotationFilepath(annotations map[string]string) string {
+	if annotations == nil {
+		return ""
+	}
+	if path := annotations[modelspec.AnnotationFilepath]; path != "" {
+		return path
+	}
+	return annotations[legacymodelspec.AnnotationFilepath]
 }
