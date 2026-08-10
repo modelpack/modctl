@@ -3,7 +3,7 @@ module github.com/modelpack/modctl
 go 1.25.5
 
 require (
-	d7y.io/api/v2 v2.2.30
+	d7y.io/api/v2 v2.3.0
 	github.com/antgroup/hugescm v0.18.3
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/aws/aws-sdk-go-v2 v1.43.3
