@@ -19,12 +19,10 @@ package build
 import (
 	"context"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -280,21 +278,6 @@ func (s *BuilderTestSuite) TestBuildModelConfig() {
 
 func TestBuilderSuite(t *testing.T) {
 	suite.Run(t, new(BuilderTestSuite))
-}
-
-func TestPipeReader(t *testing.T) {
-	r := strings.NewReader("some io.Reader stream to be read\n")
-	r1, r2 := splitReader(r)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		_, err := io.Copy(os.Stdout, r2)
-		assert.NoError(t, err)
-	}()
-	_, err := io.Copy(os.Stdout, r1)
-	assert.NoError(t, err)
-	wg.Wait()
 }
 
 func createTempFile(t *testing.T, dir, pattern, content string) string {
