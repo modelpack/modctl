@@ -25,7 +25,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 	"syscall"
 	"time"
 
@@ -39,7 +38,6 @@ import (
 	"github.com/modelpack/modctl/internal/cache"
 	buildconfig "github.com/modelpack/modctl/pkg/backend/build/config"
 	"github.com/modelpack/modctl/pkg/backend/build/hooks"
-	"github.com/modelpack/modctl/pkg/backend/build/interceptor"
 	pkgcodec "github.com/modelpack/modctl/pkg/codec"
 	"github.com/modelpack/modctl/pkg/storage"
 )
@@ -109,12 +107,11 @@ func NewBuilder(outputType OutputType, store storage.Storage, repo, tag string, 
 	}
 
 	return &abstractBuilder{
-		store:       store,
-		repo:        repo,
-		tag:         tag,
-		strategy:    strategy,
-		interceptor: cfg.interceptor,
-		cache:       cache,
+		store:    store,
+		repo:     repo,
+		tag:      tag,
+		strategy: strategy,
+		cache:    cache,
 	}, nil
 }
 
@@ -125,8 +122,6 @@ type abstractBuilder struct {
 	tag   string
 	// strategy is the output strategy used to output the blob.
 	strategy OutputStrategy
-	// interceptor is the interceptor used to intercept the build process.
-	interceptor interceptor.Interceptor
 	// cache is the cache used to store the file digest.
 	cache cache.Cache
 }
@@ -171,36 +166,9 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		return ocispec.Descriptor{}, fmt.Errorf("failed to compute digest and size: %w", err)
 	}
 
-	var (
-		wg        sync.WaitGroup
-		itErr     error
-		applyDesc interceptor.ApplyDescriptorFn
-	)
-	// Intercept the reader if needed.
-	if ab.interceptor != nil {
-		var itReader io.Reader
-		reader, itReader = splitReader(reader)
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			applyDesc, itErr = ab.interceptor.Intercept(ctx, mediaType, relPath, codec.Type(), itReader)
-		}()
-	}
-
 	desc, err := ab.strategy.OutputLayer(ctx, mediaType, relPath, destPath, digest, size, reader, hooks)
 	if err != nil {
 		return desc, err
-	}
-
-	// Wait for the interceptor to finish.
-	wg.Wait()
-	if itErr != nil {
-		return desc, itErr
-	}
-
-	if applyDesc != nil {
-		applyDesc(&desc)
 	}
 
 	// Add file metadata to descriptor.
@@ -407,26 +375,6 @@ func addFileMetadata(desc *ocispec.Descriptor, path, relPath string) error {
 	}
 	desc.Annotations[modelspec.AnnotationFileMetadata] = string(metadataStr)
 	return nil
-}
-
-// splitReader splits the original reader into two readers.
-func splitReader(original io.Reader) (io.Reader, io.Reader) {
-	r1, w1 := io.Pipe()
-	r2, w2 := io.Pipe()
-	multiWriter := io.MultiWriter(w1, w2)
-
-	go func() {
-		defer w1.Close()
-		defer w2.Close()
-
-		_, err := io.Copy(multiWriter, original)
-		if err != nil {
-			w1.CloseWithError(err)
-			w2.CloseWithError(err)
-		}
-	}()
-
-	return r1, r2
 }
 
 // getFileMetadata retrieves metadata for a file at the given path.
