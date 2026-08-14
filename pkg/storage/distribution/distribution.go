@@ -204,7 +204,7 @@ func (s *storage) PushBlob(ctx context.Context, repo string, blobReader io.Reade
 
 	desc, err := blob.Commit(ctx, provisional)
 	if err != nil {
-		return "", 0, nil
+		return "", 0, err
 	}
 
 	return desc.Digest.String(), desc.Size, nil
