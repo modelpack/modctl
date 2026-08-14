@@ -17,14 +17,33 @@
 package backend
 
 import (
+	"errors"
+	"net/http"
 	"time"
 
 	retry "github.com/avast/retry-go/v4"
+	"oras.land/oras-go/v2/registry/remote/errcode"
 )
+
+// isAuthError reports whether err represents a registry auth failure that
+// cannot be fixed by retrying the same request with the same credentials.
+// Retrying those wastes the user's time on the ~30s+ exponential backoff
+// before the final error surfaces, so callers should short-circuit instead.
+func isAuthError(err error) bool {
+	var respErr *errcode.ErrorResponse
+	if errors.As(err, &respErr) {
+		return respErr.StatusCode == http.StatusUnauthorized ||
+			respErr.StatusCode == http.StatusForbidden
+	}
+	return false
+}
 
 var defaultRetryOpts = []retry.Option{
 	retry.Attempts(6),
 	retry.DelayType(retry.BackOffDelay),
 	retry.Delay(5 * time.Second),
 	retry.MaxDelay(60 * time.Second),
+	// Registry auth errors will not recover on retry; fail fast so the user
+	// sees the real error within seconds instead of 30s+ of silent backoff.
+	retry.RetryIf(func(err error) bool { return !isAuthError(err) }),
 }
