@@ -36,6 +36,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -43,6 +44,7 @@ import (
 	retry "github.com/avast/retry-go/v4"
 	humanize "github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
+	"oras.land/oras-go/v2/registry/remote/errcode"
 )
 
 const (
@@ -353,6 +355,15 @@ func IsRetryable(err error) bool {
 	}
 
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+
+	// Registry authentication failures cannot recover with the same credentials.
+	// Inspect the typed response before text matching so wrapper messages cannot
+	// override the registry's status with an unrelated transient error.
+	var respErr *errcode.ErrorResponse
+	if errors.As(err, &respErr) && (respErr.StatusCode == http.StatusUnauthorized ||
+		respErr.StatusCode == http.StatusForbidden) {
 		return false
 	}
 
