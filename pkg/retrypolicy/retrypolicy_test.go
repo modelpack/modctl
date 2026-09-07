@@ -20,9 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"oras.land/oras-go/v2/registry/remote/errcode"
 )
 
 // --- ComputePerAttemptTimeout ---
@@ -115,6 +118,46 @@ func TestIsRetryable(t *testing.T) {
 				t.Errorf("IsRetryable(%v) = %v, want %v", tt.err, got, tt.want)
 			}
 		})
+	}
+}
+
+// Registry authentication failures must fail fast even when their detail or
+// wrapping error includes text that would otherwise be classified as transient.
+func TestDo_RegistryAuthErrorsStopImmediately(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		for _, wrapped := range []bool{false, true} {
+			t.Run(fmt.Sprintf("status=%d/wrapped=%t", status, wrapped), func(t *testing.T) {
+				response := &errcode.ErrorResponse{
+					StatusCode: status,
+					Errors: errcode.Errors{
+						{Code: "DENIED", Message: "unexpected EOF"},
+					},
+				}
+				var failure error = response
+				if wrapped {
+					failure = fmt.Errorf("transfer after response status code 503: %w", failure)
+				}
+				if IsRetryable(failure) {
+					t.Error("registry authentication failure classified as retryable")
+				}
+				calls := 0
+				err := Do(context.Background(), func(context.Context) error {
+					calls++
+					return failure
+				}, DoOpts{
+					Config: &Config{MaxAttempts: 3, InitialDelay: time.Nanosecond, MaxJitter: -1},
+					OnRetry: func(uint, string, time.Duration) {
+						t.Error("authentication failure triggered a retry notification")
+					},
+				})
+				if !errors.Is(err, response) {
+					t.Errorf("Do returned %v, want original registry error", err)
+				}
+				if calls != 1 {
+					t.Errorf("calls = %d, want 1", calls)
+				}
+			})
+		}
 	}
 }
 
