@@ -16,7 +16,9 @@
 
 package config
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	// defaultPushConcurrency is the default number of concurrent push operations.
