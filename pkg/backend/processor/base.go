@@ -150,8 +150,11 @@ func (b *base) Process(ctx context.Context, builder build.Builder, workDir strin
 				}
 
 				desc, err := builder.BuildLayer(ctx, b.mediaType, workDir, path, destPath, hooks.NewHooks(
+					hooks.WithOnHash(func(name string, size int64, reader io.Reader) io.Reader {
+						return tracker.Add(internalpb.NormalizePrompt("Hashing layer"), name, size, reader)
+					}),
 					hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
-						return tracker.Add(internalpb.NormalizePrompt("Building layer"), name, size, reader)
+						return tracker.Reset(internalpb.NormalizePrompt("Building layer"), name, size, reader)
 					}),
 					hooks.WithOnError(func(name string, err error) {
 						tracker.Abort(name, fmt.Errorf("failed to build layer: %w", err))

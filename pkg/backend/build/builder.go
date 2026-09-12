@@ -161,8 +161,15 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
 	}
 
-	reader, digest, size, err := ab.computeDigestAndSize(ctx, mediaType, path, workDirPath, info, reader, codec)
+	reader, digest, size, err := ab.computeDigestAndSize(ctx, mediaType, path, workDirPath, info, reader, codec,
+		func(size int64, r io.Reader) io.Reader {
+			return hooks.OnHash(relPath, size, r)
+		},
+	)
 	if err != nil {
+		// Notify the error hook so the progress bar created by OnHash
+		// (if any) is aborted instead of lingering on screen.
+		hooks.OnError(relPath, err)
 		return ocispec.Descriptor{}, fmt.Errorf("failed to compute digest and size: %w", err)
 	}
 
@@ -215,7 +222,8 @@ func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.D
 }
 
 // computeDigestAndSize computes the digest and size for the encoded content, using cache if available.
-func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, path, workDirPath string, info os.FileInfo, reader io.Reader, codec pkgcodec.Codec) (io.Reader, string, int64, error) {
+// The onHash callback wraps the reader with progress tracking before hashing.
+func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, path, workDirPath string, info os.FileInfo, reader io.Reader, codec pkgcodec.Codec, onHash func(size int64, r io.Reader) io.Reader) (io.Reader, string, int64, error) {
 	// Try to retrieve valid digest from cache for raw model weights.
 	if mediaType == modelspec.MediaTypeModelWeightRaw {
 		if digest, size, ok := ab.retrieveCache(ctx, path, info); ok {
@@ -225,8 +233,14 @@ func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, 
 
 	logrus.Infof("builder: calculating digest for file %s", path)
 
+	// Wrap reader with progress tracking via onHash callback. Note the bar
+	// total uses the original file size; for tar-encoded content the encoded
+	// stream is slightly larger, so the bar may reach 100% marginally before
+	// hashing finishes. For raw content the size is exact.
+	wrappedReader := onHash(info.Size(), reader)
+
 	hash := sha256.New()
-	size, err := io.Copy(hash, reader)
+	size, err := io.Copy(hash, wrappedReader)
 	if err != nil {
 		return reader, "", 0, fmt.Errorf("failed to copy content to hash: %w", err)
 	}
