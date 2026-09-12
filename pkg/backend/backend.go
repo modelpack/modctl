@@ -70,7 +70,8 @@ type Backend interface {
 
 // backend is the implementation of Backend.
 type backend struct {
-	store storage.Storage
+	store      storage.Storage
+	storageDir string
 }
 
 // New creates a new backend.
@@ -81,6 +82,7 @@ func New(storageDir string) (Backend, error) {
 	}
 
 	return &backend{
-		store: store,
+		store:      store,
+		storageDir: storageDir,
 	}, nil
 }
