@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	retry "github.com/avast/retry-go/v4"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
@@ -34,6 +35,7 @@ import (
 	"github.com/modelpack/modctl/pkg/backend/build/hooks"
 	"github.com/modelpack/modctl/pkg/backend/processor"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/diskspace"
 	"github.com/modelpack/modctl/pkg/modelfile"
 	"github.com/modelpack/modctl/pkg/source"
 )
@@ -65,6 +67,14 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	sourceInfo, err := getSourceInfo(workDir, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to get source info: %w", err)
+	}
+
+	// Check disk space before building (only for local output).
+	if !cfg.OutputRemote {
+		totalSize := estimateBuildSize(workDir, modelfile)
+		if err := diskspace.Check(b.storageDir, totalSize); err != nil {
+			logrus.Warnf("build: %v", err)
+		}
 	}
 
 	// using the local output by default.
@@ -262,4 +272,69 @@ func getSourceInfo(workspace string, buildConfig *config.Build) (*source.Info, e
 	}
 
 	return info, nil
+}
+
+// estimateBuildSize estimates the total size of files that will be built by summing
+// the sizes of all files referenced in the modelfile. Patterns are expanded using
+// the same rules as processor/base.go (literal paths with absolute-path support, or
+// filepath.Glob for patterns containing wildcards), so the estimate reflects what
+// the builder will actually process.
+func estimateBuildSize(workDir string, mf modelfile.Modelfile) int64 {
+	var totalSize int64
+
+	patterns := []string{}
+	patterns = append(patterns, mf.GetConfigs()...)
+	patterns = append(patterns, mf.GetModels()...)
+	patterns = append(patterns, mf.GetCodes()...)
+	patterns = append(patterns, mf.GetDocs()...)
+
+	absWorkDir, err := filepath.Abs(workDir)
+	if err != nil {
+		logrus.Warnf("build: failed to resolve workDir %s for size estimation: %v", workDir, err)
+		return 0
+	}
+
+	var matchedPaths []string
+	for _, pattern := range patterns {
+		if !strings.ContainsAny(pattern, "*?[]") {
+			var fullPath string
+			if filepath.IsAbs(pattern) {
+				fullPath = pattern
+			} else {
+				fullPath = filepath.Join(absWorkDir, pattern)
+			}
+			matchedPaths = append(matchedPaths, fullPath)
+			continue
+		}
+		matches, err := filepath.Glob(filepath.Join(absWorkDir, pattern))
+		if err != nil {
+			logrus.Warnf("build: failed to expand pattern %s for size estimation: %v", pattern, err)
+			continue
+		}
+		matchedPaths = append(matchedPaths, matches...)
+	}
+
+	for _, path := range matchedPaths {
+		info, err := os.Stat(path)
+		if err != nil {
+			logrus.Warnf("build: failed to stat %s for size estimation: %v", path, err)
+			continue
+		}
+		if info.IsDir() {
+			_ = filepath.Walk(path, func(walkPath string, fi os.FileInfo, err error) error {
+				if err != nil {
+					logrus.Warnf("build: failed to access %s for size estimation: %v", walkPath, err)
+					return nil
+				}
+				if !fi.IsDir() {
+					totalSize += fi.Size()
+				}
+				return nil
+			})
+		} else {
+			totalSize += info.Size()
+		}
+	}
+
+	return totalSize
 }
