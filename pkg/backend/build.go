@@ -23,7 +23,6 @@ import (
 	"os"
 	"path/filepath"
 
-	retry "github.com/avast/retry-go/v4"
 	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -35,6 +34,7 @@ import (
 	"github.com/modelpack/modctl/pkg/backend/processor"
 	"github.com/modelpack/modctl/pkg/config"
 	"github.com/modelpack/modctl/pkg/modelfile"
+	"github.com/modelpack/modctl/pkg/retrypolicy"
 	"github.com/modelpack/modctl/pkg/source"
 )
 
@@ -44,7 +44,11 @@ const (
 )
 
 // Build builds the user materials into the model artifact which follows the Model Spec.
-func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target string, cfg *config.Build) error {
+func (b *backend) Build(
+	ctx context.Context,
+	modelfilePath, workDir, target string,
+	cfg *config.Build,
+) error {
 	logrus.Infof("build: building artifact %s", target)
 	// parse the repo name and tag name from target.
 	ref, err := ParseReference(target)
@@ -123,8 +127,8 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 
 	var configDesc ocispec.Descriptor
 	// Build the model config.
-	if err := retry.Do(func() error {
-		configDesc, err = builder.BuildConfig(ctx, config, hooks.NewHooks(
+	if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
+		configDesc, err = builder.BuildConfig(rctx, config, hooks.NewHooks(
 			hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 				return pb.Add(internalpb.NormalizePrompt("Building config"), name, size, reader)
 			}),
@@ -136,13 +140,16 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 			}),
 		))
 		return err
-	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
+	}, retrypolicy.DoOpts{
+		FileSize: 0, // config is small
+		FileName: "config",
+	}); err != nil {
 		return fmt.Errorf("failed to build model config: %w", err)
 	}
 
 	// Build the model manifest.
-	if err := retry.Do(func() error {
-		_, err = builder.BuildManifest(ctx, layers, configDesc, manifestAnnotation(modelfile), hooks.NewHooks(
+	if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
+		_, err = builder.BuildManifest(rctx, layers, configDesc, manifestAnnotation(modelfile), hooks.NewHooks(
 			hooks.WithOnStart(func(name string, size int64, reader io.Reader) io.Reader {
 				return pb.Add(internalpb.NormalizePrompt("Building manifest"), name, size, reader)
 			}),
@@ -154,7 +161,10 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 			}),
 		))
 		return err
-	}, append(defaultRetryOpts, retry.Context(ctx))...); err != nil {
+	}, retrypolicy.DoOpts{
+		FileSize: 0, // manifest is small
+		FileName: "manifest",
+	}); err != nil {
 		return fmt.Errorf("failed to build model manifest: %w", err)
 	}
 
@@ -162,7 +172,10 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 	return nil
 }
 
-func (b *backend) getProcessors(modelfile modelfile.Modelfile, cfg *config.Build) []processor.Processor {
+func (b *backend) getProcessors(
+	modelfile modelfile.Modelfile,
+	cfg *config.Build,
+) []processor.Processor {
 	processors := []processor.Processor{}
 
 	if configs := modelfile.GetConfigs(); len(configs) > 0 {
@@ -170,7 +183,10 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile, cfg *config.Build
 		if cfg.Raw {
 			mediaType = modelspec.MediaTypeModelWeightConfigRaw
 		}
-		processors = append(processors, processor.NewModelConfigProcessor(b.store, mediaType, configs, ""))
+		processors = append(
+			processors,
+			processor.NewModelConfigProcessor(b.store, mediaType, configs, ""),
+		)
 	}
 
 	if models := modelfile.GetModels(); len(models) > 0 {
@@ -201,10 +217,23 @@ func (b *backend) getProcessors(modelfile modelfile.Modelfile, cfg *config.Build
 }
 
 // process walks the user work directory and process the identified files.
-func (b *backend) process(ctx context.Context, builder build.Builder, workDir string, pb *internalpb.ProgressBar, cfg *config.Build, processors ...processor.Processor) ([]ocispec.Descriptor, error) {
+func (b *backend) process(
+	ctx context.Context,
+	builder build.Builder,
+	workDir string,
+	pb *internalpb.ProgressBar,
+	cfg *config.Build,
+	processors ...processor.Processor,
+) ([]ocispec.Descriptor, error) {
 	descriptors := []ocispec.Descriptor{}
 	for _, p := range processors {
-		descs, err := p.Process(ctx, builder, workDir, processor.WithConcurrency(cfg.Concurrency), processor.WithProgressTracker(pb))
+		descs, err := p.Process(
+			ctx,
+			builder,
+			workDir,
+			processor.WithConcurrency(cfg.Concurrency),
+			processor.WithProgressTracker(pb),
+		)
 		if err != nil {
 			return nil, err
 		}
