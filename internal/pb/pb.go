@@ -58,7 +58,7 @@ type ProgressBar struct {
 type progressBar struct {
 	*mpbv8.Bar
 	size      int64
-	msg       string
+	msg       atomic.Value // stores string; accessed by mpb render goroutine
 	startTime time.Time
 }
 
@@ -93,27 +93,30 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 		return reader
 	}
 
-	p.mu.RLock()
-	oldBar := p.bars[name]
-	p.mu.RUnlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	// If the bar exists, drop and remove it.
-	if oldBar != nil {
+	// If a bar with the same name exists, abort and drop it before creating
+	// the replacement. Note: mpb ignores Abort on already-completed bars, but
+	// with PopCompletedMode those have been popped out of the rendering area,
+	// so the replacement still displays correctly and the map entry is
+	// updated either way.
+	if oldBar := p.bars[name]; oldBar != nil {
 		oldBar.Abort(true)
 	}
 
 	newBar := &progressBar{
 		size:      size,
-		msg:       fmt.Sprintf("%s %s", prompt, name),
 		startTime: time.Now(),
 	}
-	// Create a new bar if it does not exist.
+	newBar.msg.Store(fmt.Sprintf("%s %s", prompt, name))
+
 	newBar.Bar = p.mpb.New(size,
 		mpbv8.BarStyle(),
 		mpbv8.BarFillerOnComplete("|"),
 		mpbv8.PrependDecorators(
 			decor.Any(func(s decor.Statistics) string {
-				return newBar.msg
+				return newBar.msg.Load().(string)
 			}, decor.WCSyncSpaceR),
 		),
 		mpbv8.AppendDecorators(
@@ -129,9 +132,7 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 		),
 	)
 
-	p.mu.Lock()
 	p.bars[name] = newBar
-	p.mu.Unlock()
 
 	if reader != nil {
 		return newBar.ProxyReader(reader)
@@ -156,7 +157,7 @@ func (p *ProgressBar) Complete(name string, msg string) {
 	p.mu.RUnlock()
 
 	if ok {
-		bar.msg = msg
+		bar.msg.Store(msg)
 		bar.Bar.SetCurrent(bar.size)
 	}
 }
@@ -171,6 +172,15 @@ func (p *ProgressBar) Abort(name string, err error) {
 		logrus.Errorf("progress: aborting bar %s: %v", name, err)
 		bar.Abort(true)
 	}
+}
+
+// Reset resets an existing progress bar for a new phase.
+// Aborts the old bar (if any, see Add for completed-bar semantics) and
+// creates a new one with updated prompt, reset progress, and fresh speed
+// counter. Creates the bar if it does not exist yet. Parameter order
+// matches Add.
+func (p *ProgressBar) Reset(prompt, name string, size int64, reader io.Reader) io.Reader {
+	return p.Add(prompt, name, size, reader)
 }
 
 // Start starts the progress bar.
