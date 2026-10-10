@@ -41,6 +41,12 @@ import (
 func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) error {
 	logrus.Infof("pull: pulling artifact %s", target)
 
+	// Apply default hooks when caller leaves it unset to avoid nil deref.
+	if cfg.Hooks == nil {
+		defaults := config.NewPull()
+		cfg.Hooks = defaults.Hooks
+	}
+
 	// pullByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
 	if cfg.DragonflyEndpoint != "" {
 		logrus.Infof("pull: using dragonfly for %s", target)
@@ -118,13 +124,18 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 
 			return retry.Do(func() error {
 				logrus.Debugf("pull: processing layer %s", layer.Digest)
-				// call the before hook.
-				cfg.Hooks.BeforePullLayer(layer, manifest)
+				// call the before hook; allow caller to skip this layer.
+				if cfg.Hooks.BeforePullLayer(layer, manifest) {
+					logrus.Debugf("pull: layer %s skipped by hook", layer.Digest)
+					pb.Complete(layer.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), layer.Digest.String()))
+					cfg.Hooks.AfterPullLayer(layer, true, nil)
+					return nil
+				}
 				err := tracker.TrackTransfer(func() error {
 					return fn(layer)
 				})
 				// call the after hook.
-				cfg.Hooks.AfterPullLayer(layer, err)
+				cfg.Hooks.AfterPullLayer(layer, false, err)
 				if err != nil {
 					err = fmt.Errorf("pull: failed to process layer %s: %w", layer.Digest, err)
 					logrus.Error(err)

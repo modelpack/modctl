@@ -208,6 +208,10 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, src storage
 			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
+		// Ensure the blob content is closed to avoid leaking resources (#491).
+		// We use defer here and io.NopCloser below to work around the distribution
+		// library's Close() implementation which returns a known error (#50).
+		defer content.Close()
 
 		// Phase 2: reset to "Pushing" for actual upload.
 		reader := pb.Reset(internalpb.NormalizePrompt("Pushing "+kind), desc.Digest.String(), desc.Size, tracker.WrapReader(content))
