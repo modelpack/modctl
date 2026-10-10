@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -268,4 +269,108 @@ func TestReset_AfterCompletedPhase(t *testing.T) {
 	n, err = io.Copy(io.Discard, reader2)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(100), n)
+}
+
+// --- Retry placeholder tests ---
+
+func TestPlaceholder_ResetsLiveBar(t *testing.T) {
+	pb := NewProgressBar(io.Discard)
+	defer pb.Stop()
+
+	pb.Add("Copying blob =>", "test-file", 100, nil)
+	bar := pb.Get("test-file")
+	require.NotNil(t, bar)
+
+	pb.Placeholder("test-file", "Copying blob => (retry 1)", 100)
+
+	// A live bar is reset in place, not replaced.
+	assert.Same(t, bar, pb.Get("test-file"))
+	assert.Equal(t, "Copying blob => (retry 1) test-file", bar.msg.Load().(string))
+}
+
+func TestPlaceholder_RecreatesAbortedBar(t *testing.T) {
+	pb := NewProgressBar(io.Discard)
+	defer pb.Stop()
+
+	pb.Add("Copying blob =>", "test-file", 100, nil)
+	aborted := pb.Get("test-file")
+	require.NotNil(t, aborted)
+	pb.Abort("test-file", errors.New("transient"))
+
+	pb.Placeholder("test-file", "Copying blob => (retry 1)", 100)
+
+	// An aborted bar renders nothing, so Placeholder must create a new one.
+	bar := pb.Get("test-file")
+	require.NotNil(t, bar)
+	assert.NotSame(t, aborted, bar)
+	assert.Equal(t, "Copying blob => (retry 1) test-file", bar.msg.Load().(string))
+}
+
+func TestPlaceholder_NoExistingBar(t *testing.T) {
+	pb := NewProgressBar(io.Discard)
+	defer pb.Stop()
+
+	pb.Placeholder("new-file", "Copying blob => (retry 1)", 50)
+
+	bar := pb.Get("new-file")
+	require.NotNil(t, bar)
+	assert.Equal(t, int64(50), bar.size)
+}
+
+// TestPlaceholder_MsgConcurrency exercises concurrent message updates against
+// the read path used by mpb's render goroutine. Placeholder and Complete are
+// fired from transfer goroutines (e.g. on retry backoff) while the bar is being
+// rendered, so progressBar.msg is read and written concurrently. Run with
+// -race.
+func TestPlaceholder_MsgConcurrency(t *testing.T) {
+	pb := NewProgressBar(io.Discard)
+	pb.Start()
+
+	const name = "sha256:deadbeef"
+	pb.Add("Copying blob", name, 1024, nil)
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	// Writers: simulate retry backoff resets (Placeholder) and completion.
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				pb.Placeholder(name, "Copying blob (retry)", 1024)
+				pb.Complete(name, "done")
+			}
+		}()
+	}
+
+	// Readers: mirror the render goroutine's read of the message.
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				if b := pb.Get(name); b != nil {
+					_ = b.msg.Load().(string)
+				}
+			}
+		}()
+	}
+
+	time.Sleep(150 * time.Millisecond)
+	close(stop)
+	wg.Wait()
+
+	pb.Complete(name, "done")
+	pb.Stop()
 }

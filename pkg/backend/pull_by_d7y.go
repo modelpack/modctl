@@ -19,17 +19,16 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	common "d7y.io/api/v2/pkg/apis/common/v2"
 	dfdaemon "d7y.io/api/v2/pkg/apis/dfdaemon/v2"
-	"github.com/avast/retry-go/v4"
-	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -41,6 +40,7 @@ import (
 	"github.com/modelpack/modctl/pkg/archiver"
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/retrypolicy"
 )
 
 const (
@@ -100,8 +100,11 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 	defer pb.Stop()
 
 	// Process layers concurrently.
-	g, ctx := errgroup.WithContext(ctx)
+	g := new(errgroup.Group)
 	g.SetLimit(cfg.Concurrency)
+
+	var mu sync.Mutex
+	var errs []error
 
 	logrus.Infof("pull: pulling %d layers via dragonfly", len(manifest.Layers))
 	for _, layer := range manifest.Layers {
@@ -114,14 +117,21 @@ func (b *backend) pullByDragonfly(ctx context.Context, target string, cfg *confi
 
 			logrus.Debugf("pull: processing layer %s via dragonfly", layer.Digest)
 			if err := processLayer(ctx, pb, dfdaemon.NewDfdaemonDownloadClient(conn), ref, manifest, layer, authToken, cfg); err != nil {
-				return err
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			} else {
+				logrus.Debugf("pull: successfully processed layer %s via dragonfly", layer.Digest)
 			}
-			logrus.Debugf("pull: successfully processed layer %s via dragonfly", layer.Digest)
 			return nil
 		})
 	}
 
-	if err := g.Wait(); err != nil {
+	_ = g.Wait()
+	if ctx.Err() != nil {
+		return fmt.Errorf("pull cancelled: %w", ctx.Err())
+	}
+	if err := errors.Join(errs...); err != nil {
 		return err
 	}
 
@@ -179,23 +189,32 @@ func buildBlobURL(ref Referencer, plainHTTP bool, digest string) string {
 
 // processLayer handles downloading and extracting a single layer.
 func processLayer(ctx context.Context, pb *internalpb.ProgressBar, client dfdaemon.DfdaemonDownloadClient, ref Referencer, manifest ocispec.Manifest, desc ocispec.Descriptor, authToken string, cfg *config.Pull) error {
-	err := retry.Do(func() error {
-		logrus.Debugf("pull: processing layer %s", desc.Digest)
-		if cfg.Hooks.BeforePullLayer(desc, manifest) {
-			logrus.Debugf("pull: layer %s skipped by hook", desc.Digest)
-			pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
-			cfg.Hooks.AfterPullLayer(desc, true, nil)
-			return nil
-		}
-		err := downloadAndExtractLayer(ctx, pb, client, ref, desc, authToken, cfg)
-		cfg.Hooks.AfterPullLayer(desc, false, err) // Call after hook
-		if err != nil {
-			err = fmt.Errorf("pull: failed to download and extract layer %s: %w", desc.Digest, err)
-			logrus.Error(err)
-		}
+	annoFilepath := getAnnotationFilepath(desc.Annotations)
 
-		return err
-	}, append(defaultRetryOpts, retry.Context(ctx))...)
+	// call the before hook once, outside the retry loop, so a skip decision is
+	// not re-evaluated on every attempt.
+	if cfg.Hooks.BeforePullLayer(desc, manifest) {
+		logrus.Debugf("pull: layer %s skipped by hook", desc.Digest)
+		pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
+		cfg.Hooks.AfterPullLayer(desc, true, nil)
+		return nil
+	}
+
+	err := retrypolicy.Do(ctx, func(rctx context.Context) error {
+		logrus.Debugf("pull: processing layer %s", desc.Digest)
+		return downloadAndExtractLayer(rctx, pb, client, ref, desc, authToken, cfg)
+	}, retrypolicy.DoOpts{
+		FileSize: desc.Size,
+		FileName: annoFilepath,
+		OnRetry:  newRetryPlaceholder(pb, desc.Digest.String(), internalpb.NormalizePrompt("Pulling blob"), desc.Size),
+	})
+
+	// call the after hook once with the final outcome.
+	cfg.Hooks.AfterPullLayer(desc, false, err)
+	if err != nil {
+		err = fmt.Errorf("pull: failed to download and extract layer %s: %w", desc.Digest, err)
+		logrus.Error(err)
+	}
 
 	return err
 }
@@ -208,14 +227,7 @@ func downloadAndExtractLayer(ctx context.Context, pb *internalpb.ProgressBar, cl
 		return fmt.Errorf("failed to resolve extract dir: %w", err)
 	}
 
-	var annoFilepath string
-	if desc.Annotations != nil {
-		if desc.Annotations[modelspec.AnnotationFilepath] != "" {
-			annoFilepath = desc.Annotations[modelspec.AnnotationFilepath]
-		} else {
-			annoFilepath = desc.Annotations[legacymodelspec.AnnotationFilepath]
-		}
-	}
+	annoFilepath := getAnnotationFilepath(desc.Annotations)
 
 	if annoFilepath == "" {
 		return fmt.Errorf("missing annotation filepath")

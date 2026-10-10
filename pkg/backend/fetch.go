@@ -19,11 +19,11 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/bmatcuk/doublestar/v4"
-	legacymodelspec "github.com/dragonflyoss/model-spec/specs-go/v1"
-	modelspec "github.com/modelpack/model-spec/specs-go/v1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -32,6 +32,7 @@ import (
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/config"
 	"github.com/modelpack/modctl/pkg/iometrics"
+	"github.com/modelpack/modctl/pkg/retrypolicy"
 )
 
 // Fetch fetches partial files to the output.
@@ -81,10 +82,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	for _, layer := range manifest.Layers {
 		for _, pattern := range cfg.Patterns {
 			if anno := layer.Annotations; anno != nil {
-				path := anno[modelspec.AnnotationFilepath]
-				if path == "" {
-					path = anno[legacymodelspec.AnnotationFilepath]
-				}
+				path := getAnnotationFilepath(anno)
 				// Use doublestar.PathMatch for pattern matching to support ** recursive matching
 				// PathMatch uses the system's native path separator (like filepath.Match) while
 				// also supporting recursive patterns like **/*.json
@@ -110,8 +108,11 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 
 	tracker := iometrics.NewTracker("fetch")
 
-	g, ctx := errgroup.WithContext(ctx)
+	g := new(errgroup.Group)
 	g.SetLimit(cfg.Concurrency)
+
+	var mu sync.Mutex
+	var errs []error
 
 	logrus.Infof("fetch: fetching %d matched layers", len(layers))
 	for _, layer := range layers {
@@ -122,27 +123,42 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			default:
 			}
 
+			annoFilepath := getAnnotationFilepath(layer.Annotations)
+
 			logrus.Debugf("fetch: processing layer %s", layer.Digest)
+			// call the before hook; allow caller to skip this layer.
 			if cfg.Hooks.BeforePullLayer(layer, manifest) {
 				logrus.Debugf("fetch: layer %s skipped by hook", layer.Digest)
 				pb.Complete(layer.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), layer.Digest.String()))
 				cfg.Hooks.AfterPullLayer(layer, true, nil)
 				return nil
 			}
-			if err := tracker.TrackTransfer(func() error {
-				return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer, tracker)
+			if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
+				return tracker.TrackTransfer(func() error {
+					return pullAndExtractFromRemote(rctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer, tracker)
+				})
+			}, retrypolicy.DoOpts{
+				FileSize: layer.Size,
+				FileName: annoFilepath,
+				OnRetry:  newRetryPlaceholder(pb, layer.Digest.String(), internalpb.NormalizePrompt("Fetching blob"), layer.Size),
 			}); err != nil {
 				cfg.Hooks.AfterPullLayer(layer, false, err)
-				return err
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			} else {
+				cfg.Hooks.AfterPullLayer(layer, false, nil)
+				logrus.Debugf("fetch: successfully processed layer %s", layer.Digest)
 			}
-			cfg.Hooks.AfterPullLayer(layer, false, nil)
-
-			logrus.Debugf("fetch: successfully processed layer %s", layer.Digest)
 			return nil
 		})
 	}
 
-	if err := g.Wait(); err != nil {
+	_ = g.Wait()
+	if ctx.Err() != nil {
+		return fmt.Errorf("fetch cancelled: %w", ctx.Err())
+	}
+	if err := errors.Join(errs...); err != nil {
 		return err
 	}
 
