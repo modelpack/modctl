@@ -25,16 +25,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestKnownBug_DisableProgress_DataRace(t *testing.T) {
-	// This test documents the data race in SetDisableProgress/Add.
-	// Run with: go test -race ./internal/pb/ -run TestKnownBug_DisableProgress_DataRace
-	//
-	// Known bug: global disableProgress bool has no atomic protection.
-	// See: https://github.com/modelpack/modctl/issues/493
-	//
-	// When the bug is fixed (atomic.Bool), this test will still pass
-	// AND the -race detector will stop reporting the race.
-	// At that point, remove the KnownBug prefix.
+func TestIntegration_DisableProgress_ConcurrentAccess(t *testing.T) {
+	// Regression test for https://github.com/modelpack/modctl/issues/493.
+	// disableProgress is an atomic.Bool, so concurrent SetDisableProgress and
+	// Add calls must not trigger the race detector.
+	// Run with: go test -race ./internal/pb/ -run TestIntegration_DisableProgress_ConcurrentAccess
 
 	var wg sync.WaitGroup
 	pb := NewProgressBar(io.Discard)

@@ -299,7 +299,7 @@ func TestIntegration_Pull_ConcurrentPartialFailure(t *testing.T) {
 // Dimension 6: Data Integrity
 // --------------------------------------------------------------------------
 
-func TestIntegration_Pull_TruncatedBlob(t *testing.T) {
+func TestIntegration_Pull_CorruptedContentSameLength(t *testing.T) {
 	f := newPullTestFixture(t, 1)
 	defer f.mr.Close()
 

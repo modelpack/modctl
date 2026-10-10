@@ -384,6 +384,13 @@ func (r *MockRegistry) handleBlobUpload(w http.ResponseWriter, req *http.Request
 	// PATCH /v2/<name>/blobs/uploads/<uuid> — chunked upload
 	if req.Method == http.MethodPatch {
 		uuid := uploadUUID(path)
+		// Read the chunk into a local buffer before taking the lock, so that
+		// network I/O does not serialize unrelated registry operations.
+		chunk := new(bytes.Buffer)
+		if _, err := chunk.ReadFrom(req.Body); err != nil {
+			http.Error(w, "read error", http.StatusInternalServerError)
+			return
+		}
 		r.mu.Lock()
 		buf, ok := r.pendingUploads[uuid]
 		if !ok {
@@ -391,11 +398,7 @@ func (r *MockRegistry) handleBlobUpload(w http.ResponseWriter, req *http.Request
 			http.Error(w, "upload not found", http.StatusNotFound)
 			return
 		}
-		if _, err := buf.ReadFrom(req.Body); err != nil {
-			r.mu.Unlock()
-			http.Error(w, "read error", http.StatusInternalServerError)
-			return
-		}
+		buf.Write(chunk.Bytes())
 		r.mu.Unlock()
 		w.Header().Set("Location", path)
 		w.WriteHeader(http.StatusAccepted)
@@ -411,6 +414,15 @@ func (r *MockRegistry) handleBlobUpload(w http.ResponseWriter, req *http.Request
 			return
 		}
 
+		// Read any final body bytes before taking the lock (see PATCH above).
+		final := new(bytes.Buffer)
+		if req.Body != nil {
+			if _, err := final.ReadFrom(req.Body); err != nil {
+				http.Error(w, "read error", http.StatusInternalServerError)
+				return
+			}
+		}
+
 		r.mu.Lock()
 		buf, ok := r.pendingUploads[uuid]
 		if !ok {
@@ -418,14 +430,7 @@ func (r *MockRegistry) handleBlobUpload(w http.ResponseWriter, req *http.Request
 			http.Error(w, "upload not found", http.StatusNotFound)
 			return
 		}
-		// Append any final body bytes.
-		if req.Body != nil {
-			if _, err := buf.ReadFrom(req.Body); err != nil {
-				r.mu.Unlock()
-				http.Error(w, "read error", http.StatusInternalServerError)
-				return
-			}
-		}
+		buf.Write(final.Bytes())
 		data := buf.Bytes()
 		delete(r.pendingUploads, uuid)
 		r.blobs[dgst] = append([]byte(nil), data...)

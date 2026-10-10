@@ -212,17 +212,13 @@ func TestIntegration_Push_ManifestPushFails(t *testing.T) {
 }
 
 // --------------------------------------------------------------------------
-// Dimension 3: Resource Leak (Known Bug #491)
+// Dimension 3: Resource Leak (#491 regression)
 // --------------------------------------------------------------------------
 
-// TestKnownBug_Push_ReadCloserNotClosed_SuccessPath documents that the
-// ReadCloser returned by PullBlob is never closed on the success path.
-// See: https://github.com/modelpack/modctl/issues/491
-//
-// This uses a reverse assertion: AssertNotClosed passes today because the
-// bug exists. When the bug is fixed (Close() is called), this test will
-// FAIL, signaling that the assertion should be flipped to AssertClosed.
-func TestKnownBug_Push_ReadCloserNotClosed_SuccessPath(t *testing.T) {
+// TestIntegration_Push_ReadCloserClosed_SuccessPath verifies that Push closes
+// the ReadCloser returned by PullBlob on the success path.
+// Regression test for https://github.com/modelpack/modctl/issues/491.
+func TestIntegration_Push_ReadCloserClosed_SuccessPath(t *testing.T) {
 	mr := helpers.NewMockRegistry()
 	defer mr.Close()
 
@@ -270,20 +266,19 @@ func TestKnownBug_Push_ReadCloserNotClosed_SuccessPath(t *testing.T) {
 	err = b.Push(context.Background(), target, cfg)
 	require.NoError(t, err, "push should succeed")
 
-	// Known bug #491: PullBlob ReadClosers are never closed.
-	// Reverse assertion — passes today, will fail when bug is fixed.
-	blobTracker.AssertNotClosed(t)
-	configTracker.AssertNotClosed(t)
+	// #491: Push must close every PullBlob ReadCloser.
+	blobTracker.AssertClosed(t)
+	configTracker.AssertClosed(t)
 }
 
-// TestKnownBug_Push_ReadCloserNotClosed_ErrorPath documents that the
-// ReadCloser returned by PullBlob is never closed on the error path either.
-// See: https://github.com/modelpack/modctl/issues/491
+// TestIntegration_Push_ReadCloserClosed_ErrorPath verifies that Push closes
+// the ReadCloser returned by PullBlob on the error path.
+// Regression test for https://github.com/modelpack/modctl/issues/491.
 //
 // The blob upload is made to fail by faulting the POST /blobs/uploads/
 // endpoint. The layer's PullBlob is still called (before the upload attempt),
-// but Close() is never invoked on the returned reader.
-func TestKnownBug_Push_ReadCloserNotClosed_ErrorPath(t *testing.T) {
+// and Close() must be invoked on the returned reader.
+func TestIntegration_Push_ReadCloserClosed_ErrorPath(t *testing.T) {
 	mr := helpers.NewMockRegistry()
 	defer mr.Close()
 
@@ -343,14 +338,8 @@ func TestKnownBug_Push_ReadCloserNotClosed_ErrorPath(t *testing.T) {
 	err = b.Push(ctx, target, cfg)
 	require.Error(t, err, "push should fail due to blob upload fault")
 
-	// Known bug #491: PullBlob ReadCloser is never closed, even on error.
-	// Reverse assertion — passes today, will fail when bug is fixed.
-	if blobTracker.WasClosed() {
-		// If this branch is reached, the bug may be fixed — flip to AssertClosed.
-		t.Log("blob tracker was closed — bug #491 may be fixed")
-	} else {
-		blobTracker.AssertNotClosed(t)
-	}
+	// #491: Push must close the PullBlob ReadCloser even when the upload fails.
+	blobTracker.AssertClosed(t)
 }
 
 // --------------------------------------------------------------------------
