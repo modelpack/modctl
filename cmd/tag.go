@@ -28,11 +28,11 @@ import (
 
 // tagCmd represents the modctl command for tag.
 var tagCmd = &cobra.Command{
-	Use:               "tag [flags] <source> <target>",
-	Short:             "Tag can tag one model artifact to another one without rebuilding.",
-	Args:              cobra.ExactArgs(2),
-	DisableAutoGenTag: true,
-	SilenceUsage:      true,
+	Use:                "tag [flags] <source> <target>",
+	Short:              "Tag one model artifact as another without rebuilding.",
+	Args:               cobra.ExactArgs(2),
+	DisableAutoGenTag:  true,
+	SilenceUsage:       true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runTag(cmd.Context(), args[0], args[1])
 	},
