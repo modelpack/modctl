@@ -22,6 +22,10 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+// OnHashFunc defines the signature for the OnHash hook function.
+// Called when digest computation starts, wraps reader with progress tracking.
+type OnHashFunc func(name string, size int64, reader io.Reader) io.Reader
+
 // OnStartFunc defines the signature for the OnStart hook function.
 type OnStartFunc func(name string, size int64, reader io.Reader) io.Reader
 
@@ -33,6 +37,9 @@ type OnCompleteFunc func(name string, desc ocispec.Descriptor)
 
 // Hooks is a struct that contains hook functions.
 type Hooks struct {
+	// OnHash is called when digest computation starts.
+	OnHash OnHashFunc
+
 	// OnStart is called when the build process starts.
 	OnStart OnStartFunc
 
@@ -46,6 +53,9 @@ type Hooks struct {
 // NewHooks creates a new Hooks instance with optional function parameters.
 func NewHooks(opts ...Option) Hooks {
 	h := Hooks{
+		OnHash: func(name string, size int64, reader io.Reader) io.Reader {
+			return reader
+		},
 		OnStart: func(name string, size int64, reader io.Reader) io.Reader {
 			return reader
 		},
@@ -62,6 +72,15 @@ func NewHooks(opts ...Option) Hooks {
 
 // Option is a function type that can be used to customize a Hooks instance.
 type Option func(*Hooks)
+
+// WithOnHash returns an Option that sets the OnHash hook.
+func WithOnHash(f OnHashFunc) Option {
+	return func(h *Hooks) {
+		if f != nil {
+			h.OnHash = f
+		}
+	}
+}
 
 // WithOnStart returns an Option that sets the OnStart hook.
 func WithOnStart(f OnStartFunc) Option {
