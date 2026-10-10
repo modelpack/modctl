@@ -80,18 +80,14 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 
 	logrus.Debugf("pull: loaded manifest for target %s [manifest: %+v]", target, manifest)
 
-	// Check disk space before pulling layers.
-	var totalSize int64
-	for _, layer := range manifest.Layers {
-		totalSize += layer.Size
-	}
-	totalSize += manifest.Config.Size
-
+	// Check disk space before pulling layers. Blobs that already exist in
+	// the local storage are skipped by pullIfNotExist and need no space, so
+	// a repeated pull of the same model does not warn.
 	targetDir := b.storageDir
 	if cfg.ExtractFromRemote && cfg.ExtractDir != "" {
 		targetDir = cfg.ExtractDir
 	}
-	if err := diskspace.Check(targetDir, totalSize); err != nil {
+	if err := diskspace.Check(targetDir, estimatePullSize(ctx, b.store, repo, &manifest, cfg.ExtractFromRemote)); err != nil {
 		logrus.Warnf("pull: %v", err)
 	}
 
@@ -206,6 +202,37 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 	tracker.Summary()
 	logrus.Infof("pull: pulled artifact %s", target)
 	return nil
+}
+
+// estimatePullSize returns the number of bytes Pull still has to write for
+// the manifest. In extract-from-remote mode every layer is extracted to the
+// output directory and nothing is stored locally, so all layer sizes count.
+// Otherwise, blobs that already exist in the local storage are skipped by
+// pullIfNotExist and are not counted. The estimate is a warning-only upper
+// bound: a stat error counts the blob.
+func estimatePullSize(ctx context.Context, store storage.Storage, repo string, manifest *ocispec.Manifest, extractFromRemote bool) int64 {
+	var total int64
+	if extractFromRemote {
+		for _, layer := range manifest.Layers {
+			total += layer.Size
+		}
+		return total
+	}
+
+	descs := make([]ocispec.Descriptor, 0, len(manifest.Layers)+1)
+	descs = append(descs, manifest.Config)
+	descs = append(descs, manifest.Layers...)
+	for _, desc := range descs {
+		exist, err := store.StatBlob(ctx, repo, desc.Digest.String())
+		if err != nil {
+			logrus.Warnf("pull: failed to stat blob %s for size estimation: %v", desc.Digest, err)
+		} else if exist {
+			continue
+		}
+		total += desc.Size
+	}
+
+	return total
 }
 
 // pullIfNotExist copies the content from the src storage to the dst storage if the content does not exist.

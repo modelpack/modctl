@@ -69,11 +69,14 @@ func (b *backend) Build(ctx context.Context, modelfilePath, workDir, target stri
 		return fmt.Errorf("failed to get source info: %w", err)
 	}
 
-	// Check disk space before building (only for local output).
+	// Check disk space before building (only for local output). The estimate
+	// sums the source files; it is an upper bound because digests are not
+	// known yet, so blobs that already exist in the local storage (for
+	// example from an earlier build of the same workspace) are counted too.
 	if !cfg.OutputRemote {
 		totalSize := estimateBuildSize(workDir, modelfile)
 		if err := diskspace.Check(b.storageDir, totalSize); err != nil {
-			logrus.Warnf("build: %v", err)
+			logrus.Warnf("build: %v (upper bound: blobs already in the local storage are counted again)", err)
 		}
 	}
 
