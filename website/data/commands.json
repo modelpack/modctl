@@ -1,0 +1,6 @@
+{
+  "install": "go install github.com/modelpack/modctl@main",
+  "build": "modctl modelfile generate .\n\nmodctl build \\\n    -t registry.com/models/llama3:v1.0.0 \\\n    -f Modelfile .",
+  "push": "modctl login -u YOUR_USERNAME registry.com\n\nmodctl push \\\n    registry.com/models/llama3:v1.0.0",
+  "pull": "modctl pull \\\n    registry.com/models/llama3:v1.0.0\n\nmodctl extract \\\n    registry.com/models/llama3:v1.0.0 \\\n    --output ./my-model"
+}
