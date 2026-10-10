@@ -30,6 +30,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
+	modelspec "github.com/modelpack/model-spec/specs-go/v1"
+
 	internalpb "github.com/modelpack/modctl/internal/pb"
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/config"
@@ -99,7 +101,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 			if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 				logrus.Debugf("push: processing layer %s", layer.Digest)
 				if err := tracker.TrackTransfer(func() error {
-					return pushIfNotExist(rctx, pb, internalpb.NormalizePrompt("Copying blob"), src, dst, layer, repo, tag, tracker)
+					return pushIfNotExist(rctx, pb, src, dst, layer, repo, tag, tracker)
 				}); err != nil {
 					return err
 				}
@@ -108,7 +110,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 			}, retrypolicy.DoOpts{
 				FileSize: layer.Size,
 				FileName: layer.Digest.String(),
-				OnRetry:  newRetryPlaceholder(pb, layer.Digest.String(), internalpb.NormalizePrompt("Copying blob"), layer.Size),
+				OnRetry:  newRetryPlaceholder(pb, layer.Digest.String(), internalpb.NormalizePrompt("Pushing blob"), layer.Size),
 			}); err != nil {
 				mu.Lock()
 				errs = append(errs, err)
@@ -138,12 +140,12 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	// copy the config.
 	if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 		return tracker.TrackTransfer(func() error {
-			return pushIfNotExist(rctx, pb, internalpb.NormalizePrompt("Copying config"), src, dst, manifest.Config, repo, tag, tracker)
+			return pushIfNotExist(rctx, pb, src, dst, manifest.Config, repo, tag, tracker)
 		})
 	}, retrypolicy.DoOpts{
 		FileSize: manifest.Config.Size,
 		FileName: "config",
-		OnRetry:  newRetryPlaceholder(pb, manifest.Config.Digest.String(), internalpb.NormalizePrompt("Copying config"), manifest.Config.Size),
+		OnRetry:  newRetryPlaceholder(pb, manifest.Config.Digest.String(), internalpb.NormalizePrompt("Pushing config"), manifest.Config.Size),
 	}); err != nil {
 		return fmt.Errorf("failed to push config to remote: %w", err)
 	}
@@ -157,7 +159,7 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 	}
 	if err := retrypolicy.Do(ctx, func(rctx context.Context) error {
 		return tracker.TrackTransfer(func() error {
-			return pushIfNotExist(rctx, pb, internalpb.NormalizePrompt("Copying manifest"), src, dst, manifestDesc, repo, tag, tracker)
+			return pushIfNotExist(rctx, pb, src, dst, manifestDesc, repo, tag, tracker)
 		})
 	}, retrypolicy.DoOpts{
 		FileSize: manifestDesc.Size,
@@ -173,15 +175,33 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 }
 
 // pushIfNotExist copies the content from the src storage to the dst storage if the content does not exist.
-func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt string, src storage.Storage, dst *remote.Repository, desc ocispec.Descriptor, repo, tag string, tracker *iometrics.Tracker) error {
+func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, src storage.Storage, dst *remote.Repository, desc ocispec.Descriptor, repo, tag string, tracker *iometrics.Tracker) error {
+	// kind is the descriptor type shown in progress bar prompts.
+	kind := "blob"
+	switch desc.MediaType {
+	case ocispec.MediaTypeImageManifest:
+		kind = "manifest"
+	case modelspec.MediaTypeModelConfig:
+		kind = "config"
+	}
+
+	// Phase 1: show "Checking" during the existence check. The manifest is
+	// excluded since its payload is already in memory and pushed together
+	// with the tag right after. Bar is created with a nil reader so it
+	// indicates waiting state without transferring bytes.
+	if desc.MediaType != ocispec.MediaTypeImageManifest {
+		pb.Add(internalpb.NormalizePrompt("Checking "+kind), desc.Digest.String(), desc.Size, nil)
+	}
+
 	// check whether the content exists in the destination storage.
 	exist, err := dst.Exists(ctx, desc)
 	if err != nil {
+		pb.Abort(desc.Digest.String(), err)
 		return err
 	}
 
 	if exist {
-		pb.Add(prompt, desc.Digest.String(), desc.Size, bytes.NewReader([]byte{}))
+		pb.Add(internalpb.NormalizePrompt("Skipped "+kind), desc.Digest.String(), desc.Size, bytes.NewReader([]byte{}))
 		// if the descriptor is the manifest, should check the tag existence as well.
 		if desc.MediaType == ocispec.MediaTypeImageManifest {
 			_, _, err := dst.FetchReference(ctx, tag)
@@ -195,14 +215,14 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 			}
 		}
 
-		pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), desc.Digest.String()))
+		pb.Complete(desc.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped "+kind), desc.Digest.String()))
 		return nil
 	}
 
 	// push the content to the destination, and wrap the content reader for progress bar,
 	// manifest should use dst.Manifests().Push, others should use dst.Blobs().Push.
 	if desc.MediaType == ocispec.MediaTypeImageManifest {
-		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, tracker.WrapReader(bytes.NewReader(desc.Data)))
+		reader := pb.Add(internalpb.NormalizePrompt("Copying manifest"), desc.Digest.String(), desc.Size, tracker.WrapReader(bytes.NewReader(desc.Data)))
 		if err := dst.Manifests().Push(ctx, desc, reader); err != nil {
 			err = fmt.Errorf("failed to push manifest %s, err: %w", desc.Digest.String(), err)
 			pb.Abort(desc.Digest.String(), err)
@@ -219,6 +239,7 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		// fetch the content from the source storage.
 		content, err := src.PullBlob(ctx, repo, desc.Digest.String())
 		if err != nil {
+			pb.Abort(desc.Digest.String(), err)
 			return err
 		}
 		// Ensure the blob content is closed to avoid leaking resources (#491).
@@ -226,7 +247,8 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, prompt stri
 		// library's Close() implementation which returns a known error (#50).
 		defer content.Close()
 
-		reader := pb.Add(prompt, desc.Digest.String(), desc.Size, tracker.WrapReader(content))
+		// Phase 2: reset to "Pushing" for actual upload.
+		reader := pb.Reset(internalpb.NormalizePrompt("Pushing "+kind), desc.Digest.String(), desc.Size, tracker.WrapReader(content))
 		// resolve issue: https://github.com/modelpack/modctl/issues/50
 		// wrap the content to the NopCloser, because the implementation of the distribution will
 		// always return the error when Close() is called.

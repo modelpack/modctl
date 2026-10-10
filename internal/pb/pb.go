@@ -57,28 +57,9 @@ type ProgressBar struct {
 
 type progressBar struct {
 	*mpbv8.Bar
-	size int64
-	// msgMu guards msg, which is read by mpb's render goroutine (via the
-	// prepend decorator) while being written by Placeholder/Complete from
-	// transfer goroutines.
-	msgMu     sync.RWMutex
-	msg       string
+	size      int64
+	msg       atomic.Value // stores string; accessed by mpb render goroutine
 	startTime time.Time
-}
-
-// setMsg updates the bar's prepended message under lock.
-func (b *progressBar) setMsg(msg string) {
-	b.msgMu.Lock()
-	b.msg = msg
-	b.msgMu.Unlock()
-}
-
-// msgText returns the bar's prepended message under lock. It is called from
-// mpb's render goroutine, so it must never block on anything but msgMu.
-func (b *progressBar) msgText() string {
-	b.msgMu.RLock()
-	defer b.msgMu.RUnlock()
-	return b.msg
 }
 
 // NewProgressBar creates a new progress bar.
@@ -112,27 +93,30 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 		return reader
 	}
 
-	p.mu.RLock()
-	oldBar := p.bars[name]
-	p.mu.RUnlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	// If the bar exists, drop and remove it.
-	if oldBar != nil {
+	// If a bar with the same name exists, abort and drop it before creating
+	// the replacement. Note: mpb ignores Abort on already-completed bars, but
+	// with PopCompletedMode those have been popped out of the rendering area,
+	// so the replacement still displays correctly and the map entry is
+	// updated either way.
+	if oldBar := p.bars[name]; oldBar != nil {
 		oldBar.Abort(true)
 	}
 
 	newBar := &progressBar{
 		size:      size,
-		msg:       fmt.Sprintf("%s %s", prompt, name),
 		startTime: time.Now(),
 	}
-	// Create a new bar if it does not exist.
+	newBar.msg.Store(fmt.Sprintf("%s %s", prompt, name))
+
 	newBar.Bar = p.mpb.New(size,
 		mpbv8.BarStyle(),
 		mpbv8.BarFillerOnComplete("|"),
 		mpbv8.PrependDecorators(
 			decor.Any(func(s decor.Statistics) string {
-				return newBar.msgText()
+				return newBar.msg.Load().(string)
 			}, decor.WCSyncSpaceR),
 		),
 		mpbv8.AppendDecorators(
@@ -148,9 +132,7 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 		),
 	)
 
-	p.mu.Lock()
 	p.bars[name] = newBar
-	p.mu.Unlock()
 
 	if reader != nil {
 		return newBar.ProxyReader(reader)
@@ -183,7 +165,7 @@ func (p *ProgressBar) Placeholder(name string, prompt string, size int64) {
 		return
 	}
 
-	existing.setMsg(fmt.Sprintf("%s %s", prompt, name))
+	existing.msg.Store(fmt.Sprintf("%s %s", prompt, name))
 	existing.Bar.SetRefill(existing.Bar.Current())
 	existing.Bar.SetCurrent(0)
 	existing.Bar.EwmaSetCurrent(0, time.Second)
@@ -205,7 +187,7 @@ func (p *ProgressBar) Complete(name string, msg string) {
 	p.mu.RUnlock()
 
 	if ok {
-		bar.setMsg(msg)
+		bar.msg.Store(msg)
 		bar.Bar.SetCurrent(bar.size)
 	}
 }
@@ -220,6 +202,15 @@ func (p *ProgressBar) Abort(name string, err error) {
 		logrus.Errorf("progress: aborting bar %s: %v", name, err)
 		bar.Abort(true)
 	}
+}
+
+// Reset resets an existing progress bar for a new phase.
+// Aborts the old bar (if any, see Add for completed-bar semantics) and
+// creates a new one with updated prompt, reset progress, and fresh speed
+// counter. Creates the bar if it does not exist yet. Parameter order
+// matches Add.
+func (p *ProgressBar) Reset(prompt, name string, size int64, reader io.Reader) io.Reader {
+	return p.Add(prompt, name, size, reader)
 }
 
 // Start starts the progress bar.

@@ -19,6 +19,7 @@ package build
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -36,6 +37,7 @@ import (
 
 	buildconfig "github.com/modelpack/modctl/pkg/backend/build/config"
 	"github.com/modelpack/modctl/pkg/backend/build/hooks"
+	pkgcodec "github.com/modelpack/modctl/pkg/codec"
 	buildmock "github.com/modelpack/modctl/test/mocks/backend/build"
 	storagemock "github.com/modelpack/modctl/test/mocks/storage"
 )
@@ -113,6 +115,39 @@ func (s *BuilderTestSuite) TestNewBuilder() {
 	}
 }
 
+// recordingStrategy is a hand-written OutputStrategy used by TestBuildLayer.
+//
+// BuildLayer hands OutputLayer a live *io.PipeReader whose background tar
+// writer goroutine is mid-write. The generated testify mock formats every
+// argument with fmt (via mock.Arguments.Diff) when matching the call, which
+// reflects into the pipe's internal state concurrently with that writer -- a
+// data race reported under `go test -race`. This fake reads the reader like
+// the real strategies do, which avoids the reflection and unblocks the writer
+// goroutine.
+type recordingStrategy struct {
+	OutputStrategy // OutputConfig/OutputManifest are unused by this test.
+
+	desc ocispec.Descriptor
+	err  error
+
+	called    bool
+	mediaType string
+	relPath   string
+	destPath  string
+	size      int64
+	gotReader bool
+}
+
+func (r *recordingStrategy) OutputLayer(_ context.Context, mediaType, relPath, destPath, _ string, size int64, reader io.Reader, _ hooks.Hooks) (ocispec.Descriptor, error) {
+	r.called = true
+	r.mediaType, r.relPath, r.destPath, r.size = mediaType, relPath, destPath, size
+	r.gotReader = reader != nil
+	if reader != nil {
+		_, _ = io.Copy(io.Discard, reader)
+	}
+	return r.desc, r.err
+}
+
 func (s *BuilderTestSuite) TestBuildLayer() {
 	s.Run("successful build layer", func() {
 		expectedDesc := ocispec.Descriptor{
@@ -121,11 +156,25 @@ func (s *BuilderTestSuite) TestBuildLayer() {
 			Size:      100,
 		}
 
-		s.mockOutputStrategy.On("OutputLayer", mock.Anything, "test/media-type.tar", "test-file.txt", "", mock.AnythingOfType("string"), mock.AnythingOfType("int64"), mock.AnythingOfType("*io.PipeReader"), mock.Anything).
-			Return(expectedDesc, nil)
+		// Use a hand-written strategy instead of the testify mock: BuildLayer
+		// passes OutputLayer a live *io.PipeReader, and the mock's argument
+		// diffing formats it with fmt, racing with the pipe's writer goroutine.
+		strategy := &recordingStrategy{
+			OutputStrategy: s.mockOutputStrategy,
+			desc:           expectedDesc,
+		}
+		s.builder.strategy = strategy
+		defer func() {
+			s.builder.strategy = s.mockOutputStrategy
+		}()
 
 		desc, err := s.builder.BuildLayer(context.Background(), "test/media-type.tar", s.tempDir, s.tempFile, "", hooks.NewHooks())
 		s.NoError(err)
+		s.True(strategy.called)
+		s.Equal("test/media-type.tar", strategy.mediaType)
+		s.Equal("test-file.txt", strategy.relPath)
+		s.Equal("", strategy.destPath)
+		s.True(strategy.gotReader)
 		s.Equal(expectedDesc.MediaType, desc.MediaType)
 		s.Equal(expectedDesc.Digest, desc.Digest)
 		s.Equal(expectedDesc.Size, desc.Size)
@@ -274,6 +323,139 @@ func (s *BuilderTestSuite) TestBuildModelConfig() {
 	s.Len(model.ModelFS.DiffIDs, 2)
 	s.Equal("sha256:layer-1", model.ModelFS.DiffIDs[0].String())
 	s.Equal("sha256:layer-2", model.ModelFS.DiffIDs[1].String())
+}
+
+func (s *BuilderTestSuite) TestComputeDigestAndSize_CallsOnHash() {
+	content := "test content for hashing"
+	filePath := filepath.Join(s.tempDir, "hash-test.txt")
+	err := os.WriteFile(filePath, []byte(content), 0666)
+	s.Require().NoError(err)
+
+	info, err := os.Stat(filePath)
+	s.Require().NoError(err)
+
+	// Raw codec produces a seekable reader (os.File).
+	codec, err := pkgcodec.New(pkgcodec.Raw)
+	s.Require().NoError(err)
+
+	var hashCalled bool
+	var hashSize int64
+	onHash := func(size int64, r io.Reader) io.Reader {
+		hashCalled = true
+		hashSize = size
+		return r
+	}
+
+	reader, err := codec.Encode(filePath, s.tempDir)
+	s.Require().NoError(err)
+
+	_, digest, size, err := s.builder.computeDigestAndSize(
+		context.Background(), "test/media-type.raw", filePath, s.tempDir, info, reader, codec, onHash,
+	)
+
+	s.NoError(err)
+	s.True(hashCalled, "onHash callback should be called")
+	s.Equal(info.Size(), hashSize)
+	s.NotEmpty(digest)
+	s.Equal(int64(len(content)), size)
+}
+
+func (s *BuilderTestSuite) TestComputeDigestAndSize_OnHashWrapsReader() {
+	content := "wrap test content"
+	filePath := filepath.Join(s.tempDir, "wrap-test.txt")
+	err := os.WriteFile(filePath, []byte(content), 0666)
+	s.Require().NoError(err)
+
+	info, err := os.Stat(filePath)
+	s.Require().NoError(err)
+
+	codec, err := pkgcodec.New(pkgcodec.Raw)
+	s.Require().NoError(err)
+
+	// onHash wraps the reader with a counting wrapper.
+	var bytesRead int64
+	onHash := func(size int64, r io.Reader) io.Reader {
+		return &countingReader{reader: r, count: &bytesRead}
+	}
+
+	reader, err := codec.Encode(filePath, s.tempDir)
+	s.Require().NoError(err)
+
+	_, digest, size, err := s.builder.computeDigestAndSize(
+		context.Background(), "test/media-type.raw", filePath, s.tempDir, info, reader, codec, onHash,
+	)
+
+	s.NoError(err)
+	s.NotEmpty(digest)
+	s.Equal(int64(len(content)), size)
+	s.Equal(int64(len(content)), bytesRead, "wrapped reader should have been fully read")
+}
+
+func (s *BuilderTestSuite) TestComputeDigestAndSize_ReaderFails() {
+	filePath := filepath.Join(s.tempDir, "fail-test.txt")
+	err := os.WriteFile(filePath, []byte("data"), 0666)
+	s.Require().NoError(err)
+
+	info, err := os.Stat(filePath)
+	s.Require().NoError(err)
+
+	codec, err := pkgcodec.New(pkgcodec.Raw)
+	s.Require().NoError(err)
+
+	onHash := func(size int64, r io.Reader) io.Reader { return r }
+
+	// Use a reader that fails mid-read.
+	failReader := &failingReader{err: errors.New("read error")}
+
+	_, _, _, err = s.builder.computeDigestAndSize(
+		context.Background(), "test/media-type.raw", filePath, s.tempDir, info, failReader, codec, onHash,
+	)
+	s.Error(err)
+	s.Contains(err.Error(), "read error")
+}
+
+// countingReader wraps a reader and counts bytes read.
+type countingReader struct {
+	reader io.Reader
+	count  *int64
+}
+
+func (r *countingReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	*r.count += int64(n)
+	return n, err
+}
+
+// failingReader always returns an error.
+type failingReader struct {
+	err error
+}
+
+func (r *failingReader) Read(p []byte) (int, error) {
+	return 0, r.err
+}
+
+func (s *BuilderTestSuite) TestBuildLayer_OnErrorOnHashFailure() {
+	// OnHash injects a failing reader so digest computation fails;
+	// BuildLayer must then invoke OnError so the hashing bar is aborted.
+	var onErrorCalled bool
+	var onErrorName string
+	h := hooks.NewHooks(
+		hooks.WithOnHash(func(name string, size int64, reader io.Reader) io.Reader {
+			return &failingReader{err: errors.New("hash read error")}
+		}),
+		hooks.WithOnError(func(name string, err error) {
+			onErrorCalled = true
+			onErrorName = name
+		}),
+	)
+
+	_, err := s.builder.BuildLayer(context.Background(), "test/media-type.raw", s.tempDir, s.tempFile, "", h)
+
+	s.Error(err)
+	s.Contains(err.Error(), "hash read error")
+	s.True(onErrorCalled, "OnError hook should be called on hash failure")
+	s.Equal("test-file.txt", onErrorName)
 }
 
 func TestBuilderSuite(t *testing.T) {
