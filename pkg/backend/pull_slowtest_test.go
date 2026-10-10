@@ -30,17 +30,21 @@ import (
 )
 
 // TestSlow_Pull_RetryOnTransientError verifies that a pull succeeds when the
-// first 2 requests fail transiently (FailOnNthRequest: 2) and the retry
-// mechanism eventually succeeds.  Requires real backoff — takes 30+ seconds.
+// first 2 requests for a layer blob fail transiently (FailOnNthRequest: 2)
+// and the retry mechanism eventually succeeds.  Requires real backoff —
+// takes 15+ seconds.
 func TestSlow_Pull_RetryOnTransientError(t *testing.T) {
 	f := newPullTestFixture(t, 1)
 	defer f.mr.Close()
 
-	// First 2 requests fail with 500; request 3+ succeed normally.
-	// The failCounter is global across all requests (ping, manifest, blobs),
-	// so a value of 2 means the ping and one other request fail before success.
+	// Only the layer blob fails: the first 2 GETs return 500, the 3rd
+	// succeeds. The fault is scoped to the blob path because the manifest
+	// fetch runs before the retry loop, so a global fault would fail the
+	// pull immediately instead of exercising the retry.
 	f.mr.WithFault(&helpers.FaultConfig{
-		FailOnNthRequest: 2,
+		PathFaults: map[string]*helpers.FaultConfig{
+			f.digests[0]: {FailOnNthRequest: 2},
+		},
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -50,19 +54,23 @@ func TestSlow_Pull_RetryOnTransientError(t *testing.T) {
 	require.NoError(t, err, "pull should eventually succeed after transient failures")
 }
 
-// TestSlow_Pull_RetryExhausted verifies that a pull fails when all registry
-// requests return 500, causing all retry attempts to be exhausted.  Requires
-// real backoff — takes 30+ seconds.
+// TestSlow_Pull_RetryExhausted verifies that a pull fails when every request
+// for a layer blob returns 500: the retry loop keeps backing off until the
+// context deadline and the error is reported.  Requires real backoff — takes
+// 60 seconds.
 func TestSlow_Pull_RetryExhausted(t *testing.T) {
 	f := newPullTestFixture(t, 1)
 	defer f.mr.Close()
 
-	// Every request returns 500, so all retry attempts will be exhausted.
+	// Every GET for the layer blob returns 500. The fault is path-scoped so
+	// the manifest fetch succeeds and the blob retry loop is exercised.
 	f.mr.WithFault(&helpers.FaultConfig{
-		StatusCodeOverride: 500,
+		PathFaults: map[string]*helpers.FaultConfig{
+			f.digests[0]: {StatusCodeOverride: 500},
+		},
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	err := f.backend.Pull(ctx, f.target, f.cfg)
@@ -70,15 +78,18 @@ func TestSlow_Pull_RetryExhausted(t *testing.T) {
 }
 
 // TestSlow_Pull_RateLimited verifies that a pull succeeds when the first 3
-// requests fail (simulating rate-limiting) and subsequent requests succeed.
-// Requires real backoff — takes 30+ seconds.
+// requests for a layer blob fail (simulating rate-limiting) and subsequent
+// requests succeed.  Requires real backoff — takes 35+ seconds.
 func TestSlow_Pull_RateLimited(t *testing.T) {
 	f := newPullTestFixture(t, 1)
 	defer f.mr.Close()
 
-	// First 3 requests fail; request 4+ succeed normally.
+	// The first 3 GETs for the layer blob fail; the 4th succeeds. See
+	// TestSlow_Pull_RetryOnTransientError for why the fault is path-scoped.
 	f.mr.WithFault(&helpers.FaultConfig{
-		FailOnNthRequest: 3,
+		PathFaults: map[string]*helpers.FaultConfig{
+			f.digests[0]: {FailOnNthRequest: 3},
+		},
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)

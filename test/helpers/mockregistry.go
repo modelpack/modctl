@@ -89,6 +89,16 @@ type MockRegistry struct {
 	uploadSeq atomic.Int64
 }
 
+// SetKeepAlivesEnabled controls HTTP keep-alives on the mock server.
+//
+// Each backend operation builds its own http.Transport (pkg/backend/remote)
+// and never closes its idle keep-alive connections. Both ends of those
+// connections live in the test process, so goroutine-counting tests disable
+// keep-alives to measure real leaks instead of idle connections.
+func (r *MockRegistry) SetKeepAlivesEnabled(v bool) {
+	r.server.Config.SetKeepAlivesEnabled(v)
+}
+
 // NewMockRegistry creates and starts a new mock OCI registry server.
 func NewMockRegistry() *MockRegistry {
 	r := &MockRegistry{

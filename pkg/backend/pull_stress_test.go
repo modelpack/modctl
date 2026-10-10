@@ -58,6 +58,13 @@ func TestStress_Pull_RepeatedCycles(t *testing.T) {
 	f := newPullTestFixture(t, 2)
 	defer f.mr.Close()
 
+	// Every Pull creates its own http.Transport and leaves its idle
+	// keep-alive connections open. The client readLoop/writeLoop and the
+	// server conn.serve goroutines of those connections all live in this
+	// process, so with keep-alives on the count grows by about 5 per cycle
+	// without any real leak. Disable keep-alives to measure real leaks only.
+	f.mr.SetKeepAlivesEnabled(false)
+
 	goroutinesBefore := runtime.NumGoroutine()
 
 	for i := 0; i < cycles; i++ {
@@ -67,12 +74,14 @@ func TestStress_Pull_RepeatedCycles(t *testing.T) {
 		require.NoError(t, err, "pull cycle %d/%d should succeed", i+1, cycles)
 	}
 
-	// Give any background goroutines a moment to finish.
-	runtime.Gosched()
-
-	goroutinesAfter := runtime.NumGoroutine()
-	leaked := goroutinesAfter - goroutinesBefore
+	// Give connection teardown and background goroutines a moment to finish.
+	deadline := time.Now().Add(5 * time.Second)
+	leaked := runtime.NumGoroutine() - goroutinesBefore
+	for leaked > goroutineDelta && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+		leaked = runtime.NumGoroutine() - goroutinesBefore
+	}
 	require.LessOrEqual(t, leaked, goroutineDelta,
-		"goroutine count grew by %d after %d pull cycles (before=%d, after=%d); possible goroutine leak",
-		leaked, cycles, goroutinesBefore, goroutinesAfter)
+		"goroutine count grew by %d after %d pull cycles (before=%d); possible goroutine leak",
+		leaked, cycles, goroutinesBefore)
 }

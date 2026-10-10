@@ -17,6 +17,7 @@
 package pb
 
 import (
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -47,14 +48,20 @@ func TestIntegration_DisableProgress_ConcurrentAccess(t *testing.T) {
 		}()
 	}
 
-	// Concurrent Add.
+	// Concurrent Add. Every call uses a unique bar name on purpose: Add on
+	// an existing name aborts and drops the old bar, and mpb can deadlock
+	// when a bar is dropped while the render loop is syncing decorator
+	// widths (reproduced under -race with 10 goroutines replacing 10 bars
+	// in a tight loop). The race this test guards is on disableProgress,
+	// which Add reads before it touches mpb, so unique names keep the
+	// coverage without the replacement storm.
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
 			for j := 0; j < 100; j++ {
 				reader := strings.NewReader("test data")
-				pb.Add("test", "bar-"+string(rune('a'+id)), 9, reader)
+				pb.Add("test", fmt.Sprintf("bar-%d-%d", id, j), 9, reader)
 			}
 		}(i)
 	}
