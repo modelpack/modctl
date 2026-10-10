@@ -1,0 +1,35 @@
+{{ $home := .Site.Home.RelPermalink }}
+{{ $docs := .Site.GetPage "getting-started" }}
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="{{ $home }}" aria-label="{{ i18n "home" }}">
+      <img src="{{ "assets/mark.svg" | relURL }}" width="31" height="34" alt="">
+      <span>modctl<span class="brand-dot">.</span></span>
+    </a>
+    <button class="menu-toggle" aria-label="{{ i18n "openNavigation" }}" aria-expanded="false" aria-controls="navigation"
+      data-open-label="{{ i18n "openNavigation" }}" data-close-label="{{ i18n "closeNavigation" }}">
+      <span></span><span></span>
+    </button>
+    <nav id="navigation" class="navigation" aria-label="{{ i18n "mainNavigation" }}">
+      <a href="{{ $home }}#why-modctl">{{ i18n "whyModctl" }}</a>
+      <a href="{{ $home }}#workflow">{{ i18n "workflow" }}</a>
+      <a href="{{ $home }}#ecosystem">{{ i18n "ecosystem" }}</a>
+      <a href="{{ $docs.RelPermalink }}"{{ if eq .Type "docs" }} aria-current="page"{{ end }}>{{ i18n "documentation" }}</a>
+      <div class="nav-actions">
+        <div class="language-navigation" aria-label="{{ i18n "languageNavigation" }}">
+          {{ range .Translations }}
+          <a class="language-toggle" href="{{ .RelPermalink }}" lang="{{ .Language.Locale }}" hreflang="{{ .Language.Locale }}">
+            <span class="globe" aria-hidden="true">◎</span><span>{{ .Language.Label }}</span>
+          </a>
+          {{ end }}
+        </div>
+        <a class="github-nav" href="{{ .Site.Params.repository }}" target="_blank" rel="noopener noreferrer" aria-label="{{ i18n "githubLabel" }}">
+          {{ partial "icons/github.html" . }}
+        </a>
+        <a class="button button-small button-dark" href="{{ $docs.RelPermalink }}">
+          <span>{{ i18n "getStarted" }}</span><span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </nav>
+  </div>
+</header>

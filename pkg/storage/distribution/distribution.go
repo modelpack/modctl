@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2024 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -204,7 +204,7 @@ func (s *storage) PushBlob(ctx context.Context, repo string, blobReader io.Reade
 
 	desc, err := blob.Commit(ctx, provisional)
 	if err != nil {
-		return "", 0, nil
+		return "", 0, err
 	}
 
 	return desc.Digest.String(), desc.Size, nil

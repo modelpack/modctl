@@ -1,5 +1,5 @@
 /*
- *     Copyright 2025 The CNAI Authors
+ *     Copyright 2025 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,12 @@
 
 package build
 
-import (
-	"github.com/modelpack/modctl/pkg/backend/build/interceptor"
-)
-
 type Option func(*config)
 
 // config is the configuration for the building.
 type config struct {
-	plainHTTP   bool
-	insecure    bool
-	interceptor interceptor.Interceptor
+	plainHTTP bool
+	insecure  bool
 }
 
 func WithPlainHTTP(plainHTTP bool) Option {
@@ -38,11 +33,5 @@ func WithPlainHTTP(plainHTTP bool) Option {
 func WithInsecure(insecure bool) Option {
 	return func(c *config) {
 		c.insecure = insecure
-	}
-}
-
-func WithInterceptor(interceptor interceptor.Interceptor) Option {
-	return func(c *config) {
-		c.interceptor = interceptor
 	}
 }

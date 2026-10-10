@@ -1,5 +1,5 @@
 /*
- *     Copyright 2025 The CNAI Authors
+ *     Copyright 2025 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,11 +31,18 @@ import (
 	internalpb "github.com/modelpack/modctl/internal/pb"
 	"github.com/modelpack/modctl/pkg/backend/remote"
 	"github.com/modelpack/modctl/pkg/config"
+	"github.com/modelpack/modctl/pkg/iometrics"
 )
 
 // Fetch fetches partial files to the output.
 func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) error {
 	logrus.Infof("fetch: fetching from %s", target)
+
+	// Apply default hooks when caller leaves it unset to avoid nil deref.
+	if cfg.Hooks == nil {
+		defaults := config.NewFetch()
+		cfg.Hooks = defaults.Hooks
+	}
 
 	// fetchByDragonfly is called if a Dragonfly endpoint is specified in the configuration.
 	if cfg.DragonflyEndpoint != "" {
@@ -101,6 +108,8 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 	pb.Start()
 	defer pb.Stop()
 
+	tracker := iometrics.NewTracker("fetch")
+
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(cfg.Concurrency)
 
@@ -114,9 +123,19 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 			}
 
 			logrus.Debugf("fetch: processing layer %s", layer.Digest)
-			if err := pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer); err != nil {
+			if cfg.Hooks.BeforePullLayer(layer, manifest) {
+				logrus.Debugf("fetch: layer %s skipped by hook", layer.Digest)
+				pb.Complete(layer.Digest.String(), fmt.Sprintf("%s %s", internalpb.NormalizePrompt("Skipped blob"), layer.Digest.String()))
+				cfg.Hooks.AfterPullLayer(layer, true, nil)
+				return nil
+			}
+			if err := tracker.TrackTransfer(func() error {
+				return pullAndExtractFromRemote(ctx, pb, internalpb.NormalizePrompt("Fetching blob"), client, cfg.Output, layer, tracker)
+			}); err != nil {
+				cfg.Hooks.AfterPullLayer(layer, false, err)
 				return err
 			}
+			cfg.Hooks.AfterPullLayer(layer, false, nil)
 
 			logrus.Debugf("fetch: successfully processed layer %s", layer.Digest)
 			return nil
@@ -127,6 +146,7 @@ func (b *backend) Fetch(ctx context.Context, target string, cfg *config.Fetch) e
 		return err
 	}
 
+	tracker.Summary()
 	logrus.Infof("fetch: fetched %d layers", len(layers))
 	return nil
 }

@@ -1,5 +1,5 @@
 /*
- *     Copyright 2024 The CNAI Authors
+ *     Copyright 2024 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -606,6 +606,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 				"tokenizer.json",
 				"special_tokens_map.json",
 				"vocab.json",
+				"merges.txt",
 			},
 			expectModels: []string{
 				"pytorch_model.bin",
@@ -617,7 +618,7 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 				"scripts/convert_weights.py",
 				"scripts/preprocessing/prep.py",
 			},
-			expectDocs:      []string{"merges.txt", "README.md"},
+			expectDocs:      []string{"README.md"},
 			expectName:      "llama-7b",
 			expectArch:      "transformer",
 			expectFamily:    "llama",
@@ -675,6 +676,141 @@ func TestNewModelfileByWorkspace(t *testing.T) {
 			expectModels:  []string{"normal/model.bin"},
 			expectCodes:   []string{"valid_dir/model.py"},
 			expectName:    "skip-test",
+		},
+		{
+			name: "include all hidden files with recursive pattern",
+			setupFiles: map[string]string{
+				"config.json":                "",
+				"model.bin":                  "",
+				".hidden_config.json":        "",
+				".hidden_dir/model.bin":      "",
+				".hidden_dir/.nested.py":     "",
+				"normal_dir/.hidden_code.py": "",
+				"normal_dir/visible.py":      "",
+			},
+			setupDirs: []string{
+				".hidden_dir",
+				"normal_dir",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:            "include-all-hidden",
+				IncludePatterns: []string{"**/.*"},
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json", ".hidden_config.json"},
+			expectModels:  []string{"model.bin", ".hidden_dir/model.bin"},
+			expectCodes:   []string{".hidden_dir/.nested.py", "normal_dir/.hidden_code.py", "normal_dir/visible.py"},
+			expectName:    "include-all-hidden",
+		},
+		{
+			name: "include specific hidden directory",
+			setupFiles: map[string]string{
+				"config.json":        "",
+				"model.bin":          "",
+				".weights/extra.bin": "",
+				".weights/data.bin":  "",
+				".other/secret.py":   "",
+			},
+			setupDirs: []string{
+				".weights",
+				".other",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:            "include-weights-dir",
+				IncludePatterns: []string{".weights/**"},
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json"},
+			expectModels:  []string{"model.bin", ".weights/extra.bin", ".weights/data.bin"},
+			expectCodes:   []string{},
+			expectName:    "include-weights-dir",
+		},
+		{
+			name: "include with exclude override",
+			setupFiles: map[string]string{
+				"config.json":     "",
+				"model.bin":       "",
+				".hidden.py":      "",
+				".env":            "",
+				"sub/.secret.yml": "",
+			},
+			setupDirs: []string{
+				"sub",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:            "include-exclude",
+				IncludePatterns: []string{"**/.*"},
+				ExcludePatterns: []string{"**/.env"},
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json", "sub/.secret.yml"},
+			expectModels:  []string{"model.bin"},
+			expectCodes:   []string{".hidden.py"},
+			expectName:    "include-exclude",
+		},
+		{
+			name: "no include patterns regression",
+			setupFiles: map[string]string{
+				"config.json":      "",
+				"model.bin":        "",
+				".hidden_file":     "",
+				".hidden_dir/x.py": "",
+			},
+			setupDirs: []string{
+				".hidden_dir",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name: "no-include-regression",
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json"},
+			expectModels:  []string{"model.bin"},
+			expectCodes:   []string{},
+			expectName:    "no-include-regression",
+		},
+		{
+			name: "multiple include patterns",
+			setupFiles: map[string]string{
+				"config.json":           "",
+				"model.bin":             "",
+				".hidden.py":            "",
+				"__pycache__/cache.pyc": "",
+			},
+			setupDirs: []string{
+				"__pycache__",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:            "multi-include",
+				IncludePatterns: []string{".*", "**/__pycache__/**"},
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json"},
+			expectModels:  []string{"model.bin"},
+			expectCodes:   []string{".hidden.py", "__pycache__/cache.pyc"},
+			expectName:    "multi-include",
+		},
+		{
+			name: "skippable dirs not matching include are still skipped",
+			setupFiles: map[string]string{
+				"config.json":        "",
+				"model.bin":          "",
+				".git/objects/pack":  "",
+				".weights/model.bin": "",
+			},
+			setupDirs: []string{
+				".git",
+				".git/objects",
+				".weights",
+			},
+			config: &configmodelfile.GenerateConfig{
+				Name:            "selective-include",
+				IncludePatterns: []string{".weights/**"},
+			},
+			expectError:   false,
+			expectConfigs: []string{"config.json"},
+			expectModels:  []string{"model.bin", ".weights/model.bin"},
+			expectCodes:   []string{},
+			expectName:    "selective-include",
 		},
 	}
 
@@ -1755,6 +1891,41 @@ func TestFileTypeClassification(t *testing.T) {
 			expectedModels:  []string{"model.bin", "weights.safetensors"},
 			expectedCodes:   []string{"script.py", "inference.py"},
 			expectedDocs:    []string{"README.md", "LICENSE"},
+		},
+		{
+			name: "huggingface tokenizer and runtime artifacts",
+			files: map[string]int64{
+				"config.json":                       1024,
+				"vocab.txt":                         1024,
+				"merges.txt":                        1024,
+				"added_tokens.txt":                  1024,
+				"tokenizer/spiece.model":            1024,
+				"tokenizer/sentencepiece.bpe.model": 1024,
+				"tokenizer/tiktoken.model":          1024,
+				"chat_template.jinja":               1024,
+				"onnx/model.onnx_data_1":            1024,
+				"coreml/model.mil":                  1024,
+				"ckpt-0/tensor00001_000":            1024,
+				"scripts/inference.py":              1024,
+				"README.md":                         1024,
+			},
+			expectedConfigs: []string{
+				"config.json",
+				"vocab.txt",
+				"merges.txt",
+				"added_tokens.txt",
+				"tokenizer/spiece.model",
+				"tokenizer/sentencepiece.bpe.model",
+				"tokenizer/tiktoken.model",
+				"chat_template.jinja",
+			},
+			expectedModels: []string{
+				"onnx/model.onnx_data_1",
+				"coreml/model.mil",
+				"ckpt-0/tensor00001_000",
+			},
+			expectedCodes: []string{"scripts/inference.py"},
+			expectedDocs:  []string{"README.md"},
 		},
 		{
 			name: "small unknown files treated as code files",
