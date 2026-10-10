@@ -58,7 +58,7 @@ func TestIntegration_ExcludePatterns_MultiplePatterns(t *testing.T) {
 	}
 
 	files := map[string]string{
-		"model.bin":                "model",
+		"model.bin":               "model",
 		"config.json":             `{"model_type": "test"}`,
 		"debug.log":               "log",
 		"checkpoints/step100.bin": "ckpt",

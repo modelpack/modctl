@@ -432,4 +432,3 @@ func TestIntegration_Push_Idempotent(t *testing.T) {
 	// remote already had all blobs (pushIfNotExist skips them).
 	s2.AssertNotCalled(t, "PullBlob", mock.Anything, mock.Anything, mock.Anything)
 }
-

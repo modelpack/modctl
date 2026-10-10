@@ -267,7 +267,7 @@ func (r *MockRegistry) route(w http.ResponseWriter, req *http.Request, f *FaultC
 
 	// /v2/<name>/manifests/<ref>
 	if idx := strings.Index(path, "/manifests/"); idx != -1 {
-		prefix := path[:idx]              // /v2/<name>
+		prefix := path[:idx] // /v2/<name>
 		ref := path[idx+len("/manifests/"):]
 		name := strings.TrimPrefix(prefix, "/v2/")
 		r.handleManifest(w, req, name, ref, f)
