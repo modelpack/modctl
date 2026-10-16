@@ -152,10 +152,11 @@ func pushIfNotExist(ctx context.Context, pb *internalpb.ProgressBar, src storage
 
 	// Phase 1: show "Checking" during the existence check. The manifest is
 	// excluded since its payload is already in memory and pushed together
-	// with the tag right after. Bar is created with a nil reader so it
-	// indicates waiting state without transferring bytes.
+	// with the tag right after. The check transfers no bytes, so use an
+	// indeterminate spinner instead of a transfer bar that would sit at
+	// "0 B / N B" and "0 B/s" for the whole HEAD request.
 	if desc.MediaType != ocispec.MediaTypeImageManifest {
-		pb.Add(internalpb.NormalizePrompt("Checking "+kind), desc.Digest.String(), desc.Size, nil)
+		pb.Spinner(internalpb.NormalizePrompt("Checking "+kind), desc.Digest.String(), desc.Size)
 	}
 
 	// check whether the content exists in the destination storage.

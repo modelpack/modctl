@@ -60,6 +60,9 @@ type progressBar struct {
 	size      int64
 	msg       atomic.Value // stores string; accessed by mpb render goroutine
 	startTime time.Time
+	// indeterminate marks a spinner bar created by Spinner. It has no byte
+	// counter and no completion trigger until Complete, Reset or Abort.
+	indeterminate bool
 }
 
 // NewProgressBar creates a new progress bar.
@@ -141,6 +144,51 @@ func (p *ProgressBar) Add(prompt, name string, size int64, reader io.Reader) io.
 	return reader
 }
 
+// Spinner adds an indeterminate bar for a phase that transfers no bytes, such
+// as a remote existence check. It renders a spinner, the prompt, the total
+// size, and the elapsed time. It has no byte counter and no transfer rate, so
+// a slow phase does not show a misleading "0 B / N B" and "0 B/s". Call Reset
+// (or Add) with the same name to replace it with a transfer bar once bytes
+// start flowing, or Complete / Abort to finish it.
+func (p *ProgressBar) Spinner(prompt, name string, size int64) {
+	if disableProgress.Load() {
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Same replacement semantics as Add.
+	if oldBar := p.bars[name]; oldBar != nil {
+		oldBar.Abort(true)
+	}
+
+	newBar := &progressBar{
+		size:          size,
+		startTime:     time.Now(),
+		indeterminate: true,
+	}
+	newBar.msg.Store(fmt.Sprintf("%s %s", prompt, name))
+
+	// A zero total disables mpb's completion trigger, so the bar keeps
+	// spinning until it is replaced, completed, or aborted.
+	newBar.Bar = p.mpb.New(0,
+		mpbv8.SpinnerStyle(),
+		mpbv8.PrependDecorators(
+			decor.Any(func(_ decor.Statistics) string {
+				return newBar.msg.Load().(string)
+			}, decor.WCSyncSpaceR),
+		),
+		mpbv8.AppendDecorators(
+			decor.Name(humanize.Bytes(uint64(size)), decor.WCSyncWidthR),
+			decor.Name(" | ", decor.WCSyncWidthR),
+			decor.Elapsed(decor.ET_STYLE_GO, decor.WCSyncWidthR),
+		),
+	)
+
+	p.bars[name] = newBar
+}
+
 // Get returns the progress bar.
 func (p *ProgressBar) Get(name string) *progressBar {
 	p.mu.RLock()
@@ -158,6 +206,11 @@ func (p *ProgressBar) Complete(name string, msg string) {
 
 	if ok {
 		bar.msg.Store(msg)
+		if bar.indeterminate {
+			// A spinner has no total; give it one so mpb marks it complete.
+			bar.SetTotal(bar.size, true)
+			return
+		}
 		bar.Bar.SetCurrent(bar.size)
 	}
 }

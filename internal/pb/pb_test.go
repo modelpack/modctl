@@ -23,10 +23,46 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// lockedBuffer is a bytes.Buffer that is safe for concurrent use. The mpb
+// render goroutine writes frames while the test reads them.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// waitForOutput polls the buffer until it contains want or the timeout
+// expires, and returns the final contents.
+func waitForOutput(t *testing.T, out *lockedBuffer, want string, timeout time.Duration) string {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if s := out.String(); strings.Contains(s, want) {
+			return s
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	s := out.String()
+	require.Contains(t, s, want, "progress output never rendered %q", want)
+	return s
+}
 
 // --- Functional tests ---
 
@@ -111,6 +147,94 @@ func TestReset_NoExistingBar(t *testing.T) {
 	bar := pb.Get("new-file")
 	require.NotNil(t, bar)
 	assert.Equal(t, "Building => new-file", bar.msg.Load().(string))
+}
+
+func TestSpinner_CreatesIndeterminateBar(t *testing.T) {
+	pb := NewProgressBar(io.Discard)
+	defer pb.Stop()
+
+	pb.Spinner("Checking =>", "test-file", 100)
+
+	bar := pb.Get("test-file")
+	require.NotNil(t, bar)
+	assert.True(t, bar.indeterminate)
+	assert.Equal(t, int64(100), bar.size)
+	assert.Equal(t, "Checking => test-file", bar.msg.Load().(string))
+	assert.False(t, bar.Completed(), "spinner must not complete on its own")
+}
+
+func TestSpinner_ResetSwitchesToTransferBar(t *testing.T) {
+	pb := NewProgressBar(io.Discard)
+	defer pb.Stop()
+
+	pb.Spinner("Checking =>", "test-file", 100)
+	spinner := pb.Get("test-file")
+	require.NotNil(t, spinner)
+
+	reader := pb.Reset("Pushing =>", "test-file", 100, strings.NewReader("data"))
+	require.NotNil(t, reader)
+
+	bar := pb.Get("test-file")
+	require.NotNil(t, bar)
+	assert.NotSame(t, spinner, bar)
+	assert.False(t, bar.indeterminate)
+	assert.Equal(t, "Pushing => test-file", bar.msg.Load().(string))
+	assert.True(t, spinner.Aborted(), "replaced spinner must be aborted")
+}
+
+func TestSpinner_CompleteFinishesBar(t *testing.T) {
+	pb := NewProgressBar(io.Discard)
+	defer pb.Stop()
+
+	pb.Spinner("Checking =>", "test-file", 100)
+	pb.Complete("test-file", "Skipped => test-file")
+
+	bar := pb.Get("test-file")
+	require.NotNil(t, bar)
+	assert.Equal(t, "Skipped => test-file", bar.msg.Load().(string))
+	assert.Eventually(t, bar.Completed, 2*time.Second, 20*time.Millisecond,
+		"Complete must finish an indeterminate bar")
+}
+
+func TestSpinner_DisabledProgress(t *testing.T) {
+	SetDisableProgress(true)
+	defer SetDisableProgress(false)
+
+	pb := NewProgressBar(io.Discard)
+	defer pb.Stop()
+
+	pb.Spinner("Checking =>", "test-file", 100)
+	assert.Nil(t, pb.Get("test-file"), "no bar must be tracked when progress is disabled")
+}
+
+func TestSpinner_RendersWithoutTransferRate(t *testing.T) {
+	out := &lockedBuffer{}
+	pb := NewProgressBar(out)
+
+	pb.Spinner("Checking =>", "test-file", 100)
+	rendered := waitForOutput(t, out, "Checking => test-file", 3*time.Second)
+	pb.Stop()
+
+	// The spinner shows the size and elapsed time, but no byte counter and
+	// no transfer rate. A transfer bar with no bytes flowing renders
+	// "0.00 b / 100.00 b | 0.00 b/s" (see TestAdd_RendersTransferRate).
+	assert.Contains(t, rendered, "100 B")
+	assert.NotContains(t, rendered, "b/s")
+	assert.NotContains(t, rendered, "0.00 b / 100.00 b")
+}
+
+func TestAdd_RendersTransferRate(t *testing.T) {
+	out := &lockedBuffer{}
+	pb := NewProgressBar(out)
+
+	pb.Add("Pushing =>", "test-file", 100, nil)
+	rendered := waitForOutput(t, out, "Pushing => test-file", 3*time.Second)
+	pb.Stop()
+
+	// Sanity check for the assertion above: a transfer bar does render the
+	// counter and the rate, so the spinner test is not vacuous.
+	assert.Contains(t, rendered, "0.00 b / 100.00 b")
+	assert.Contains(t, rendered, "0.00 b/s")
 }
 
 // --- Concurrency tests (must pass go test -race) ---
