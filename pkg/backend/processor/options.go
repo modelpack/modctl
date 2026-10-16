@@ -17,10 +17,6 @@
 package processor
 
 import (
-	"time"
-
-	retry "github.com/avast/retry-go/v4"
-
 	"github.com/modelpack/modctl/internal/pb"
 )
 
@@ -43,11 +39,4 @@ func WithProgressTracker(tracker *pb.ProgressBar) ProcessOption {
 	return func(o *processOptions) {
 		o.progressTracker = tracker
 	}
-}
-
-var defaultRetryOpts = []retry.Option{
-	retry.Attempts(6),
-	retry.DelayType(retry.BackOffDelay),
-	retry.Delay(5 * time.Second),
-	retry.MaxDelay(60 * time.Second),
 }
