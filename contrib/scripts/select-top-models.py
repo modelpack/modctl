@@ -241,15 +241,13 @@ def select_top_models(
         models = api.list_models(
             filter=model_filter,
             sort=sort_by,
-            direction=-1,
             limit=fetch_limit,
         )
     else:
-        # Older API without ModelFilter
+        # Newer API without ModelFilter (removed in huggingface_hub 0.24)
         models = api.list_models(
             filter=task,
             sort=sort_by,
-            direction=-1,
             limit=fetch_limit,
         )
 
