@@ -1,6 +1,6 @@
 module github.com/modelpack/modctl
 
-go 1.25.5
+go 1.26.0
 
 require (
 	d7y.io/api/v2 v2.3.8
@@ -31,7 +31,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/vbauerster/mpb/v8 v8.15.1
 	golang.org/x/crypto v0.55.0
-	golang.org/x/sync v0.22.0
+	golang.org/x/sync v0.24.0
 	golang.org/x/sys v0.47.0
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
