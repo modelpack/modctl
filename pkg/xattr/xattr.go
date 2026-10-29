@@ -16,11 +16,7 @@
 
 package xattr
 
-import (
-	"strings"
-
-	"golang.org/x/sys/unix"
-)
+import "strings"
 
 const (
 	// Prefix for all xattr keys to ensure compatibility across platforms.
@@ -32,28 +28,6 @@ const (
 	KeyMtime  = "modctl.mtime"
 	KeySha256 = "modctl.sha256"
 )
-
-// Get retrieves an xattr value for a given key.
-func Get(path, key string) ([]byte, error) {
-	var value []byte
-	sz, err := unix.Getxattr(path, key, value)
-	if err != nil {
-		return nil, err
-	}
-
-	value = make([]byte, sz)
-	_, err = unix.Getxattr(path, key, value)
-	if err != nil {
-		return nil, err
-	}
-
-	return value, nil
-}
-
-// Set sets an xattr value for a given key.
-func Set(path, key string, value []byte) error {
-	return unix.Setxattr(path, key, value, 0)
-}
 
 // MakeKey creates a fully-qualified xattr key with the user prefix.
 func MakeKey(parts ...string) string {
