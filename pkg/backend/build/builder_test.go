@@ -22,9 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -499,18 +497,10 @@ func TestGetFileMetadata(t *testing.T) {
 		assert.Equal(t, byte(0), metadata.Typeflag, "Typeflag should be 0 for regular file")
 		assert.WithinDuration(t, fileInfo.ModTime(), metadata.ModTime, time.Second)
 
-		// Check UID/GID only on Unix-like systems
-		if stat, ok := fileInfo.Sys().(*syscall.Stat_t); ok {
-			assert.Equal(t, stat.Uid, metadata.Uid, "UID mismatch")
-			assert.Equal(t, stat.Gid, metadata.Gid, "GID mismatch")
-		} else if runtime.GOOS != "windows" {
-			// If not windows and not syscall.Stat_t, something is unexpected
-			t.Logf("Warning: Could not get syscall.Stat_t on non-Windows OS (%s)", runtime.GOOS)
-		} else {
-			// On Windows, expect 0 as syscall.Stat_t assertion fails
-			assert.Equal(t, uint32(0), metadata.Uid, "UID should be 0 on Windows")
-			assert.Equal(t, uint32(0), metadata.Gid, "GID should be 0 on Windows")
-		}
+		// UID and GID are only available on Unix-like systems and are 0 elsewhere.
+		wantUID, wantGID := expectedFileOwner(t, fileInfo)
+		assert.Equal(t, wantUID, metadata.Uid, "UID mismatch")
+		assert.Equal(t, wantGID, metadata.Gid, "GID mismatch")
 	})
 
 	// --- Test Case 2: Directory ---
@@ -528,15 +518,9 @@ func TestGetFileMetadata(t *testing.T) {
 		assert.Equal(t, byte(5), metadata.Typeflag, "Typeflag should be 5 for directory")
 		assert.WithinDuration(t, dirInfo.ModTime(), metadata.ModTime, time.Second)
 
-		// Check UID/GID only on Unix-like systems
-		if stat, ok := dirInfo.Sys().(*syscall.Stat_t); ok {
-			assert.Equal(t, stat.Uid, metadata.Uid, "UID mismatch")
-			assert.Equal(t, stat.Gid, metadata.Gid, "GID mismatch")
-		} else if runtime.GOOS != "windows" {
-			t.Logf("Warning: Could not get syscall.Stat_t on non-Windows OS (%s)", runtime.GOOS)
-		} else {
-			assert.Equal(t, uint32(0), metadata.Uid, "UID should be 0 on Windows")
-			assert.Equal(t, uint32(0), metadata.Gid, "GID should be 0 on Windows")
-		}
+		// UID and GID are only available on Unix-like systems and are 0 elsewhere.
+		wantUID, wantGID := expectedFileOwner(t, dirInfo)
+		assert.Equal(t, wantUID, metadata.Uid, "UID mismatch")
+		assert.Equal(t, wantGID, metadata.Gid, "GID mismatch")
 	})
 }
