@@ -25,7 +25,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	sha256 "github.com/minio/sha256-simd"
@@ -417,10 +416,7 @@ func getFileMetadata(path string) (modelspec.FileMetadata, error) {
 	}
 
 	// UID and GID (Unix-specific).
-	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		metadata.Uid = stat.Uid
-		metadata.Gid = stat.Gid
-	}
+	metadata.Uid, metadata.Gid = fileOwner(info)
 
 	return metadata, nil
 }

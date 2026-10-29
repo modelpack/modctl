@@ -19,8 +19,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
-	"syscall"
 
 	"golang.org/x/crypto/ssh/terminal"
 
@@ -84,7 +84,7 @@ func runLogin(ctx context.Context, registry string) error {
 		}
 	} else if loginConfig.PasswordStdin && loginConfig.Password == "" {
 		fmt.Print("Enter password: ")
-		password, err := terminal.ReadPassword(syscall.Stdin)
+		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return err
 		}

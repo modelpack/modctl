@@ -1,3 +1,5 @@
+//go:build !linux && !darwin && !windows
+
 /*
  *     Copyright 2025 The CNAI Authors
  *
@@ -14,16 +16,13 @@
  * limitations under the License.
  */
 
-//go:build !linux && !darwin
-
 package diskspace
 
 import "github.com/sirupsen/logrus"
 
 // Check is a no-op stub for platforms that do not yet have a disk-space
 // implementation. It always returns nil so callers can compile and run on
-// Windows and other non-Unix systems, at the cost of losing the pre-check
-// warning. Native Windows support is tracked upstream.
+// those systems, at the cost of losing the pre-check warning.
 func Check(dir string, requiredBytes int64) error {
 	logrus.Debugf("diskspace: pre-check skipped on this platform (dir=%s, required=%d)", dir, requiredBytes)
 	return nil
