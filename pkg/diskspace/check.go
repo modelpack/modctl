@@ -1,3 +1,5 @@
+//go:build linux || darwin || windows
+
 /*
  *     Copyright 2025 The CNAI Authors
  *
@@ -14,17 +16,12 @@
  * limitations under the License.
  */
 
-//go:build linux || darwin
-
 package diskspace
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
-
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -42,7 +39,7 @@ func Check(dir string, requiredBytes int64) error {
 		return nil
 	}
 
-	// Ensure the directory exists for statfs; walk up to find an existing parent.
+	// Ensure the directory exists for the disk space query; walk up to find an existing parent.
 	checkDir := dir
 	for {
 		if _, err := os.Stat(checkDir); err == nil {
@@ -56,22 +53,11 @@ func Check(dir string, requiredBytes int64) error {
 		checkDir = parent
 	}
 
-	var stat unix.Statfs_t
-	if err := unix.Statfs(checkDir, &stat); err != nil {
+	availableBytes, err := availableSpace(checkDir)
+	if err != nil {
 		return fmt.Errorf("failed to check disk space for %s: %w", dir, err)
 	}
 
-	// Available space for non-root users.
-	// Guard against overflow: on Linux Bavail is uint64, and values exceeding
-	// math.MaxInt64 would wrap negative when cast to int64. Cap at MaxInt64.
-	bavail := stat.Bavail
-	bsize := uint64(stat.Bsize)
-	var availableBytes int64
-	if bavail > 0 && bsize > uint64(math.MaxInt64)/bavail {
-		availableBytes = math.MaxInt64
-	} else {
-		availableBytes = int64(bavail * bsize)
-	}
 	requiredWithMargin := int64(float64(requiredBytes) * safetyMargin)
 
 	if availableBytes < requiredWithMargin {

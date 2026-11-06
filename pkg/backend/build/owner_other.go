@@ -1,5 +1,7 @@
+//go:build !unix
+
 /*
- *     Copyright 2025 The ModelPack Authors
+ *     Copyright 2026 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +16,11 @@
  * limitations under the License.
  */
 
-package version
+package build
 
-const platform = "linux"
+import "os"
+
+// fileOwner returns zero IDs because the platform has no numeric file owners.
+func fileOwner(info os.FileInfo) (uid, gid uint32) {
+	return 0, 0
+}
