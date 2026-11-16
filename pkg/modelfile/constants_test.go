@@ -151,10 +151,10 @@ func TestInferFileType(t *testing.T) {
 		{"no extension small", "unknown_file", 1024, FileTypeCode},
 		{"unknown ext small", "data.xyz", 50 * 1024, FileTypeCode},
 
-		// Unrecognized - large files fallback to model
-		{"dotfile large", ".metadata", 200 * 1024 * 1024, FileTypeModel},
-		{"no extension large", "unknown_file", 200 * 1024 * 1024, FileTypeModel},
-		{"unknown ext large", "data.xyz", 200 * 1024 * 1024, FileTypeModel},
+		// Unrecognized - large files fallback to model (use threshold-bound size so cases stay valid when threshold changes)
+		{"dotfile large", ".metadata", WeightFileSizeThreshold + 1, FileTypeModel},
+		{"no extension large", "unknown_file", WeightFileSizeThreshold + 1, FileTypeModel},
+		{"unknown ext large", "data.xyz", WeightFileSizeThreshold + 1, FileTypeModel},
 
 		// Edge case: exactly at threshold (WeightFileSizeThreshold = 128*1000*1000) should be code
 		{"at threshold", "borderline", WeightFileSizeThreshold, FileTypeCode},
