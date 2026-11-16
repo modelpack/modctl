@@ -25,7 +25,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 	"syscall"
 	"time"
 
@@ -39,7 +38,6 @@ import (
 	"github.com/modelpack/modctl/internal/cache"
 	buildconfig "github.com/modelpack/modctl/pkg/backend/build/config"
 	"github.com/modelpack/modctl/pkg/backend/build/hooks"
-	"github.com/modelpack/modctl/pkg/backend/build/interceptor"
 	pkgcodec "github.com/modelpack/modctl/pkg/codec"
 	"github.com/modelpack/modctl/pkg/storage"
 )
@@ -109,12 +107,11 @@ func NewBuilder(outputType OutputType, store storage.Storage, repo, tag string, 
 	}
 
 	return &abstractBuilder{
-		store:       store,
-		repo:        repo,
-		tag:         tag,
-		strategy:    strategy,
-		interceptor: cfg.interceptor,
-		cache:       cache,
+		store:    store,
+		repo:     repo,
+		tag:      tag,
+		strategy: strategy,
+		cache:    cache,
 	}, nil
 }
 
@@ -125,8 +122,6 @@ type abstractBuilder struct {
 	tag   string
 	// strategy is the output strategy used to output the blob.
 	strategy OutputStrategy
-	// interceptor is the interceptor used to intercept the build process.
-	interceptor interceptor.Interceptor
 	// cache is the cache used to store the file digest.
 	cache cache.Cache
 }
@@ -166,41 +161,21 @@ func (ab *abstractBuilder) BuildLayer(ctx context.Context, mediaType, workDir, p
 		return ocispec.Descriptor{}, fmt.Errorf("failed to encode file: %w", err)
 	}
 
-	reader, digest, size, err := ab.computeDigestAndSize(ctx, mediaType, path, workDirPath, info, reader, codec)
-	if err != nil {
-		return ocispec.Descriptor{}, fmt.Errorf("failed to compute digest and size: %w", err)
-	}
-
-	var (
-		wg        sync.WaitGroup
-		itErr     error
-		applyDesc interceptor.ApplyDescriptorFn
+	reader, digest, size, err := ab.computeDigestAndSize(ctx, mediaType, path, workDirPath, info, reader, codec,
+		func(size int64, r io.Reader) io.Reader {
+			return hooks.OnHash(relPath, size, r)
+		},
 	)
-	// Intercept the reader if needed.
-	if ab.interceptor != nil {
-		var itReader io.Reader
-		reader, itReader = splitReader(reader)
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			applyDesc, itErr = ab.interceptor.Intercept(ctx, mediaType, relPath, codec.Type(), itReader)
-		}()
+	if err != nil {
+		// Notify the error hook so the progress bar created by OnHash
+		// (if any) is aborted instead of lingering on screen.
+		hooks.OnError(relPath, err)
+		return ocispec.Descriptor{}, fmt.Errorf("failed to compute digest and size: %w", err)
 	}
 
 	desc, err := ab.strategy.OutputLayer(ctx, mediaType, relPath, destPath, digest, size, reader, hooks)
 	if err != nil {
 		return desc, err
-	}
-
-	// Wait for the interceptor to finish.
-	wg.Wait()
-	if itErr != nil {
-		return desc, itErr
-	}
-
-	if applyDesc != nil {
-		applyDesc(&desc)
 	}
 
 	// Add file metadata to descriptor.
@@ -247,7 +222,8 @@ func (ab *abstractBuilder) BuildManifest(ctx context.Context, layers []ocispec.D
 }
 
 // computeDigestAndSize computes the digest and size for the encoded content, using cache if available.
-func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, path, workDirPath string, info os.FileInfo, reader io.Reader, codec pkgcodec.Codec) (io.Reader, string, int64, error) {
+// The onHash callback wraps the reader with progress tracking before hashing.
+func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, path, workDirPath string, info os.FileInfo, reader io.Reader, codec pkgcodec.Codec, onHash func(size int64, r io.Reader) io.Reader) (io.Reader, string, int64, error) {
 	// Try to retrieve valid digest from cache for raw model weights.
 	if mediaType == LegacyMediaTypeModelWeightRaw {
 		if digest, size, ok := ab.retrieveCache(ctx, path, info); ok {
@@ -257,8 +233,14 @@ func (ab *abstractBuilder) computeDigestAndSize(ctx context.Context, mediaType, 
 
 	logrus.Infof("builder: calculating digest for file %s", path)
 
+	// Wrap reader with progress tracking via onHash callback. Note the bar
+	// total uses the original file size; for tar-encoded content the encoded
+	// stream is slightly larger, so the bar may reach 100% marginally before
+	// hashing finishes. For raw content the size is exact.
+	wrappedReader := onHash(info.Size(), reader)
+
 	hash := sha256.New()
-	size, err := io.Copy(hash, reader)
+	size, err := io.Copy(hash, wrappedReader)
 	if err != nil {
 		return reader, "", 0, fmt.Errorf("failed to copy content to hash: %w", err)
 	}
@@ -407,26 +389,6 @@ func addFileMetadata(desc *ocispec.Descriptor, path, relPath string) error {
 	}
 	desc.Annotations[LegacyAnnotationFileMetadata] = string(metadataStr)
 	return nil
-}
-
-// splitReader splits the original reader into two readers.
-func splitReader(original io.Reader) (io.Reader, io.Reader) {
-	r1, w1 := io.Pipe()
-	r2, w2 := io.Pipe()
-	multiWriter := io.MultiWriter(w1, w2)
-
-	go func() {
-		defer w1.Close()
-		defer w2.Close()
-
-		_, err := io.Copy(multiWriter, original)
-		if err != nil {
-			w1.CloseWithError(err)
-			w2.CloseWithError(err)
-		}
-	}()
-
-	return r1, r2
 }
 
 // getFileMetadata retrieves metadata for a file at the given path.

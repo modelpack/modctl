@@ -1,0 +1,10 @@
+{{ $id := printf "code-%d" .Ordinal }}
+<div class="code-block">
+  <div class="code-block-top">
+    <span>{{ .Type | default (i18n "codeBlock") }}</span>
+    <button class="copy-button" data-copy-target="{{ $id }}" aria-label="{{ i18n "copyCommand" }}" title="{{ i18n "copyCommand" }}">
+      {{ partial "icons/copy.html" . }}
+    </button>
+  </div>
+  <pre tabindex="0"><code id="{{ $id }}">{{ .Inner }}</code></pre>
+</div>

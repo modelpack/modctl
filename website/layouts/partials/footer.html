@@ -1,0 +1,35 @@
+<footer class="site-footer">
+  <div class="container">
+    {{ if .IsHome }}
+    <div class="footer-top">
+      <div>
+        <a class="brand" href="{{ .Site.Home.RelPermalink }}" aria-label="{{ i18n "home" }}">
+          <img src="{{ "assets/mark.svg" | relURL }}" width="27" height="30" alt="">
+          <span>modctl<span class="brand-dot">.</span></span>
+        </a>
+        <p>{{ i18n "footerTagline" }}</p>
+      </div>
+      <div class="footer-links">
+        <div>
+          <strong>{{ i18n "project" }}</strong>
+          <a href="#why-modctl">{{ i18n "whyModctl" }}</a>
+          <a href="{{ .Site.Params.repository }}/releases" target="_blank" rel="noopener noreferrer">{{ i18n "releases" }} ↗</a>
+          <a href="{{ .Site.Params.repository }}" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </div>
+        <div>
+          <strong>{{ i18n "resources" }}</strong>
+          <a href="{{ (.Site.GetPage "getting-started").RelPermalink }}">{{ i18n "gettingStarted" }}</a>
+          <a href="{{ .Site.Params.specification }}" target="_blank" rel="noopener noreferrer">Model Spec ↗</a>
+          <a href="{{ .Site.Params.repository }}/issues" target="_blank" rel="noopener noreferrer">{{ i18n "feedback" }} ↗</a>
+        </div>
+      </div>
+    </div>
+    {{ end }}
+    <div class="footer-bottom">
+      <span>© {{ now.Year }} {{ i18n "copyright" }}</span>
+      <a href="{{ .Site.Params.organization }}" target="_blank" rel="noopener noreferrer">
+        <span class="status-dot"></span><span>{{ i18n "modelpackProject" }}</span><span aria-hidden="true">↗</span>
+      </a>
+    </div>
+  </div>
+</footer>

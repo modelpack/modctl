@@ -1,0 +1,13 @@
+{
+  "name": "modctl-website",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "hugo server --bind localhost --port 4173 --baseURL http://localhost:4173/",
+    "build": "hugo --gc --cleanDestinationDir --destination dist --printI18nWarnings --panicOnWarning",
+    "test": "node --test scripts/*.test.mjs"
+  }
+}

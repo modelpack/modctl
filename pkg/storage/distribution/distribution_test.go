@@ -1,5 +1,5 @@
 /*
- *     Copyright 2025 The ModelPack Authors
+ *     Copyright 2026 The ModelPack Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,29 @@
  * limitations under the License.
  */
 
-package interceptor
+package distribution
 
 import (
+	"bytes"
 	"context"
-	"io"
+	"errors"
+	"testing"
 
+	distribution "github.com/distribution/distribution/v3"
+	godigest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/stretchr/testify/require"
 )
 
-// ApplyDescriptorFn is a function that applies changes to the descriptor.
-type ApplyDescriptorFn func(desc *ocispec.Descriptor)
+func TestPushBlobPropagatesCommitError(t *testing.T) {
+	storage, err := NewStorage(t.TempDir())
+	require.NoError(t, err)
 
-// Interceptor is an interface that defines the interceptor for the building stream.
-type Interceptor interface {
-	// Intercept intercepts the building stream for some customized logic, readerType is the original stream type, such as raw or tar.
-	Intercept(ctx context.Context, mediaType string, filepath string, readerType string, reader io.Reader) (ApplyDescriptorFn, error)
+	_, _, err = storage.PushBlob(context.Background(), "example.com/test", bytes.NewBufferString("blob"), ocispec.Descriptor{
+		Digest: godigest.FromString("different blob"),
+		Size:   4,
+	})
+
+	var invalidDigest distribution.ErrBlobInvalidDigest
+	require.True(t, errors.As(err, &invalidDigest))
 }

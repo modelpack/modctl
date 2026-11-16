@@ -60,3 +60,6 @@ Temporary Items
 # output
 bin
 output
+website/dist/
+website/.hugo_build.lock
+website/resources/

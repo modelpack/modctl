@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="560" viewBox="0 0 620 560" fill="none">
+<defs>
+ <linearGradient id="top" x1="148" y1="87" x2="406" y2="284" gradientUnits="userSpaceOnUse"><stop stop-color="#8EADFF"/><stop offset=".42" stop-color="#5277FB"/><stop offset="1" stop-color="#3251D8"/></linearGradient>
+ <linearGradient id="front" x1="120" y1="200" x2="304" y2="303" gradientUnits="userSpaceOnUse"><stop stop-color="#4066EA"/><stop offset="1" stop-color="#294CC7"/></linearGradient>
+ <linearGradient id="side" x1="304" y1="303" x2="484" y2="200" gradientUnits="userSpaceOnUse"><stop stop-color="#253BA1"/><stop offset="1" stop-color="#2E53D8"/></linearGradient>
+ <linearGradient id="lower" x1="127" y1="198" x2="477" y2="277" gradientUnits="userSpaceOnUse"><stop stop-color="#E0E9FF"/><stop offset="1" stop-color="#9DB6FF"/></linearGradient>
+ <linearGradient id="base" x1="120" y1="340" x2="480" y2="443" gradientUnits="userSpaceOnUse"><stop stop-color="#F2F5FF"/><stop offset="1" stop-color="#C4D3FB"/></linearGradient>
+ <filter id="shadow" x="50" y="290" width="515" height="250" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="19"/></filter>
+ <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#E1E9FF" fill-opacity=".35"/></pattern>
+ <clipPath id="topclip"><path d="m305 91 177 90-177 91-177-91 177-90Z"/></clipPath>
+</defs>
+<path d="m305 354 190 84-189 70-189-72 188-82Z" fill="#839BE6" opacity=".2" filter="url(#shadow)"/>
+<g stroke="#B7C5E1" stroke-dasharray="3 6" opacity=".7"><path d="M305 53v432M116 177v230M493 177v230"/><path d="m85 334 220 112 220-112"/></g>
+<g>
+ <path d="m126 372 179 92 179-92v16l-179 92-179-92v-16Z" fill="#D2DCF4" stroke="#BCCCED"/>
+ <path d="m305 281 179 91-179 92-179-92 179-91Z" fill="url(#base)" stroke="#F9FBFF" stroke-width="1.5"/>
+ <path d="m305 302 138 70-138 71-138-71 138-70Z" stroke="#BACBED"/>
+ <path d="M305 464v16" stroke="#AEBDDC"/>
+</g>
+<g>
+ <path d="m126 311 179 92 179-92v18l-179 92-179-92v-18Z" fill="#8FA9EE" stroke="#8BA4E8"/>
+ <path d="m305 220 179 91-179 92-179-92 179-91Z" fill="url(#lower)" stroke="#F6F9FF" stroke-width="1.5"/>
+ <path d="m162 311 143 73 143-73" stroke="#7F9CEB" opacity=".6"/>
+ <path d="M305 403v18" stroke="#6C8AD2"/>
+</g>
+<g>
+ <path d="m126 248 179 92 179-92v20l-179 92-179-92v-20Z" fill="#6F90E7" stroke="#6F8DE0"/>
+ <path d="m305 157 179 91-179 92-179-92 179-91Z" fill="#B4C7FF" stroke="#EFF4FF" stroke-width="1.5"/>
+ <path d="m168 248 137 70 137-70" stroke="#7A9BEC"/>
+ <path d="M305 340v20" stroke="#5173D0"/>
+</g>
+<g>
+ <path d="m126 181 179 92v26l-179-92v-26Z" fill="url(#front)"/>
+ <path d="m305 273 179-92v26l-179 92v-26Z" fill="url(#side)"/>
+ <path d="m305 90 179 91-179 92-179-92 179-91Z" fill="url(#top)" stroke="#9AB5FF" stroke-width="1.5"/>
+ <g clip-path="url(#topclip)"><rect x="120" y="86" width="370" height="202" fill="url(#dots)"/></g>
+ <path d="m305 110 142 72-142 72-142-72 142-72Z" stroke="#B6CAFF" stroke-opacity=".65"/>
+ <path d="m305 135 90 46-90 47-90-47 90-46Z" stroke="#C3D3FF" stroke-opacity=".4"/>
+ <path d="m257 167 48-24 49 24-49 25-48-25Zm0 13 48 25 49-25m-97 13 48 25 49-25" stroke="#F1F5FF" stroke-width="2" stroke-linejoin="round"/>
+ <circle cx="197" cy="182" r="3" fill="#DCE8FF"/><circle cx="305" cy="238" r="3" fill="#DCE8FF"/><circle cx="416" cy="182" r="3" fill="#DCE8FF"/><circle cx="305" cy="124" r="3" fill="#DCE8FF"/>
+ <path d="m140 196 42 22m-42-17 22 12" stroke="#B3C8FF" stroke-width="2" stroke-linecap="round" opacity=".5"/>
+ <circle cx="456" cy="209" r="2" fill="#ADCDFF"/>
+ <path d="M305 273v26" stroke="#8FAAFF" stroke-opacity=".5"/>
+</g>
+<g stroke="#9EAECD" stroke-width="1"><path d="M195 132h-65l-19-24H40"/><path d="M446 238h65l16-17h58"/><path d="M444 306h47l25 15h69"/><path d="M193 407h-64l-18 19H40"/></g>
+<g fill="#56729D"><circle cx="195" cy="132" r="3"/><circle cx="446" cy="238" r="3"/><circle cx="444" cy="306" r="3"/><circle cx="193" cy="407" r="3"/></g>
+<g font-family="monospace" font-size="10" fill="#61718C" letter-spacing="1"><text x="40" y="96">{{ i18n "artifactWeights" | htmlEscape }}</text><text x="520" y="209">{{ i18n "artifactConfig" | htmlEscape }}</text><text x="520" y="344">{{ i18n "artifactCode" | htmlEscape }}</text><text x="40" y="447">{{ i18n "artifactDocs" | htmlEscape }}</text></g>
+<g stroke="#B0BFDA"><path d="M90 73h10m-5-5v10M519 419h10m-5-5v10M348 43h8m-4-4v8"/></g>
+</svg>

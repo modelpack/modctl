@@ -1,0 +1,38 @@
+baseURL = 'https://modelpack.github.io/modctl/'
+title = 'modctl'
+defaultContentLanguage = 'en'
+defaultContentLanguageInSubdir = false
+publishDir = 'dist'
+disableKinds = ['taxonomy', 'term', 'RSS']
+enableRobotsTXT = true
+
+[languages.en]
+  locale = 'en'
+  label = 'English'
+  contentDir = 'content/en'
+  weight = 1
+
+[languages.zh]
+  locale = 'zh-CN'
+  label = '中文'
+  contentDir = 'content/zh'
+  weight = 2
+
+[params]
+  repository = 'https://github.com/modelpack/modctl'
+  specification = 'https://github.com/modelpack/model-spec'
+  organization = 'https://github.com/modelpack'
+
+[markup.goldmark.parser.attribute]
+  block = true
+  title = true
+
+[markup.goldmark.renderer]
+  unsafe = false
+
+[markup.highlight]
+  codeFences = true
+
+[markup.tableOfContents]
+  startLevel = 2
+  endLevel = 2

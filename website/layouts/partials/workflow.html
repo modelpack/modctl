@@ -1,0 +1,44 @@
+<section class="workflow-section" id="workflow" aria-labelledby="workflow-title">
+  <div class="container workflow-inner">
+    <div class="workflow-copy">
+      <p class="eyebrow">{{ .Params.workflow.eyebrow }}</p>
+      <h2 id="workflow-title">{{ .Params.workflow.title }}<br><span class="dark-muted">{{ .Params.workflow.subtitle }}</span></h2>
+      <p class="workflow-description">{{ .Params.workflow.description }}</p>
+      <div class="workflow-tabs" role="tablist" aria-label="{{ i18n "workflowNavigation" }}" aria-orientation="vertical">
+        {{ range $index, $step := .Params.workflow.steps }}
+        <button class="workflow-tab{{ if not $index }} active{{ end }}" id="tab-{{ .id }}" role="tab"
+          aria-selected="{{ if $index }}false{{ else }}true{{ end }}" aria-controls="panel-{{ .id }}"
+          tabindex="{{ if $index }}-1{{ else }}0{{ end }}" data-step="{{ .id }}">
+          <span class="step-index">{{ printf "%02d" (add $index 1) }}</span>
+          <span><strong>{{ .title }}</strong><small>{{ .subtitle }}</small></span>
+          <span class="tab-arrow" aria-hidden="true">↗</span>
+        </button>
+        {{ end }}
+      </div>
+    </div>
+    <div class="terminal-wrap">
+      {{ range $index, $step := .Params.workflow.steps }}
+      <div class="terminal" role="tabpanel" id="panel-{{ .id }}" aria-labelledby="tab-{{ .id }}" tabindex="0" data-workflow-panel>
+        <div class="terminal-top">
+          <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+          <span>~/my-model</span><span class="terminal-shell">bash</span>
+        </div>
+        <div class="terminal-body">
+          <p class="terminal-comment"># {{ .comment }}</p>
+          <pre><code id="workflow-code-{{ .id }}">{{ index hugo.Data.commands .id }}</code></pre>
+          <div class="terminal-divider"></div>
+          <div class="terminal-result">
+            {{ range .results }}<p><span aria-hidden="true">✓</span><span>{{ . }}</span></p>{{ end }}
+          </div>
+          <span class="terminal-cursor" aria-hidden="true"></span>
+        </div>
+        <div class="terminal-bottom">
+          <span><i class="status-dot"></i><span>{{ i18n "workflowExample" }}</span></span>
+          <button class="terminal-copy" data-copy-target="workflow-code-{{ .id }}"><span>{{ i18n "copyCommands" }}</span><span aria-hidden="true">⧉</span></button>
+        </div>
+      </div>
+      {{ end }}
+      <p class="terminal-note"><span aria-hidden="true">↳</span><span>{{ .Params.workflow.note }}</span></p>
+    </div>
+  </div>
+</section>

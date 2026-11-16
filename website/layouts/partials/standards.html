@@ -1,0 +1,17 @@
+<section class="standards-bar" aria-label="{{ i18n "openStandards" }}">
+  <div class="container standards-inner">
+    <p class="eyebrow">{{ i18n "standardsEyebrow" }}</p>
+    <a href="{{ .Site.Params.specification }}" target="_blank" rel="noopener noreferrer" class="standard-brand">
+      <svg viewBox="0 0 30 30" aria-hidden="true"><path d="m15 2 12 7v13l-12 7L3 22V9Zm0 0v13m12-6-12 6L3 9m12 6v14"/></svg>
+      <span>ModelPack<small>{{ i18n "modelSpecAligned" }}</small></span>
+    </a>
+    <a href="https://opencontainers.org/" target="_blank" rel="noopener noreferrer" class="standard-brand">
+      <span class="oci-wordmark">OCI<span>▰</span></span>
+      <span class="standard-label">Open Container Initiative<small>{{ i18n "ociArtifacts" }}</small></span>
+    </a>
+    <a href="{{ .Site.Params.repository }}/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="standard-brand">
+      <svg viewBox="0 0 30 30" aria-hidden="true"><path d="M23 3C10 4 6 14 7 24m16-21c2 12-6 19-16 21m-3 4L20 8M11 16l6 1M14 12l6 1"/></svg>
+      <span>Apache 2.0<small>{{ i18n "openCode" }}</small></span>
+    </a>
+  </div>
+</section>

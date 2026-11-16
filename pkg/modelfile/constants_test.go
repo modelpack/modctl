@@ -151,15 +151,24 @@ func TestInferFileType(t *testing.T) {
 		{"no extension small", "unknown_file", 1024, FileTypeCode},
 		{"unknown ext small", "data.xyz", 50 * 1024, FileTypeCode},
 
-		// Unrecognized - large files fallback to model
-		{"dotfile large", ".metadata", 200 * 1024 * 1024, FileTypeModel},
-		{"no extension large", "unknown_file", 200 * 1024 * 1024, FileTypeModel},
-		{"unknown ext large", "data.xyz", 200 * 1024 * 1024, FileTypeModel},
+		// Unrecognized - large files fallback to model (use threshold-bound size so cases stay valid when threshold changes)
+		{"dotfile large", ".metadata", WeightFileSizeThreshold + 1, FileTypeModel},
+		{"no extension large", "unknown_file", WeightFileSizeThreshold + 1, FileTypeModel},
+		{"unknown ext large", "data.xyz", WeightFileSizeThreshold + 1, FileTypeModel},
 
 		// Edge case: exactly at threshold (WeightFileSizeThreshold = 128*1000*1000) should be code
 		{"at threshold", "borderline", WeightFileSizeThreshold, FileTypeCode},
 		// Just above threshold should be model
 		{"above threshold", "borderline", WeightFileSizeThreshold + 1, FileTypeModel},
+
+		// TF SavedModel literal-name files: must be MODEL even when 0 bytes,
+		// independent of the size heuristic that would otherwise classify them as CODE.
+		{"feature_map literal", "feature_map", 0, FileTypeModel},
+		{"feature_map small", "feature_map", 1024, FileTypeModel},
+		{"checkpoint literal small", "checkpoint", 32, FileTypeModel},
+		// Negative: the literal patterns must not match same-stem-different-extension files.
+		{"feature_map.json is config", "feature_map.json", 1024, FileTypeConfig},
+		{"checkpoint.bin is model via *.bin", "checkpoint.bin", 1024, FileTypeModel},
 	}
 
 	assert := assert.New(t)

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="{{ .Language.Locale }}" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8fafc">
+  <title>{{ .Title }} · {{ .Site.Title }}</title>
+  <meta name="description" content="{{ .Description }}">
+  <meta property="og:title" content="{{ .Title }} · {{ .Site.Title }}">
+  <meta property="og:description" content="{{ .Description }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ .Permalink }}">
+  <link rel="canonical" href="{{ .Permalink }}">
+  {{ range .AllTranslations }}
+  <link rel="alternate" hreflang="{{ .Language.Locale }}" href="{{ .Permalink }}">
+  {{ end }}
+  {{ range first 1 .AllTranslations }}
+  <link rel="alternate" hreflang="x-default" href="{{ .Permalink }}">
+  {{ end }}
+  <link rel="icon" href="{{ "assets/mark.svg" | relURL }}" type="image/svg+xml">
+  <link rel="preload" href="{{ "assets/manrope.ttf" | relURL }}" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="{{ "styles.css" | relURL }}">
+  <script src="{{ "app.js" | relURL }}" defer></script>
+</head>
+<body{{ if eq .Type "docs" }} class="docs-page"{{ end }}>
+  <a class="skip-link" href="#main">{{ i18n "skipContent" }}</a>
+  {{ partial "header.html" . }}
+  {{ block "main" . }}{{ end }}
+  {{ partial "footer.html" . }}
+  <div class="toast" role="status" aria-live="polite"
+    data-copy-success="{{ i18n "copySuccess" }}"
+    data-copy-failure="{{ i18n "copyFailure" }}"></div>
+</body>
+</html>
