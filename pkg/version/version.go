@@ -16,9 +16,11 @@
 
 package version
 
+import "runtime"
+
 var (
 	GitVersion = "v0.0.1"
 	GitCommit  = "unknown"
-	Platform   = platform
+	Platform   = runtime.GOOS
 	BuildTime  = "unknown"
 )
