@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/modelpack/modctl/pkg/backend"
-	"github.com/modelpack/modctl/pkg/config"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/modelpack/modctl/pkg/backend"
+	"github.com/modelpack/modctl/pkg/config"
 )
 
 var pushConfig = config.NewPush()
@@ -48,10 +48,25 @@ var pushCmd = &cobra.Command{
 // init initializes push command.
 func init() {
 	flags := pushCmd.Flags()
-	flags.IntVar(&pushConfig.Concurrency, "concurrency", pushConfig.Concurrency, "specify the number of concurrent push operations")
+	flags.IntVar(
+		&pushConfig.Concurrency,
+		"concurrency",
+		pushConfig.Concurrency,
+		"specify the number of concurrent push operations",
+	)
 	flags.BoolVar(&pushConfig.PlainHTTP, "plain-http", false, "use plain HTTP instead of HTTPS")
-	flags.BoolVar(&pushConfig.Insecure, "insecure", false, "turning on this flag will disable TLS verification")
-	flags.BoolVar(&pushConfig.Nydusify, "nydusify", false, "[EXPERIMENTAL] nydusify the model artifact")
+	flags.BoolVar(
+		&pushConfig.Insecure,
+		"insecure",
+		false,
+		"turning on this flag will disable TLS verification",
+	)
+	flags.BoolVar(
+		&pushConfig.Nydusify,
+		"nydusify",
+		false,
+		"[EXPERIMENTAL] nydusify the model artifact",
+	)
 	flags.MarkHidden("nydusify")
 
 	if err := viper.BindPFlags(flags); err != nil {
