@@ -480,10 +480,10 @@ func InferFileType(filename string, fileSize int64) FileType {
 
 const (
 	// File size thresholds and workspace limits
-	WeightFileSizeThreshold int64 = 128 * humanize.MByte // 128MB - threshold for considering file as weight file
-	MaxSingleFileSize       int64 = 128 * humanize.GByte // 128GB - maximum size for a single file
-	MaxWorkspaceFileCount   int   = 2048                 // 2048 files - maximum number of files in workspace
-	MaxTotalWorkspaceSize   int64 = 8 * humanize.TByte   // 8TB - maximum total workspace size
+	WeightFileSizeThreshold int64 = 512 * humanize.MByte // 512MB - threshold for considering file as weight file
+	MaxSingleFileSize       int64 = 512 * humanize.GByte // 512GB - maximum size for a single file
+	MaxWorkspaceFileCount   int   = 4096                 // 4096 files - maximum number of files in workspace
+	MaxTotalWorkspaceSize   int64 = 32 * humanize.TByte  // 32TB - maximum total workspace size
 )
 
 // IsFileType checks if the filename matches any of the given patterns
