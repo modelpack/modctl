@@ -179,11 +179,14 @@ func (b *backend) Pull(ctx context.Context, target string, cfg *config.Pull) err
 		errs = append(errs, werr)
 		mu.Unlock()
 	}
-	if ctx.Err() != nil {
-		return fmt.Errorf("pull cancelled: %w", ctx.Err())
-	}
+	// Report layer errors first so the caller sees which layer failed; they
+	// include the cancellation error when ctx ended during a transfer or a
+	// retry backoff.
 	if len(errs) > 0 {
 		return fmt.Errorf("failed to pull blob to local: %w", errors.Join(errs...))
+	}
+	if ctx.Err() != nil {
+		return fmt.Errorf("pull cancelled: %w", ctx.Err())
 	}
 
 	logrus.Infof("pull: layers pulled [count: %d]", len(manifest.Layers))

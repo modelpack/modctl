@@ -130,11 +130,14 @@ func (b *backend) Push(ctx context.Context, target string, cfg *config.Push) err
 		errs = append(errs, werr)
 		mu.Unlock()
 	}
-	if ctx.Err() != nil {
-		return fmt.Errorf("push cancelled: %w", ctx.Err())
-	}
+	// Report layer errors first so the caller sees which layer failed; they
+	// include the cancellation error when ctx ended during a transfer or a
+	// retry backoff.
 	if len(errs) > 0 {
 		return fmt.Errorf("failed to push blob to remote: %w", errors.Join(errs...))
+	}
+	if ctx.Err() != nil {
+		return fmt.Errorf("push cancelled: %w", ctx.Err())
 	}
 
 	// copy the config.
