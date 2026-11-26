@@ -20,11 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"oras.land/oras-go/v2/registry/remote/errcode"
 )
 
@@ -36,6 +39,7 @@ func TestComputePerAttemptTimeout(t *testing.T) {
 		oneGB  = int64(1) << 30
 		tenGB  = int64(10) << 30
 		hundGB = int64(100) << 30
+		oneTB  = int64(1) << 40
 	)
 	tests := []struct {
 		name string
@@ -57,14 +61,22 @@ func TestComputePerAttemptTimeout(t *testing.T) {
 			tenGB,
 			time.Duration(tenGB/minThroughput*safetyFactor) * time.Second,
 		},
-		// 100 GB / 10 MB/s * 2 = 20480s ≈ 5.7h, still under the 8h ceiling
+		// 100 GB / 10 MB/s * 2 = 20480s ≈ 5.7h
 		{
-			"100 GB still under ceiling",
+			"100 GB scales linearly",
 			hundGB,
 			time.Duration(hundGB/minThroughput*safetyFactor) * time.Second,
 		},
-		// 200 GB hits ceiling
-		{"200 GB clamps to ceiling", 2 * hundGB, maxPerAttemptTimeout},
+		// No ceiling: 1 TB / 10 MB/s * 2 = 209715.2s ≈ 58h. A cap here would
+		// force very large layers to reach a higher throughput than smaller ones.
+		{
+			"1 TB scales linearly without a ceiling",
+			oneTB,
+			time.Duration(float64(oneTB) / minThroughput * safetyFactor * float64(time.Second)),
+		},
+		// Sizes whose timeout does not fit in time.Duration saturate instead
+		// of overflowing to a negative or wrapped value.
+		{"max int64 saturates", math.MaxInt64, time.Duration(math.MaxInt64)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -105,7 +117,36 @@ func TestIsRetryable(t *testing.T) {
 		{"EOF", errors.New("unexpected EOF"), true},
 		{"no route to host", errors.New("dial tcp: no route to host"), true},
 		{"closed network connection", errors.New("write: use of closed network connection"), true},
-		{"digest mismatch is permanent", errors.New("expected digest sha256:abc but got sha256:def"), false},
+		{
+			"grpc unavailable",
+			fmt.Errorf(
+				"failed to receive response: %w",
+				status.Error(codes.Unavailable, "dfdaemon is shutting down"),
+			),
+			true,
+		},
+		{
+			"http2 GOAWAY",
+			errors.New(
+				`http2: server sent GOAWAY and closed the connection; LastStreamID=1, ErrCode=NO_ERROR, debug=""`,
+			),
+			true,
+		},
+		{
+			"http2 stream error",
+			errors.New("stream error: stream ID 5; INTERNAL_ERROR; received from peer"),
+			true,
+		},
+		{
+			"grpc invalid argument is permanent",
+			status.Error(codes.InvalidArgument, "bad url"),
+			false,
+		},
+		{
+			"digest mismatch is permanent",
+			errors.New("expected digest sha256:abc but got sha256:def"),
+			false,
+		},
 		{"permission denied", errors.New("open /etc/foo: permission denied"), false},
 		{"no space left", errors.New("write /tmp/x: no space left on device"), false},
 		{"file exists", errors.New("link /a /b: file exists"), false},
@@ -384,6 +425,72 @@ func TestDo_PerAttemptTimeoutExhausts(t *testing.T) {
 	}
 }
 
+// --- Do: per-attempt timeout reported as a gRPC status is retried ---
+
+// gRPC converts a fired context deadline into a status error. errors.Is does
+// not match that status against context.DeadlineExceeded, so Do must detect
+// the per-attempt timeout from the attempt context, not from the error.
+func TestDo_PerAttemptTimeoutAsGRPCStatusTriggersRetry(t *testing.T) {
+	var calls int32
+	const succeededOn int32 = 3
+	err := Do(context.Background(), func(ctx context.Context) error {
+		n := atomic.AddInt32(&calls, 1)
+		if n < succeededOn {
+			<-ctx.Done()
+			// Same conversion grpc-go applies when the deadline fires in Recv.
+			return fmt.Errorf(
+				"failed to receive response: %w",
+				status.FromContextError(ctx.Err()).Err(),
+			)
+		}
+		return nil
+	}, DoOpts{
+		FileName: "d7y-slow",
+		Config: &Config{
+			MaxAttempts:       5,
+			PerAttemptTimeout: 30 * time.Millisecond,
+			InitialDelay:      1 * time.Millisecond,
+			MaxBackoff:        1 * time.Millisecond,
+			MaxJitter:         -1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Do returned %v, want success after retries", err)
+	}
+	if got := atomic.LoadInt32(&calls); got != succeededOn {
+		t.Errorf("calls = %d, want %d", got, succeededOn)
+	}
+}
+
+// When every attempt times out, the final error keeps both the
+// context.DeadlineExceeded marker and the original gRPC status.
+func TestDo_PerAttemptTimeoutAsGRPCStatusExhausts(t *testing.T) {
+	var calls int32
+	err := Do(context.Background(), func(ctx context.Context) error {
+		atomic.AddInt32(&calls, 1)
+		<-ctx.Done()
+		return status.FromContextError(ctx.Err()).Err()
+	}, DoOpts{
+		FileName: "d7y-always-times-out",
+		Config: &Config{
+			MaxAttempts:       3,
+			PerAttemptTimeout: 20 * time.Millisecond,
+			InitialDelay:      1 * time.Millisecond,
+			MaxBackoff:        1 * time.Millisecond,
+			MaxJitter:         -1,
+		},
+	})
+	if got := atomic.LoadInt32(&calls); got != 3 {
+		t.Errorf("calls = %d, want 3", got)
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("err = %v, want it to wrap context.DeadlineExceeded", err)
+	}
+	if got := status.Code(err); got != codes.DeadlineExceeded {
+		t.Errorf("status.Code(err) = %v, want %v", got, codes.DeadlineExceeded)
+	}
+}
+
 // --- Do: parent context cancellation aborts retries ---
 
 func TestDo_ParentContextCancel(t *testing.T) {
@@ -527,7 +634,7 @@ func TestDo_PerAttemptTimeoutDisabled(t *testing.T) {
 
 func TestDo_PerAttemptTimeoutDerivedFromSize(t *testing.T) {
 	var seenTimeout time.Duration
-	const size = int64(50) << 30 // 50 GB → > floor, < ceiling
+	const size = int64(50) << 30 // 50 GB → above the floor
 	err := Do(context.Background(), func(ctx context.Context) error {
 		dl, ok := ctx.Deadline()
 		if !ok {
@@ -602,7 +709,11 @@ func TestDo_OnRetryNotInvokedAfterFinalAttempt(t *testing.T) {
 	}
 	// One callback per inter-attempt backoff: maxAttempts-1, never maxAttempts.
 	if got := atomic.LoadInt32(&onRetryCalls); got != maxAttempts-1 {
-		t.Errorf("OnRetry calls = %d, want %d (no callback after the final failed attempt)", got, maxAttempts-1)
+		t.Errorf(
+			"OnRetry calls = %d, want %d (no callback after the final failed attempt)",
+			got,
+			maxAttempts-1,
+		)
 	}
 }
 

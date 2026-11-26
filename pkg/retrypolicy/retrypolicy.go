@@ -35,6 +35,7 @@ package retrypolicy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"regexp"
@@ -65,9 +66,8 @@ const (
 
 	// minThroughput is the assumed worst-case usable throughput when
 	// computing per-attempt timeouts. Networks slower than this are out of
-	// scope; a programmatic embedder can raise the ceiling by setting
-	// Config.PerAttemptTimeout explicitly (modctl does not expose this as a
-	// CLI flag today).
+	// scope; a programmatic embedder can set Config.PerAttemptTimeout
+	// explicitly (modctl does not expose this as a CLI flag today).
 	minThroughput = 10 * (1 << 20) // 10 MiB/s
 
 	// safetyFactor multiplies the ideal transfer time when sizing
@@ -79,11 +79,6 @@ const (
 	// small blobs (manifests, configs) still need enough time for TLS,
 	// auth, and slow-start.
 	minPerAttemptTimeout = 5 * time.Minute
-
-	// maxPerAttemptTimeout is the ceiling. Very large files (e.g. 100GB+
-	// LLM shards) will still hit this cap, after which the user should
-	// override via Config.PerAttemptTimeout.
-	maxPerAttemptTimeout = 8 * time.Hour
 )
 
 // Config holds retry parameters for programmatic embedders. modctl does not
@@ -141,6 +136,10 @@ type DoOpts struct {
 // MaxAttempts and exponential backoff capped at MaxBackoff. The parent ctx
 // is honored for user-initiated cancellation only — its expiry is not
 // coupled to per-attempt transfer time.
+//
+// There is no overall time budget. The worst case for one call is MaxAttempts
+// times the per-attempt timeout, plus the backoff sleeps; the parent ctx is
+// the only overall bound.
 func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) error {
 	cfg := opts.Config
 	if cfg == nil {
@@ -165,7 +164,22 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 			attemptCtx, cancel = context.WithTimeout(ctx, perAttemptTimeout)
 			defer cancel()
 		}
-		return fn(attemptCtx)
+		err := fn(attemptCtx)
+		// Detect a fired per-attempt deadline from the attempt context, not
+		// from the error: some transports (e.g. gRPC on the Dragonfly paths)
+		// convert it into their own status error, which errors.Is does not
+		// match against context.DeadlineExceeded. Mark it so RetryIf retries.
+		if err != nil && ctx.Err() == nil &&
+			errors.Is(attemptCtx.Err(), context.DeadlineExceeded) &&
+			!errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf(
+				"per-attempt timeout %s: %w: %w",
+				perAttemptTimeout,
+				context.DeadlineExceeded,
+				err,
+			)
+		}
+		return err
 	}
 
 	maxAttempts := cfg.MaxAttempts
@@ -274,15 +288,16 @@ func Do(ctx context.Context, fn func(ctx context.Context) error, opts DoOpts) er
 
 // ComputePerAttemptTimeout estimates a single-attempt transfer deadline from
 // file size, assuming minThroughput as a worst-case-but-usable rate and
-// applying safetyFactor for headroom. The result is clamped to
-// [minPerAttemptTimeout, maxPerAttemptTimeout].
+// applying safetyFactor for headroom. The result has a floor of
+// minPerAttemptTimeout and no ceiling: it stays linear in size, so the
+// throughput a transfer needs to finish in time does not grow with size.
 //
 // Examples (rounded):
 //
 //	1 GB   →  5 min   (floor)
 //	10 GB  → 34 min
-//	70 GB  →  ~4 h
-//	140 GB →  ~8 h    (ceiling)
+//	100 GB → ~5.7 h
+//	1 TB   →  ~58 h
 //
 // fileSize <= 0 returns minPerAttemptTimeout.
 func ComputePerAttemptTimeout(fileSize int64) time.Duration {
@@ -290,12 +305,14 @@ func ComputePerAttemptTimeout(fileSize int64) time.Duration {
 		return minPerAttemptTimeout
 	}
 	secs := float64(fileSize) / float64(minThroughput) * safetyFactor
+	// Saturate rather than overflow time.Duration (int64 nanoseconds) for
+	// absurd sizes, e.g. from a corrupt descriptor.
+	if secs >= float64(math.MaxInt64/int64(time.Second)) {
+		return time.Duration(math.MaxInt64)
+	}
 	t := time.Duration(secs * float64(time.Second))
 	if t < minPerAttemptTimeout {
 		return minPerAttemptTimeout
-	}
-	if t > maxPerAttemptTimeout {
-		return maxPerAttemptTimeout
 	}
 	return t
 }
@@ -335,15 +352,19 @@ var transientErrSubstrings = []string{
 	"server misbehaving", // transient DNS resolution failure
 	"temporary failure",  // e.g. "temporary failure in name resolution"
 	"EOF",                // stream truncated/dropped mid-transfer
+	"code = Unavailable", // gRPC status, e.g. from the Dragonfly daemon
+	"GOAWAY",             // HTTP/2 connection shut down by the peer
+	"stream error",       // HTTP/2 stream reset
 }
 
 // IsRetryable reports whether err is a transient failure worth retrying.
 //
 // It uses an allowlist: only recognized-transient errors (5xx/408/429 HTTP
-// responses, or a known network/transport failure) are retried. Everything
-// else — including unclassified errors — is treated as permanent. Retrying a
-// deterministic failure (bad digest, invalid manifest, local I/O error) would
-// otherwise burn the full per-attempt timeout on every attempt for no benefit.
+// responses, gRPC Unavailable, or a known network/transport failure) are
+// retried. Everything else — including unclassified errors — is treated as
+// permanent. Retrying a deterministic failure (bad digest, invalid manifest,
+// local I/O error) would otherwise burn the full per-attempt timeout on every
+// attempt for no benefit.
 //
 // context.Canceled and bare context.DeadlineExceeded are not retryable here:
 // the Do loop independently re-classifies a per-attempt timeout while the
