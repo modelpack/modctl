@@ -31,11 +31,12 @@ import (
 
 // listCmd represents the modctl command for list.
 var listCmd = &cobra.Command{
-	Use:               "ls",
-	Short:             "List will lists the current built model artifacts from local storage.",
-	Args:              cobra.NoArgs,
-	DisableAutoGenTag: true,
-	SilenceUsage:      true,
+	Use:                "ls",
+	Short:              "List model artifacts currently stored locally.",
+	Args:               cobra.NoArgs,
+	DisableAutoGenTag:  true,
+	SilenceUsage:       true,
+	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runList(cmd.Context())
 	},

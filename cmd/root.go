@@ -40,7 +40,7 @@ var logFile *os.File
 // rootCmd represents the modctl command.
 var rootCmd = &cobra.Command{
 	Use:                "modctl",
-	Short:              "A command line tool for managing artifact bundled based on the ModelPack Specification",
+	Short:              "A command-line tool for managing artifacts bundled according to the ModelPack Specification.",
 	Args:               cobra.MaximumNArgs(1),
 	DisableAutoGenTag:  true,
 	SilenceUsage:       true,
