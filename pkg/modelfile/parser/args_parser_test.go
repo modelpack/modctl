@@ -33,8 +33,17 @@ func TestParseStringArgs(t *testing.T) {
 		{[]string{"foo"}, 1, 2, false, "foo"},
 		{[]string{"bar"}, 3, 4, false, "bar"},
 		{[]string{}, 5, 6, true, ""},
-		{[]string{"foo", "bar"}, 7, 8, true, ""},
+		{[]string{"foo", "bar"}, 7, 8, false, "foo bar"}, // Now handles multiple args by joining
 		{[]string{""}, 9, 10, true, ""},
+		// Additional test cases for spaces in file paths
+		{[]string{"path", "with", "spaces/file.json"}, 11, 12, false, "path with spaces/file.json"},
+		{[]string{"example", "workflows_Wan2.1/image_to_video_wan_480p_example.json"}, 13, 14, false, "example workflows_Wan2.1/image_to_video_wan_480p_example.json"},
+		// Test cases for whitespace handling
+		{[]string{" "}, 15, 16, true, ""},                                               // Whitespace-only argument should be rejected
+		{[]string{"", ""}, 17, 18, true, ""},                                            // Multiple empty string arguments should be rejected
+		{[]string{" a "}, 19, 20, false, " a "},                                         // Arguments with leading/trailing spaces should be preserved
+		{[]string{"  ", "   "}, 21, 22, true, ""},                                       // Multiple whitespace-only arguments should be rejected
+		{[]string{" path ", "with", " spaces "}, 23, 24, false, " path  with  spaces "}, // Mixed whitespace should be preserved
 	}
 
 	assert := assert.New(t)
