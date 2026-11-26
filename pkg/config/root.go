@@ -17,6 +17,7 @@
 package config
 
 import (
+	"os"
 	"os/user"
 	"path/filepath"
 )
@@ -31,17 +32,35 @@ type Root struct {
 }
 
 func NewRoot() (*Root, error) {
-	user, err := user.Current()
+	homeDir, err := userHomeDir()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Root{
-		StorageDir:      filepath.Join(user.HomeDir, ".modctl"),
+		StorageDir:      filepath.Join(homeDir, ".modctl"),
 		Pprof:           false,
 		PprofAddr:       "localhost:6060",
 		DisableProgress: false,
-		LogDir:          filepath.Join(user.HomeDir, ".modctl/logs"),
+		LogDir:          filepath.Join(homeDir, ".modctl/logs"),
 		LogLevel:        "info",
 	}, nil
+}
+
+// userHomeDir returns the home directory of the current user. It prefers
+// os.UserHomeDir, which honors $HOME (%USERPROFILE% on Windows), so that an
+// overridden home directory is respected. os/user.Current queries the user
+// database, which may ignore $HOME, so it is only used as a fallback when the
+// environment variable is not set.
+func userHomeDir() (string, error) {
+	if dir, err := os.UserHomeDir(); err == nil {
+		return dir, nil
+	}
+
+	u, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+
+	return u.HomeDir, nil
 }
