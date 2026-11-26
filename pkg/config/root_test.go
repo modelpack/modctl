@@ -39,7 +39,9 @@ func TestNewRootRespectsHomeEnv(t *testing.T) {
 
 func TestNewRootFallsBackToCurrentUser(t *testing.T) {
 	u, err := user.Current()
-	require.NoError(t, err)
+	if err != nil {
+		t.Skipf("current user is not resolvable: %v", err)
+	}
 
 	t.Setenv("HOME", "")
 	t.Setenv("USERPROFILE", "")
